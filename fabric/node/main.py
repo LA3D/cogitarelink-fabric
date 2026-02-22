@@ -9,6 +9,7 @@ OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
 SHAPES_DIR = pathlib.Path(os.environ.get("SHAPES_DIR", "/app/shapes"))
 SPARQL_DIR = pathlib.Path(os.environ.get("SPARQL_DIR", "/app/sparql"))
+ONTOLOGY_DIR = pathlib.Path(os.environ.get("ONTOLOGY_DIR", "/app/ontology"))
 # Phase 1: unauthenticated — gated by VC-based access control in Phase 2 (D13, D19)
 SPARQL_UPDATE_ENABLED = os.environ.get("SPARQL_UPDATE_ENABLED", "true").lower() == "true"
 
@@ -22,7 +23,8 @@ _VOID_TURTLE = """\
     dct:title "cogitarelink-fabric node"^^xsd:string ;
     void:sparqlEndpoint <{base}/sparql> ;
     void:vocabulary <http://www.w3.org/ns/sosa/> ;
-    void:vocabulary <http://www.w3.org/2006/time#> .
+    void:vocabulary <http://www.w3.org/2006/time#> ;
+    dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> .
 """
 
 _VOID_JSONLD = """\
@@ -38,7 +40,8 @@ _VOID_JSONLD = """\
   "void:vocabulary": [
     {{ "@id": "http://www.w3.org/ns/sosa/" }},
     {{ "@id": "http://www.w3.org/2006/time#" }}
-  ]
+  ],
+  "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }}
 }}
 """
 
@@ -74,6 +77,14 @@ async def well_known_void(request: Request):
         content=_VOID_TURTLE.format(base=NODE_BASE),
         media_type="text/turtle",
     )
+
+
+@app.get("/.well-known/profile")
+async def well_known_profile():
+    profile_file = ONTOLOGY_DIR / "fabric-core-profile.ttl"
+    if not profile_file.exists():
+        raise HTTPException(status_code=404, detail="Core profile not found")
+    return PlainTextResponse(content=profile_file.read_text(), media_type="text/turtle")
 
 
 @app.get("/entity/{entity_id}")

@@ -1,0 +1,85 @@
+# Fabric Core Profile — PROF profile document (D7, D9)
+# Defines what a conforming fabric node must provide.
+# Nodes declare dct:conformsTo <fabric:CoreProfile> in their VoID SD.
+
+@prefix prof:   <http://www.w3.org/ns/dx/prof/> .
+@prefix role:   <http://www.w3.org/ns/dx/prof/role/> .
+@prefix fabric: <https://w3id.org/cogitarelink/fabric#> .
+@prefix dct:    <http://purl.org/dc/terms/> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:    <http://www.w3.org/2002/07/owl#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+fabric:CoreProfile
+    a prof:Profile, owl:NamedIndividual ;
+    rdfs:label "Fabric Core Profile"@en ;
+    dct:description "Shared PROF profile for cogitarelink-fabric nodes. Specifies required .well-known/ artifacts, TBox cache ontologies, standard SHACL shapes, agent navigation guidance, and SPARQL examples."@en ;
+    prof:isProfileOf <http://www.w3.org/TR/void/> ;
+    dct:created "2026-02-22"^^xsd:date ;
+
+    # L1 — Specification: required .well-known/ endpoints
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "Required .well-known/ endpoints" ;
+        dct:description "Conforming fabric nodes MUST serve: .well-known/void (VoID SD), .well-known/profile (this CoreProfile), .well-known/shacl (endpoint SHACL shapes), .well-known/sparql-examples (SIB-pattern SPARQL examples)." ;
+        prof:hasRole role:specification ;
+    ] ;
+
+    # L2 — TBox cache: required ontologies
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "SOSA ontology" ;
+        dct:description "W3C SOSA — core observation/sampling classes and properties." ;
+        prof:hasRole role:schema ;
+        prof:hasArtifact <http://www.w3.org/ns/sosa/> ;
+        dct:format <https://www.iana.org/assignments/media-types/text/turtle> ;
+    ] ;
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "OWL-Time ontology" ;
+        dct:description "W3C OWL-Time — temporal entities and relations." ;
+        prof:hasRole role:schema ;
+        prof:hasArtifact <http://www.w3.org/2006/time#> ;
+        dct:format <https://www.iana.org/assignments/media-types/text/turtle> ;
+    ] ;
+
+    # L2 — Standard SHACL shapes
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "SOSA SHACL shapes v1" ;
+        dct:description "Standard SHACL shapes for SOSA observation data. Nodes load into /shapes/sosa-v1 named graph." ;
+        prof:hasRole role:constraints ;
+        prof:hasArtifact <https://w3id.org/cogitarelink/fabric/shapes/sosa-v1> ;
+        dct:format <https://www.iana.org/assignments/media-types/text/turtle> ;
+    ] ;
+
+    # L3 — Endpoint-specific SHACL shapes served at .well-known/shacl
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "Endpoint SHACL shapes" ;
+        dct:description "Endpoint-specific SHACL 1.2 shapes with sh:agentInstruction. Served at .well-known/shacl." ;
+        prof:hasRole role:constraints ;
+        dct:format <https://www.iana.org/assignments/media-types/text/turtle> ;
+    ] ;
+
+    # L4 — SPARQL examples
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "SPARQL examples" ;
+        dct:description "SIB-pattern SPARQL examples (spex:SPARQLExecutable). Served at .well-known/sparql-examples." ;
+        prof:hasRole role:example ;
+        dct:format <https://www.iana.org/assignments/media-types/text/turtle> ;
+    ] ;
+
+    # Agent navigation guidance
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "Agent navigation guidance" ;
+        dct:description """Progressive disclosure for RLM agents:
+1. GET .well-known/void → VoID SD (L1: endpoint, vocabularies, conformsTo)
+2. GET .well-known/profile → this CoreProfile (L2: required ontologies + shapes)
+3. GET .well-known/shacl → endpoint SHACL shapes (L3: data constraints + sh:agentInstruction)
+4. GET .well-known/sparql-examples → SPARQL examples (L4: query patterns)
+Entity URIs: https://{node}/entity/{uuidv7} (D11). Dereferenceable via GET.""" ;
+        prof:hasRole role:guidance ;
+    ] .
