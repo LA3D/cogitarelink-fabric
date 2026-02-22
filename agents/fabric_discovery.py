@@ -2,6 +2,10 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
 
+import httpx
+from rdflib import Graph, Namespace
+from rdflib.namespace import RDF, RDFS, DCTERMS
+
 
 @dataclass
 class ShapeSummary:
@@ -63,3 +67,109 @@ class FabricEndpoint:
                 lines.append(f"    {sparql_line}")
 
         return "\n".join(lines)
+
+
+# --- Namespaces -----------------------------------------------------------
+
+VOID = Namespace("http://rdfs.org/ns/void#")
+SH = Namespace("http://www.w3.org/ns/shacl#")
+SPEX = Namespace("https://purl.expasy.org/sparql-examples/ontology#")
+SDO = Namespace("https://schema.org/")
+
+# --- Helpers ---------------------------------------------------------------
+
+_COMPACT_PREFIXES = {
+    "http://www.w3.org/ns/sosa/": "sosa:",
+    "http://www.w3.org/2006/time#": "time:",
+    "http://www.w3.org/ns/shacl#": "sh:",
+}
+
+
+def _compact(iri: str) -> str:
+    for ns, prefix in _COMPACT_PREFIXES.items():
+        if iri.startswith(ns):
+            return prefix + iri[len(ns):]
+    return iri
+
+
+def _fetch(url: str, accept: str = "text/turtle") -> str:
+    r = httpx.get(url, headers={"Accept": accept}, timeout=10.0)
+    r.raise_for_status()
+    return r.text
+
+
+def _parse_void(ttl: str) -> tuple[str, list[str], str]:
+    g = Graph()
+    g.parse(data=ttl, format="turtle")
+    sparql_url = ""
+    vocabs: list[str] = []
+    conforms = ""
+    for s in g.subjects(RDF.type, VOID.Dataset):
+        for o in g.objects(s, VOID.sparqlEndpoint):
+            sparql_url = str(o)
+        for o in g.objects(s, VOID.vocabulary):
+            vocabs.append(str(o))
+        for o in g.objects(s, DCTERMS.conformsTo):
+            conforms = str(o)
+    return sparql_url, vocabs, conforms
+
+
+def _parse_shapes(ttl: str) -> list[ShapeSummary]:
+    g = Graph()
+    g.parse(data=ttl, format="turtle")
+    shapes = []
+    for s in g.subjects(RDF.type, SH.NodeShape):
+        name = str(s).rsplit("/", 1)[-1].rsplit("#", 1)[-1]
+        tc = ""
+        for o in g.objects(s, SH.targetClass):
+            tc = _compact(str(o))
+        instr = None
+        for o in g.objects(s, SH.agentInstruction):
+            instr = str(o)
+        props = []
+        for prop_node in g.objects(s, SH.property):
+            for path in g.objects(prop_node, SH.path):
+                props.append(_compact(str(path)))
+        shapes.append(ShapeSummary(name=name, target_class=tc,
+                                   agent_instruction=instr, properties=props))
+    return shapes
+
+
+def _parse_examples(ttl: str) -> list[ExampleSummary]:
+    g = Graph()
+    g.parse(data=ttl, format="turtle")
+    examples = []
+    for s in g.subjects(RDF.type, SPEX.SPARQLExecutable):
+        label = str(g.value(s, RDFS.label) or "")
+        comment = str(g.value(s, RDFS.comment) or "")
+        sparql = str(g.value(s, SH.select) or "")
+        target = str(g.value(s, SDO.target) or "")
+        if sparql:
+            examples.append(ExampleSummary(label=label, comment=comment,
+                                           sparql=sparql, target=target))
+    return examples
+
+
+# --- Public API ------------------------------------------------------------
+
+def discover_endpoint(url: str) -> FabricEndpoint:
+    """Fetch all four D9 layers from a fabric node's .well-known/ endpoints."""
+    base = url.rstrip("/")
+
+    void_ttl = _fetch(f"{base}/.well-known/void")
+    sparql_url, vocabs, conforms = _parse_void(void_ttl)
+
+    profile_ttl = _fetch(f"{base}/.well-known/profile")
+    shapes_ttl = _fetch(f"{base}/.well-known/shacl")
+    examples_ttl = _fetch(f"{base}/.well-known/sparql-examples")
+
+    shapes = _parse_shapes(shapes_ttl)
+    examples = _parse_examples(examples_ttl)
+
+    return FabricEndpoint(
+        base=base, sparql_url=sparql_url,
+        void_ttl=void_ttl, profile_ttl=profile_ttl,
+        shapes_ttl=shapes_ttl, examples_ttl=examples_ttl,
+        vocabularies=vocabs, conforms_to=conforms,
+        shapes=shapes, examples=examples,
+    )
