@@ -1,0 +1,42 @@
+services:
+  oxigraph:
+    image: ghcr.io/oxigraph/oxigraph:latest
+    ports:
+      - "7878:7878"
+    volumes:
+      - oxigraph-data:/data
+    command: serve --location /data --bind 0.0.0.0:7878
+    healthcheck:
+      # Distroless image — use oxigraph binary directly (LMDB supports concurrent readers)
+      test: ["CMD", "/usr/local/bin/oxigraph", "query", "--location", "/data",
+             "--query", "SELECT * WHERE {} LIMIT 1", "--results-format", "tsv"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  fabric-node:
+    build: ./fabric/node
+    ports:
+      - "8080:8080"
+    environment:
+      OXIGRAPH_URL: http://oxigraph:7878
+    volumes:
+      - ./shapes:/app/shapes:ro
+    depends_on:
+      oxigraph:
+        condition: service_healthy
+
+  credo-sidecar:
+    build: ./fabric/credo
+    platform: linux/amd64      # Apple Silicon Rosetta (D8)
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: "3000"
+      WALLET_KEY: "fabric-dev-key-change-in-production"
+    depends_on:
+      - fabric-node
+
+volumes:
+  oxigraph-data:

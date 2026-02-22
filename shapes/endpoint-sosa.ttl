@@ -1,0 +1,51 @@
+# Endpoint-specific SHACL 1.2 shapes for cogitarelink-fabric node
+# Layer 3 (D9): endpoint SHACL — constrains observations stored at this node.
+# sh:agentInstruction follows Experiment 9 pattern: machine-readable guidance
+# for RLM agents navigating this endpoint.
+
+@prefix sh:    <http://www.w3.org/ns/shacl#> .
+@prefix sosa:  <http://www.w3.org/ns/sosa/> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix dct:   <http://purl.org/dc/terms/> .
+@prefix fabric: <https://w3id.org/cogitarelink/fabric#> .
+
+# --- Metadata -----------------------------------------------------------
+
+<http://localhost:8080/.well-known/shacl>
+    dct:title "cogitarelink-fabric node SHACL shapes" ;
+    dct:description "Endpoint-specific constraints for SOSA observations at this node." .
+
+# --- sosa:Observation shape ---------------------------------------------
+
+fabric:ObservationShape
+    a sh:NodeShape ;
+    sh:targetClass sosa:Observation ;
+    dct:description "Constraints on SOSA Observations stored in /graph/observations." ;
+
+    # Agent instruction: how an RLM agent should query this endpoint
+    sh:agentInstruction """To retrieve observations: POST /sparql with
+SELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>
+WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }
+ORDER BY DESC(?time) LIMIT 100""" ;
+
+    # Required properties
+    sh:property [
+        sh:path sosa:hasSimpleResult ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:description "Scalar measurement result." ;
+    ] ;
+
+    sh:property [
+        sh:path sosa:resultTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:dateTime ;
+        sh:description "ISO-8601 timestamp when the result was produced." ;
+    ] ;
+
+    sh:property [
+        sh:path sosa:observedProperty ;
+        sh:maxCount 1 ;
+        sh:description "The property that was observed (optional but recommended)." ;
+    ] .
