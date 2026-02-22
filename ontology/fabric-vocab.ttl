@@ -1,5 +1,14 @@
 # Cogitarelink Fabric Vocabulary
+#
+# Five Stars of Linked Data Vocabulary Use (Janowicz et al. 2014 — co-authored C. Vardeman II):
+#   ★     Human-readable documentation dereferenceable at foaf:page + rdfs:seeAlso
+#   ★★    Machine-readable OWL 2 DL axiomatization (this file)
+#   ★★★   Linked TO other vocabularies — rdfs:subClassOf + voaf:reliesOn (PROV-O, DCAT, SKOS, PROF, VC)
+#   ★★★★  Machine-readable metadata — voaf:Vocabulary + dct: + vann: + voaf:classNumber + dct:bibliographicCitation
+#   ★★★★★ Linked BY other vocabularies — aspirational; LOV registration pending v0.2.0
+#
 # FAIR vocabulary per Cox et al. 2021 "Ten Simple Rules for Making a Vocabulary FAIR"
+#
 # Namespace: https://w3id.org/cogitarelink/fabric#
 # Prefix: fabric:
 
@@ -12,22 +21,26 @@
 @prefix dct:     <http://purl.org/dc/terms/> .
 @prefix dcat:    <http://www.w3.org/ns/dcat#> .
 @prefix vann:    <http://purl.org/vocab/vann/> .
-@prefix voaf:    <http://labs.mondeca.com/vocab/voaf#> .
+@prefix voaf:    <http://purl.org/vocommons/voaf#> .
 @prefix prov:    <http://www.w3.org/ns/prov#> .
 @prefix prof:    <http://www.w3.org/ns/dx/prof/> .
 @prefix cred:    <https://www.w3.org/2018/credentials#> .
+@prefix foaf:    <http://xmlns.com/foaf/0.1/> .
 @prefix orcid:   <https://orcid.org/> .
 @prefix ror:     <https://ror.org/> .
 
+
 # ============================================================
-# ONTOLOGY HEADER — FAIR metadata (Rules 2, 4, 5, 7, 10)
+# ONTOLOGY HEADER
+# ★     rdfs:seeAlso + foaf:page → human-readable docs
+# ★★★★  voaf:Vocabulary + dct: + vann: + voaf:reliesOn + voaf:classNumber
 # ============================================================
 
 <https://w3id.org/cogitarelink/fabric>
     a owl:Ontology, voaf:Vocabulary ;
 
     dct:title         "Cogitarelink Fabric Vocabulary"@en ;
-    dct:description   "Vocabulary for federated knowledge fabric infrastructure: node conformance, agent roles, authorization, HitL approval workflow, and nanopublication status. Designed for RLM agents navigating self-describing SPARQL endpoints with DID/VC identity."@en ;
+    dct:description   "Vocabulary for federated knowledge fabric infrastructure: node conformance, agent roles, authorization, HitL approval workflow, and nanopublication status. Designed for RLM agents navigating self-describing SPARQL endpoints with DID/VC identity. Follows the Five Stars of Linked Data Vocabulary Use (Janowicz et al. 2014) and the Ten Simple Rules for FAIR Vocabularies (Cox et al. 2021)."@en ;
 
     dct:creator       orcid:0000-0003-4091-6059 ;
     dct:publisher     ror:00mkhxb43 ;
@@ -42,8 +55,24 @@
     vann:preferredNamespacePrefix  "fabric" ;
     vann:preferredNamespaceUri     "https://w3id.org/cogitarelink/fabric#" ;
 
+    # ★ — human-readable documentation
     rdfs:seeAlso      <https://github.com/LA3D/cogitarelink-fabric> ;
-    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    foaf:page         <https://la3d.github.io/cogitarelink-fabric/ontology/fabric> ;
+
+    # ★★★ — voaf:reliesOn declares vocabulary-level dependencies (machine-readable)
+    voaf:reliesOn     <http://www.w3.org/ns/prov-o#> ;
+    voaf:reliesOn     <http://www.w3.org/ns/dcat#> ;
+    voaf:reliesOn     <http://www.w3.org/2004/02/skos/core#> ;
+    voaf:reliesOn     <http://www.w3.org/ns/dx/prof/> ;
+    voaf:reliesOn     <https://www.w3.org/2018/credentials#> ;
+
+    # ★★★★ — VOAF term counts + bibliographic citations
+    voaf:classNumber      "15"^^xsd:integer ;
+    voaf:propertyNumber   "11"^^xsd:integer ;
+
+    dct:bibliographicCitation
+        "Janowicz, K., Hitzler, P., Adams, B., Kolas, D., Vardeman II, C. (2014). Five Stars of Linked Data Vocabulary Use. Semantic Web, 5(3), 173-176. https://doi.org/10.3233/SW-130175"@en ,
+        "Cox, S. J. D., et al. (2021). Ten Simple Rules for Making a Vocabulary FAIR. PLOS Computational Biology, 17(6), e1009041. https://doi.org/10.1371/journal.pcbi.1009041"@en ;
 
     dcat:keyword      "knowledge-fabric"@en, "sparql"@en, "rdf"@en,
                       "did"@en, "verifiable-credentials"@en,
@@ -60,10 +89,14 @@
 
 # ============================================================
 # MODULE 1 — CORE INFRASTRUCTURE
+# ★★★ alignments: dcat:DataService, prov:Agent, skos:Concept
 # ============================================================
 
 fabric:FabricNode
     a owl:Class ;
+    # ★★★ — linked to DCAT (data service) and PROV-O (fabric nodes act as provenance agents)
+    rdfs:subClassOf   dcat:DataService ;
+    rdfs:subClassOf   prov:Agent ;
     rdfs:label        "Fabric Node"@en ;
     skos:definition   "A knowledge fabric node: a SPARQL 1.2 HTTP endpoint conforming to fabric:CoreProfile, exposing four-layer KR self-description at .well-known/ (VoID, SHACL, SPARQL examples, SSSOM mappings), and holding a DID/VC identity via a Credo sidecar."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
@@ -78,25 +111,32 @@ fabric:CoreProfile
 
 fabric:ApprovalStatus
     a owl:Class ;
+    # ★★★ — controlled vocabulary: each instance is a SKOS concept
+    rdfs:subClassOf   skos:Concept ;
     rdfs:label        "Approval Status"@en ;
-    skos:definition   "Controlled vocabulary class for HitL workflow states of a FabricApprovalRequest."@en ;
+    skos:definition   "Controlled vocabulary class for HitL workflow states of a FabricApprovalRequest. Instances are members of fabric:ApprovalStatusScheme."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
 fabric:PublicationStatus
     a owl:Class ;
+    # ★★★ — controlled vocabulary: each instance is a SKOS concept
+    rdfs:subClassOf   skos:Concept ;
     rdfs:label        "Publication Status"@en ;
-    skos:definition   "Controlled vocabulary class for the draft/submission/publication lifecycle of a nanopublication assembled from a fabric named graph."@en ;
+    skos:definition   "Controlled vocabulary class for the draft/submission/publication lifecycle of a nanopublication assembled from a fabric named graph. Instances are members of fabric:PublicationStatusScheme."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
 
 # ============================================================
 # MODULE 2 — AGENT ROLES (D14)
+# ★★★ alignment: prov:Role
 # ============================================================
 
 fabric:AgentRole
     a owl:Class ;
+    # ★★★ — agent roles participate in PROV-O qualified associations as prov:Role
+    rdfs:subClassOf   prov:Role ;
     rdfs:label        "Agent Role"@en ;
     skos:definition   "Abstract superclass for roles an LLM-based agent may hold within a fabric deployment. Roles govern which graphs an agent may read or write, and under what credential conditions."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
@@ -161,6 +201,7 @@ fabric:DevelopmentAgentRole
 
 # ============================================================
 # MODULE 3 — AUTHORIZATION VOCABULARY (D13, D15, D19)
+# ★★★ alignments: cred:VerifiableCredential (already), prov:wasAttributedTo
 # ============================================================
 
 fabric:AgentAuthorizationCredential
@@ -214,6 +255,8 @@ fabric:permittedGraphs
 
 fabric:delegatedBy
     a owl:ObjectProperty ;
+    # ★★★ — delegation is a form of attribution in PROV-O
+    rdfs:subPropertyOf  prov:wasAttributedTo ;
     rdfs:label        "delegated by"@en ;
     skos:definition   "The IRI of the human principal (ORCID or DID) who issued a FabricDelegationCredential to the agent."@en ;
     rdfs:domain       fabric:FabricDelegationCredential ;
@@ -250,10 +293,13 @@ fabric:conformanceCheckDate
 
 # ============================================================
 # MODULE 4 — HITL WORKFLOW (D19)
+# ★★★ alignment: prov:Entity (approval requests are tracked provenance entities)
 # ============================================================
 
 fabric:FabricApprovalRequest
     a owl:Class ;
+    # ★★★ — approval requests are provenance entities tracked across /graph/pending → /graph/approvals
+    rdfs:subClassOf   prov:Entity ;
     rdfs:label        "Fabric Approval Request"@en ;
     skos:definition   "A pending write request written by an IngestCurator to /graph/pending, awaiting human review before the targeted graph write is accepted. Carries the requesting agent DID, target graph, and current ApprovalStatus."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
@@ -295,57 +341,90 @@ fabric:approvedAt
 
 
 # ============================================================
-# MODULE 5 — STATUS VOCABULARIES (individuals)
+# MODULE 5 — STATUS VOCABULARIES
+# ★★★ alignment: SKOS ConceptSchemes for controlled vocabularies
 # ============================================================
 
-## ApprovalStatus individuals
+# — ConceptSchemes ————————————————————————————————————————
+
+fabric:ApprovalStatusScheme
+    a skos:ConceptScheme, owl:NamedIndividual ;
+    rdfs:label        "Approval Status Scheme"@en ;
+    skos:definition   "SKOS ConceptScheme for the controlled vocabulary of HitL workflow states."@en ;
+    skos:hasTopConcept  fabric:PendingHumanReview, fabric:Approved, fabric:Rejected ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:PublicationStatusScheme
+    a skos:ConceptScheme, owl:NamedIndividual ;
+    rdfs:label        "Publication Status Scheme"@en ;
+    skos:definition   "SKOS ConceptScheme for the controlled vocabulary of nanopublication lifecycle states."@en ;
+    skos:hasTopConcept  fabric:Draft, fabric:Submitted, fabric:Published ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+# — ApprovalStatus individuals ————————————————————————————
 
 fabric:PendingHumanReview
     a fabric:ApprovalStatus, owl:NamedIndividual ;
+    skos:inScheme     fabric:ApprovalStatusScheme ;
     rdfs:label        "Pending Human Review"@en ;
+    skos:prefLabel    "Pending Human Review"@en ;
     skos:definition   "A FabricApprovalRequest that has been submitted to /graph/pending and is awaiting review by an authorized human reviewer."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
 fabric:Approved
     a fabric:ApprovalStatus, owl:NamedIndividual ;
+    skos:inScheme     fabric:ApprovalStatusScheme ;
     rdfs:label        "Approved"@en ;
+    skos:prefLabel    "Approved"@en ;
     skos:definition   "A FabricApprovalRequest that has been approved by a human reviewer. The dual-proof VC is complete; the request has been moved to /graph/approvals and the write may proceed."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
 fabric:Rejected
     a fabric:ApprovalStatus, owl:NamedIndividual ;
+    skos:inScheme     fabric:ApprovalStatusScheme ;
     rdfs:label        "Rejected"@en ;
+    skos:prefLabel    "Rejected"@en ;
     skos:definition   "A FabricApprovalRequest that has been rejected by a human reviewer. The write does not proceed; the agent should be notified."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
-## PublicationStatus individuals (D18)
+# — PublicationStatus individuals (D18) ———————————————————
 
 fabric:Draft
     a fabric:PublicationStatus, owl:NamedIndividual ;
+    skos:inScheme     fabric:PublicationStatusScheme ;
     rdfs:label        "Draft"@en ;
+    skos:prefLabel    "Draft"@en ;
     skos:definition   "A nanopublication assembled from a fabric named graph that has not yet been submitted for external publication. Stored as a TriG named graph with fabric:status fabric:Draft."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
 fabric:Submitted
     a fabric:PublicationStatus, owl:NamedIndividual ;
+    skos:inScheme     fabric:PublicationStatusScheme ;
     rdfs:label        "Submitted"@en ;
+    skos:prefLabel    "Submitted"@en ;
     skos:definition   "A nanopublication that has been submitted to a nanopub server for minting a TrustyURI. Awaiting server confirmation."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
 fabric:Published
     a fabric:PublicationStatus, owl:NamedIndividual ;
+    skos:inScheme     fabric:PublicationStatusScheme ;
     rdfs:label        "Published"@en ;
+    skos:prefLabel    "Published"@en ;
     skos:definition   "A nanopublication with a confirmed TrustyURI, publicly retrievable from the nanopub network. The local fabric:Draft copy is retained for provenance."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
+
 # ============================================================
 # END OF VOCABULARY
+# Five-star status: ★★★★ (★★★★★ pending external vocabulary adoption + LOV registration)
 # Version: 0.1.0  |  Date: 2026-02-22
 # Source: https://github.com/LA3D/cogitarelink-fabric/ontology/fabric-vocab.ttl
 # ============================================================
