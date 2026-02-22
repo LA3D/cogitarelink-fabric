@@ -82,6 +82,9 @@ _COMPACT_PREFIXES = {
     "http://www.w3.org/ns/sosa/": "sosa:",
     "http://www.w3.org/2006/time#": "time:",
     "http://www.w3.org/ns/shacl#": "sh:",
+    "http://qudt.org/schema/qudt/": "qudt:",
+    "http://www.w3.org/ns/prov#": "prov:",
+    "https://w3id.org/cogitarelink/fabric#": "fabric:",
 }
 
 

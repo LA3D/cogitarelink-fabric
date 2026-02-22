@@ -58,6 +58,7 @@ def run_fabric_query(
     """
     sparql_query = make_fabric_query_tool(ep)
 
+    # Phase 1: global configure. Phase 2 should use dspy.context(lm=...) if available.
     dspy.configure(lm=dspy.LM(model))
     rlm = dspy.RLM(
         FabricQuery,
@@ -69,6 +70,7 @@ def run_fabric_query(
 
     result = rlm(endpoint_sd=ep.routing_plan, query=query)
 
+    # TODO: extract iterations/converged from RLM trace when dspy exposes it
     return FabricQueryResult(
         answer=getattr(result, "answer", ""),
         sparql=getattr(result, "sparql_used", None),
