@@ -1,0 +1,56 @@
+# Local machine overrides — never commit
+CLAUDE.local.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node / TypeScript
+node_modules/
+dist/
+*.js.map
+.npm
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Data volumes (local only — never commit actual data)
+data/
+oxigraph-data/
+
+# Secrets and local credentials (real — not mock)
+*.pem
+*.key
+*.p12
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db

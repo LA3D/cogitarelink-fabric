@@ -1,0 +1,69 @@
+{
+  "@context": {
+    "spdx": "https://spdx.org/rdf/3.0.0/terms/",
+    "ai": "https://spdx.org/rdf/3.0.0/terms/AI/",
+    "prov": "http://www.w3.org/ns/prov#",
+    "dct": "http://purl.org/dc/terms/",
+    "orcid": "https://orcid.org/",
+    "ror": "https://ror.org/"
+  },
+  "@type": "spdx:SpdxDocument",
+  "spdx:name": "cogitarelink-fabric",
+  "spdx:dataLicense": "CC0-1.0",
+  "dct:created": "2026-02-22T00:00:00Z",
+  "spdx:creationInfo": {
+    "spdx:created": "2026-02-22T00:00:00Z",
+    "spdx:createdBy": [
+      {
+        "@type": "spdx:Tool",
+        "spdx:name": "Claude Code (claude-sonnet-4-6)",
+        "spdx:version": "claude-sonnet-4-6"
+      },
+      {
+        "@type": "spdx:Person",
+        "spdx:externalIdentifier": {
+          "spdx:externalIdentifierType": "orcid",
+          "spdx:identifier": "https://orcid.org/0000-0003-4091-6059"
+        },
+        "spdx:name": "Charles F. Vardeman II"
+      }
+    ]
+  },
+  "prov:wasAttributedTo": [
+    {
+      "@id": "https://orcid.org/0000-0003-4091-6059",
+      "@type": "prov:Person",
+      "prov:actedOnBehalfOf": {
+        "@id": "https://ror.org/00mkhxb43",
+        "@type": "prov:Organization",
+        "spdx:name": "University of Notre Dame"
+      }
+    }
+  ],
+  "spdx:element": [
+    {
+      "@type": ["spdx:Package", "ai:AIPackage"],
+      "@id": "SPDXRef-ClaudeCodeAgent",
+      "spdx:name": "claude-sonnet-4-6",
+      "spdx:version": "claude-sonnet-4-6",
+      "spdx:supplier": "Anthropic PBC",
+      "ai:autonomyType": "HumanInTheLoop",
+      "ai:hyperparameter": "Agentic development with human review at commit boundaries",
+      "spdx:relationship": [
+        {
+          "spdx:relationshipType": "GENERATED_BY",
+          "spdx:to": [{"@id": "SPDXRef-cogitarelink-fabric"}]
+        }
+      ]
+    },
+    {
+      "@type": "spdx:Package",
+      "@id": "SPDXRef-cogitarelink-fabric",
+      "spdx:name": "cogitarelink-fabric",
+      "spdx:version": "0.1.0",
+      "spdx:downloadLocation": "https://github.com/LA3D/cogitarelink-fabric",
+      "spdx:licenseDeclared": "Apache-2.0"
+    }
+  ],
+  "_comment": "Bootstrap SBOM created at repo initialization. Run /sbom-update after adding dependencies."
+}

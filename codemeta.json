@@ -1,0 +1,59 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "cogitarelink-fabric",
+  "description": "Federated knowledge fabric prototype: RLM agents navigating self-describing SPARQL endpoints with DID/VC identity and nanopublication-compatible provenance.",
+  "version": "0.1.0",
+  "dateCreated": "2026-02-22",
+  "dateModified": "2026-02-22",
+  "license": "https://spdx.org/licenses/Apache-2.0",
+  "url": "https://github.com/LA3D/cogitarelink-fabric",
+  "programmingLanguage": ["Python", "TypeScript"],
+  "keywords": [
+    "knowledge-fabric",
+    "sparql",
+    "rdf",
+    "semantic-web",
+    "rlm",
+    "recursive-language-models",
+    "did",
+    "verifiable-credentials",
+    "shacl",
+    "sosa-ssn",
+    "self-driving-laboratories",
+    "nanopublications",
+    "agentic-memory"
+  ],
+  "author": {
+    "@type": "Person",
+    "@id": "https://orcid.org/0000-0003-4091-6059",
+    "givenName": "Charles F.",
+    "familyName": "Vardeman II",
+    "affiliation": {
+      "@type": "Organization",
+      "@id": "https://ror.org/00mkhxb43",
+      "name": "University of Notre Dame"
+    },
+    "email": "cvardema@nd.edu"
+  },
+  "contributor": {
+    "@type": "SoftwareAgent",
+    "name": "Claude Code (claude-sonnet-4-6)",
+    "url": "https://claude.ai/claude-code",
+    "description": "Development agent (fabric:DevelopmentAgentRole, D14/D17)"
+  },
+  "softwareRequirements": [
+    "Python >= 3.11",
+    "pyoxigraph >= 0.5.5",
+    "pyshacl >= 0.26",
+    "fastapi >= 0.100",
+    "httpx >= 0.25",
+    "dspy-ai >= 2.5",
+    "Node.js >= 20",
+    "@credo-ts/core >= 0.6.0",
+    "Docker >= 24",
+    "Oxigraph >= 0.5.5"
+  ],
+  "developmentStatus": "wip",
+  "isPartOf": "https://github.com/LA3D"
+}
