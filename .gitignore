@@ -46,6 +46,9 @@ oxigraph-data/
 .AppleDouble
 .LSOverride
 
+# Git worktrees (local dev isolation)
+.worktrees/
+
 # Editor
 .vscode/
 .idea/
