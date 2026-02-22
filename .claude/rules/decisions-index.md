@@ -3,7 +3,7 @@
 Always loaded. Concise index of all architectural decisions.
 
 D1: Hyperledger role — narrowed to SHACL attestation VCs + DID PIDs only; no on-chain SPARQL, no chaincode, no orderer
-D2: RLM as agent execution substrate — cogitarelink Python experiment structure superseded; fabric is infrastructure RLM navigates
+D2: RLM as agent execution substrate — dspy.RLM (dspy.predict.rlm, dspy 3.1) is the implementation; REPL loop with tools=[sparql_query, fetch_void, ...]; fabric is infrastructure RLM navigates
 D3: Credo (OpenWallet Foundation) + did:webvh for identity layer (version: Credo 0.6.x)
 D4: Oxigraph Server for fabric nodes (HTTP SPARQL 1.2), pyoxigraph for agent working graph (in-process)
 D5: did:webvh + digestMultibase — content integrity + node identity; did:key for witness signing
