@@ -24,5 +24,7 @@ D19: HitL enforcement — VC 2.0 multi-proof + previousProof chaining; wallet se
 D20: SDL instrument station use case — Phase 1 motivating use case (D2+D9+OD-1); electrochemical station (potentiostat); RLM REPL progressive disclosure; instrument ≠ agent (sosa:Sensor + DID); IngestCurator writes, Q&A navigates; SOSA/SSN+QUDT+PROV-O (local TBox) + PubChem CID via QLever SERVICE (https://qlever.dev/api/pubchem)
 D21: SSSOM as native vocabulary alignment structure — /graph/mappings (vocab terms→standard IRIs); distinct from D11 /graph/crosswalks (entity PID dedup); CoreProfile role:mapping; validate_graph enforces SSSOM coverage; sssom-py for serialization; QLever PubChem chains via SERVICE
 
+D22: Fabric ontology — FAIR vocabulary at https://w3id.org/cogitarelink/fabric; OWL 2 DL; 5 modules (core infrastructure, agent roles, authorization, HitL workflow, status individuals); stored at /ontology/fabric named graph (D9 L2 TBox); CC-BY 4.0; w3id.org .htaccess PR pending; every term has rdfs:label + skos:definition; Widoco docs + LOV registration after v0.2.0
+
 Full log: ~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Prototype-Decisions.md
 Use case: ~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Use-Case-SDL-Instrument.md

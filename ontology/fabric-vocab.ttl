@@ -1,0 +1,351 @@
+# Cogitarelink Fabric Vocabulary
+# FAIR vocabulary per Cox et al. 2021 "Ten Simple Rules for Making a Vocabulary FAIR"
+# Namespace: https://w3id.org/cogitarelink/fabric#
+# Prefix: fabric:
+
+@prefix fabric:  <https://w3id.org/cogitarelink/fabric#> .
+@prefix owl:     <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos:    <http://www.w3.org/2004/02/skos/core#> .
+@prefix dct:     <http://purl.org/dc/terms/> .
+@prefix dcat:    <http://www.w3.org/ns/dcat#> .
+@prefix vann:    <http://purl.org/vocab/vann/> .
+@prefix voaf:    <http://labs.mondeca.com/vocab/voaf#> .
+@prefix prov:    <http://www.w3.org/ns/prov#> .
+@prefix prof:    <http://www.w3.org/ns/dx/prof/> .
+@prefix cred:    <https://www.w3.org/2018/credentials#> .
+@prefix orcid:   <https://orcid.org/> .
+@prefix ror:     <https://ror.org/> .
+
+# ============================================================
+# ONTOLOGY HEADER — FAIR metadata (Rules 2, 4, 5, 7, 10)
+# ============================================================
+
+<https://w3id.org/cogitarelink/fabric>
+    a owl:Ontology, voaf:Vocabulary ;
+
+    dct:title         "Cogitarelink Fabric Vocabulary"@en ;
+    dct:description   "Vocabulary for federated knowledge fabric infrastructure: node conformance, agent roles, authorization, HitL approval workflow, and nanopublication status. Designed for RLM agents navigating self-describing SPARQL endpoints with DID/VC identity."@en ;
+
+    dct:creator       orcid:0000-0003-4091-6059 ;
+    dct:publisher     ror:00mkhxb43 ;
+    dct:created       "2026-02-22"^^xsd:date ;
+    dct:modified      "2026-02-22"^^xsd:date ;
+    dct:license       <https://creativecommons.org/licenses/by/4.0/> ;
+    dct:rights        "Copyright 2026 Charles F. Vardeman II, University of Notre Dame. Licensed under CC-BY 4.0."@en ;
+
+    owl:versionInfo   "0.1.0" ;
+    owl:versionIRI    <https://w3id.org/cogitarelink/fabric/0.1.0> ;
+
+    vann:preferredNamespacePrefix  "fabric" ;
+    vann:preferredNamespaceUri     "https://w3id.org/cogitarelink/fabric#" ;
+
+    rdfs:seeAlso      <https://github.com/LA3D/cogitarelink-fabric> ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+
+    dcat:keyword      "knowledge-fabric"@en, "sparql"@en, "rdf"@en,
+                      "did"@en, "verifiable-credentials"@en,
+                      "self-driving-laboratories"@en, "agentic-memory"@en ;
+
+    prov:wasAttributedTo  orcid:0000-0003-4091-6059 ;
+    prov:wasGeneratedBy [
+        a prov:Activity ;
+        prov:wasAssociatedWith <https://claude.anthropic.com/claude-sonnet-4-6> ;
+        prov:startedAtTime "2026-02-22T00:00:00Z"^^xsd:dateTime ;
+        rdfs:label "Initial vocabulary authoring (cogitarelink-fabric Week 0)"@en
+    ] .
+
+
+# ============================================================
+# MODULE 1 — CORE INFRASTRUCTURE
+# ============================================================
+
+fabric:FabricNode
+    a owl:Class ;
+    rdfs:label        "Fabric Node"@en ;
+    skos:definition   "A knowledge fabric node: a SPARQL 1.2 HTTP endpoint conforming to fabric:CoreProfile, exposing four-layer KR self-description at .well-known/ (VoID, SHACL, SPARQL examples, SSSOM mappings), and holding a DID/VC identity via a Credo sidecar."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:CoreProfile
+    a prof:Profile, owl:NamedIndividual ;
+    rdfs:label        "Fabric Core Profile"@en ;
+    skos:definition   "The shared PROF profile that all fabric nodes declare conformance to via dct:conformsTo. Published once at the cogitarelink-fabric repository. Specifies required .well-known/ artifacts, TBox cache ontologies, standard SHACL shapes, and agent role vocabulary."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:ApprovalStatus
+    a owl:Class ;
+    rdfs:label        "Approval Status"@en ;
+    skos:definition   "Controlled vocabulary class for HitL workflow states of a FabricApprovalRequest."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:PublicationStatus
+    a owl:Class ;
+    rdfs:label        "Publication Status"@en ;
+    skos:definition   "Controlled vocabulary class for the draft/submission/publication lifecycle of a nanopublication assembled from a fabric named graph."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+
+# ============================================================
+# MODULE 2 — AGENT ROLES (D14)
+# ============================================================
+
+fabric:AgentRole
+    a owl:Class ;
+    rdfs:label        "Agent Role"@en ;
+    skos:definition   "Abstract superclass for roles an LLM-based agent may hold within a fabric deployment. Roles govern which graphs an agent may read or write, and under what credential conditions."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:IngestCuratorRole
+    a owl:Class ;
+    rdfs:subClassOf   fabric:AgentRole ;
+    rdfs:label        "Ingest Curator Role"@en ;
+    skos:definition   "Agent role with permission to write new triples to /graph/pending via SPARQL UPDATE, pending HitL approval before promotion to /graph/observations or /graph/entities. Primary role for instrument data ingestion (D20)."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:LinkingCuratorRole
+    a owl:Class ;
+    rdfs:subClassOf   fabric:AgentRole ;
+    rdfs:label        "Linking Curator Role"@en ;
+    skos:definition   "Agent role with permission to create and maintain entity crosswalks in /graph/crosswalks (D11) and vocabulary alignments in /graph/mappings (D21). Responsible for SSSOM-based federation bridges across nodes."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:QueryAgentRole
+    a owl:Class ;
+    rdfs:subClassOf   fabric:AgentRole ;
+    rdfs:label        "Query Agent Role"@en ;
+    skos:definition   "Agent role with read-only access to all public named graphs. Navigates the fabric via progressive disclosure (discover_endpoint → query_endpoint) without write permissions. The RLM Q&A agent role."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:MaintenanceCuratorRole
+    a owl:Class ;
+    rdfs:subClassOf   fabric:AgentRole ;
+    rdfs:label        "Maintenance Curator Role"@en ;
+    skos:definition   "Agent role with permission to update TBox cache named graphs (/ontology/*, /shapes/*), maintain .well-known/ artifacts, and perform scheduled SHACL validation sweeps."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:SecurityMonitorRole
+    a owl:Class ;
+    rdfs:subClassOf   fabric:AgentRole ;
+    rdfs:label        "Security Monitor Role"@en ;
+    skos:definition   "Agent role with read access to /graph/security and /graph/audit. Monitors for policy violations, anomalous write patterns, and DID credential anomalies. Read-only outside security graphs."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:IntegrityAuditorRole
+    a owl:Class ;
+    rdfs:subClassOf   fabric:AgentRole ;
+    rdfs:label        "Integrity Auditor Role"@en ;
+    skos:definition   "Agent role with permission to run SHACL validation sweeps across all named graphs, generate FabricConformanceCredentials, and write audit entries to /graph/audit."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:DevelopmentAgentRole
+    a owl:Class ;
+    rdfs:subClassOf   fabric:AgentRole ;
+    rdfs:label        "Development Agent Role"@en ;
+    skos:definition   "Agent role for AI coding assistants (e.g., Claude Code) acting as the software development agent for a fabric deployment. Has access to all repository files and commit authority; operates under HitL review at commit boundaries (D17)."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+
+# ============================================================
+# MODULE 3 — AUTHORIZATION VOCABULARY (D13, D15, D19)
+# ============================================================
+
+fabric:AgentAuthorizationCredential
+    a owl:Class ;
+    rdfs:subClassOf   cred:VerifiableCredential ;
+    rdfs:label        "Agent Authorization Credential"@en ;
+    skos:definition   "A W3C Verifiable Credential (VC 2.0, DataIntegrityProof) granting an agent DID a specific fabric:AgentRole on a named SPARQL endpoint. Issued by the node DID via Credo sidecar."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:FabricConformanceCredential
+    a owl:Class ;
+    rdfs:subClassOf   cred:VerifiableCredential ;
+    rdfs:label        "Fabric Conformance Credential"@en ;
+    skos:definition   "A W3C Verifiable Credential attesting that a fabric node satisfies fabric:CoreProfile, issued by the node DID to itself during bootstrap (D12). Carries fabric:conformanceCheckDate."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:FabricDelegationCredential
+    a owl:Class ;
+    rdfs:subClassOf   cred:VerifiableCredential ;
+    rdfs:label        "Fabric Delegation Credential"@en ;
+    skos:definition   "A W3C Verifiable Credential expressing a human's bounded delegation to an agent for a specific session scope. Used as Proof 2 in VC 2.0 multi-proof HitL enforcement (D19). Carries fabric:delegatedBy, fabric:sessionScope, fabric:expiresAt."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:hasRole
+    a owl:ObjectProperty ;
+    rdfs:label        "has role"@en ;
+    skos:definition   "Relates a VC credentialSubject (agent DID) to the fabric:AgentRole the credential grants."@en ;
+    rdfs:domain       cred:VerifiableCredential ;
+    rdfs:range        fabric:AgentRole ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:authorizedEndpoint
+    a owl:ObjectProperty ;
+    rdfs:label        "authorized endpoint"@en ;
+    skos:definition   "The SPARQL endpoint IRI on which an AgentAuthorizationCredential grants its subject the stated role."@en ;
+    rdfs:domain       cred:VerifiableCredential ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:permittedGraphs
+    a owl:ObjectProperty ;
+    rdfs:label        "permitted graphs"@en ;
+    skos:definition   "Named graph IRIs the agent is permitted to read or write under an AgentAuthorizationCredential. Multiple values allowed."@en ;
+    rdfs:domain       cred:VerifiableCredential ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:delegatedBy
+    a owl:ObjectProperty ;
+    rdfs:label        "delegated by"@en ;
+    skos:definition   "The IRI of the human principal (ORCID or DID) who issued a FabricDelegationCredential to the agent."@en ;
+    rdfs:domain       fabric:FabricDelegationCredential ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:sessionScope
+    a owl:DatatypeProperty ;
+    rdfs:label        "session scope"@en ;
+    skos:definition   "Natural language description of the bounded task scope for which a FabricDelegationCredential is valid. Informs the human reviewer what the agent intends to do."@en ;
+    rdfs:domain       fabric:FabricDelegationCredential ;
+    rdfs:range        xsd:string ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:expiresAt
+    a owl:DatatypeProperty ;
+    rdfs:label        "expires at"@en ;
+    skos:definition   "The xsd:dateTime after which a FabricDelegationCredential is no longer valid."@en ;
+    rdfs:domain       fabric:FabricDelegationCredential ;
+    rdfs:range        xsd:dateTime ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:conformanceCheckDate
+    a owl:DatatypeProperty ;
+    rdfs:label        "conformance check date"@en ;
+    skos:definition   "The xsd:date on which SHACL conformance against fabric:CoreProfile was last verified for this node. Carried in FabricConformanceCredential."@en ;
+    rdfs:domain       fabric:FabricConformanceCredential ;
+    rdfs:range        xsd:date ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+
+# ============================================================
+# MODULE 4 — HITL WORKFLOW (D19)
+# ============================================================
+
+fabric:FabricApprovalRequest
+    a owl:Class ;
+    rdfs:label        "Fabric Approval Request"@en ;
+    skos:definition   "A pending write request written by an IngestCurator to /graph/pending, awaiting human review before the targeted graph write is accepted. Carries the requesting agent DID, target graph, and current ApprovalStatus."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:requestedBy
+    a owl:ObjectProperty ;
+    rdfs:label        "requested by"@en ;
+    skos:definition   "Links a FabricApprovalRequest to the DID of the agent that submitted the write request."@en ;
+    rdfs:domain       fabric:FabricApprovalRequest ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:targetGraph
+    a owl:ObjectProperty ;
+    rdfs:label        "target graph"@en ;
+    skos:definition   "Links a FabricApprovalRequest to the named graph IRI that the write would modify if approved."@en ;
+    rdfs:domain       fabric:FabricApprovalRequest ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:status
+    a owl:ObjectProperty ;
+    rdfs:label        "status"@en ;
+    skos:definition   "Links a FabricApprovalRequest to its current fabric:ApprovalStatus individual."@en ;
+    rdfs:domain       fabric:FabricApprovalRequest ;
+    rdfs:range        fabric:ApprovalStatus ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:approvedAt
+    a owl:DatatypeProperty ;
+    rdfs:label        "approved at"@en ;
+    skos:definition   "The xsd:dateTime at which a human reviewer approved a FabricApprovalRequest, completing the dual-proof VC chain (D19)."@en ;
+    rdfs:domain       fabric:FabricApprovalRequest ;
+    rdfs:range        xsd:dateTime ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+
+# ============================================================
+# MODULE 5 — STATUS VOCABULARIES (individuals)
+# ============================================================
+
+## ApprovalStatus individuals
+
+fabric:PendingHumanReview
+    a fabric:ApprovalStatus, owl:NamedIndividual ;
+    rdfs:label        "Pending Human Review"@en ;
+    skos:definition   "A FabricApprovalRequest that has been submitted to /graph/pending and is awaiting review by an authorized human reviewer."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:Approved
+    a fabric:ApprovalStatus, owl:NamedIndividual ;
+    rdfs:label        "Approved"@en ;
+    skos:definition   "A FabricApprovalRequest that has been approved by a human reviewer. The dual-proof VC is complete; the request has been moved to /graph/approvals and the write may proceed."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:Rejected
+    a fabric:ApprovalStatus, owl:NamedIndividual ;
+    rdfs:label        "Rejected"@en ;
+    skos:definition   "A FabricApprovalRequest that has been rejected by a human reviewer. The write does not proceed; the agent should be notified."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+## PublicationStatus individuals (D18)
+
+fabric:Draft
+    a fabric:PublicationStatus, owl:NamedIndividual ;
+    rdfs:label        "Draft"@en ;
+    skos:definition   "A nanopublication assembled from a fabric named graph that has not yet been submitted for external publication. Stored as a TriG named graph with fabric:status fabric:Draft."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:Submitted
+    a fabric:PublicationStatus, owl:NamedIndividual ;
+    rdfs:label        "Submitted"@en ;
+    skos:definition   "A nanopublication that has been submitted to a nanopub server for minting a TrustyURI. Awaiting server confirmation."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+fabric:Published
+    a fabric:PublicationStatus, owl:NamedIndividual ;
+    rdfs:label        "Published"@en ;
+    skos:definition   "A nanopublication with a confirmed TrustyURI, publicly retrievable from the nanopub network. The local fabric:Draft copy is retained for provenance."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-22"^^xsd:date .
+
+# ============================================================
+# END OF VOCABULARY
+# Version: 0.1.0  |  Date: 2026-02-22
+# Source: https://github.com/LA3D/cogitarelink-fabric/ontology/fabric-vocab.ttl
+# ============================================================
