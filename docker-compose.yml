@@ -21,6 +21,7 @@ services:
       - "8080:8080"
     environment:
       OXIGRAPH_URL: http://oxigraph:7878
+      NODE_BASE: http://localhost:8080
     volumes:
       - ./shapes:/app/shapes:ro
       - ./ontology:/app/ontology:ro

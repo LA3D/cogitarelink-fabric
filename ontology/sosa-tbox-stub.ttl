@@ -6,6 +6,12 @@
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
+# --- Ontology declaration ---
+
+sosa: a owl:Ontology ;
+    rdfs:label "SOSA TBox Stub" ;
+    rdfs:comment "Minimal SOSA class/property declarations for RLM routing (D9 L2)." .
+
 # --- Classes ---
 
 sosa:Observation a owl:Class ;

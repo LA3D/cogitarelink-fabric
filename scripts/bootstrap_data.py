@@ -17,7 +17,7 @@ import urllib.parse
 ROOT = pathlib.Path(__file__).parent.parent
 
 SOSA_TBOX_URL = "http://www.w3.org/ns/sosa/"
-SOSA_GRAPH = "http://localhost:8080/graph/tbox/sosa"
+SOSA_GRAPH = "http://localhost:8080/ontology/sosa"
 OBS_GRAPH = "http://localhost:8080/graph/observations"
 
 
@@ -33,7 +33,7 @@ def sparql_update(endpoint: str, update: str) -> int:
 
 
 def load_sosa_tbox(endpoint: str) -> None:
-    """Load SOSA TBox into named graph /graph/tbox/sosa."""
+    """Load SOSA TBox into named graph /ontology/sosa (D6 convention)."""
     print(f"Loading SOSA TBox into <{SOSA_GRAPH}>...", flush=True)
     # Use LOAD to fetch the SOSA ontology directly from W3C
     update = f"LOAD <{SOSA_TBOX_URL}> INTO GRAPH <{SOSA_GRAPH}>"

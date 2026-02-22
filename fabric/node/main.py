@@ -34,7 +34,11 @@ _VOID_JSONLD = """\
   "@id": "{base}/.well-known/void",
   "@type": "void:Dataset",
   "dct:title": "cogitarelink-fabric node",
-  "void:sparqlEndpoint": {{ "@id": "{base}/sparql" }}
+  "void:sparqlEndpoint": {{ "@id": "{base}/sparql" }},
+  "void:vocabulary": [
+    {{ "@id": "http://www.w3.org/ns/sosa/" }},
+    {{ "@id": "http://www.w3.org/2006/time#" }}
+  ]
 }}
 """
 
