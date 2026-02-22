@@ -17,6 +17,11 @@ GATEWAY = os.environ.get("GATEWAY", "http://localhost:8080")
 OXIGRAPH = os.environ.get("OXIGRAPH", "http://localhost:7878")
 
 
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: marks tests as slow")
+    config.addinivalue_line("markers", "llm: marks tests requiring LLM API key")
+
+
 @pytest.fixture(scope="session")
 def gateway_url():
     return GATEWAY
