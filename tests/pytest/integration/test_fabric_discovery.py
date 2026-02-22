@@ -92,3 +92,11 @@ def test_discover_bad_endpoint():
     from agents.fabric_discovery import discover_endpoint
     with pytest.raises((httpx.ConnectError, httpx.ConnectTimeout)):
         discover_endpoint("http://localhost:9999")
+
+
+def test_public_api_importable():
+    """Public API is importable from agents package."""
+    from agents import discover_endpoint, make_fabric_query_tool, run_fabric_query
+    assert callable(discover_endpoint)
+    assert callable(make_fabric_query_tool)
+    assert callable(run_fabric_query)
