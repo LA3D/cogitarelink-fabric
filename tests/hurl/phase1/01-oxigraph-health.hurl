@@ -1,7 +1,7 @@
 # Cycle 1 — Oxigraph container health
 # RED: Oxigraph SPARQL endpoint responds to a minimal SELECT query
 
-POST http://localhost:7878/query
+POST {{oxigraph}}/query
 Accept: application/sparql-results+json
 [FormParams]
 query: SELECT * WHERE {} LIMIT 1

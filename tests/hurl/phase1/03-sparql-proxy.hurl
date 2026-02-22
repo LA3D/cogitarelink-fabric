@@ -1,7 +1,7 @@
 # Cycle 3 — SPARQL proxy through gateway
 # RED: POST /sparql proxies to Oxigraph and returns results
 
-POST http://localhost:8080/sparql
+POST {{gateway}}/sparql
 Accept: application/sparql-results+json
 [FormParams]
 query: SELECT * WHERE {} LIMIT 1

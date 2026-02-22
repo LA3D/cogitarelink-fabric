@@ -1,14 +1,15 @@
 import os
 import pathlib
+from contextlib import asynccontextmanager
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-app = FastAPI(title="cogitarelink-fabric node")
-
 OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
 SHAPES_DIR = pathlib.Path(os.environ.get("SHAPES_DIR", "/app/shapes"))
+# Phase 1: unauthenticated — gated by VC-based access control in Phase 2 (D13, D19)
+SPARQL_UPDATE_ENABLED = os.environ.get("SPARQL_UPDATE_ENABLED", "true").lower() == "true"
 
 _VOID_TURTLE = """\
 @prefix void: <http://rdfs.org/ns/void#> .
@@ -34,6 +35,20 @@ _VOID_JSONLD = """\
 }}
 """
 
+# Proxy header allowlists — forward only what Oxigraph needs
+_PROXY_REQUEST_HEADERS = {"accept", "content-type", "accept-encoding"}
+_HOP_BY_HOP = {"transfer-encoding", "connection", "keep-alive"}
+
+
+@asynccontextmanager
+async def lifespan(app):
+    app.state.http = httpx.AsyncClient(base_url=OXIGRAPH_URL)
+    yield
+    await app.state.http.aclose()
+
+
+app = FastAPI(title="cogitarelink-fabric node", lifespan=lifespan)
+
 
 @app.get("/healthz")
 async def healthz():
@@ -56,11 +71,10 @@ async def well_known_void(request: Request):
 
 @app.get("/entity/{entity_id}")
 async def entity_deref(entity_id: str, request: Request):
-    """FAIR A1: dereference entity URI via SPARQL DESCRIBE."""
+    """FAIR A1: dereference entity URI via SPARQL CONSTRUCT across named graphs."""
     entity_uri = f"{NODE_BASE}/entity/{entity_id}"
     accept = request.headers.get("accept", "text/turtle")
 
-    # Map Accept to a format Oxigraph supports for DESCRIBE
     if "application/ld+json" in accept:
         fmt = "application/ld+json"
     elif "application/n-triples" in accept:
@@ -68,27 +82,18 @@ async def entity_deref(entity_id: str, request: Request):
     else:
         fmt = "text/turtle"
 
-    # CONSTRUCT across all named graphs (DESCRIBE only hits default graph)
     query = f"CONSTRUCT {{ <{entity_uri}> ?p ?o }} WHERE {{ GRAPH ?g {{ <{entity_uri}> ?p ?o }} }}"
-    params = {"query": query}
-    headers = {"Accept": fmt}
+    resp = await app.state.http.get(
+        "/query", params={"query": query}, headers={"Accept": fmt},
+    )
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            f"{OXIGRAPH_URL}/query",
-            params=params,
-            headers=headers,
-        )
-
-    if resp.status_code == 200 and entity_id.encode() not in resp.content:
-        # Empty CONSTRUCT — entity not found in any named graph
+    # Oxigraph returns 200 with only prefix declarations for empty CONSTRUCT.
+    # N-Triples has no prefixes, so empty = zero bytes. Turtle prefixes are short.
+    body = resp.content.strip()
+    if resp.status_code == 200 and (len(body) == 0 or entity_uri.encode() not in body):
         raise HTTPException(status_code=404, detail=f"Entity not found: {entity_uri}")
 
-    return Response(
-        content=resp.content,
-        status_code=resp.status_code,
-        media_type=fmt,
-    )
+    return Response(content=resp.content, status_code=resp.status_code, media_type=fmt)
 
 
 @app.get("/.well-known/shacl")
@@ -106,18 +111,19 @@ async def _proxy(request: Request, upstream_path: str) -> Response:
     body = await request.body()
     headers = {
         k: v for k, v in request.headers.items()
-        if k.lower() not in ("host", "content-length")
+        if k.lower() in _PROXY_REQUEST_HEADERS
     }
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            f"{OXIGRAPH_URL}/{upstream_path}",
-            content=body,
-            headers=headers,
-        )
+    resp = await app.state.http.post(
+        f"/{upstream_path}", content=body, headers=headers,
+    )
+    resp_headers = {
+        k: v for k, v in resp.headers.items()
+        if k.lower() not in _HOP_BY_HOP
+    }
     return Response(
         content=resp.content,
         status_code=resp.status_code,
-        headers=dict(resp.headers),
+        headers=resp_headers,
     )
 
 
@@ -128,4 +134,8 @@ async def sparql_query_proxy(request: Request):
 
 @app.post("/sparql/update")
 async def sparql_update_proxy(request: Request):
+    # Phase 1: unauthenticated write access for local development.
+    # Phase 2 gates this behind AgentAuthorizationCredential (D13, D19).
+    if not SPARQL_UPDATE_ENABLED:
+        raise HTTPException(status_code=403, detail="SPARQL Update disabled")
     return await _proxy(request, "update")

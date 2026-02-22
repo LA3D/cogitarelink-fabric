@@ -1,8 +1,8 @@
 # Cycle 7 — Entity dereference (FAIR A1)
-# RED: INSERT an entity, then GET /entity/{id} returns Turtle via DESCRIBE
+# RED: INSERT an entity, then GET /entity/{id} returns Turtle via CONSTRUCT
 
 # Step 1: Insert a test entity
-POST http://localhost:8080/sparql/update
+POST {{gateway}}/sparql/update
 Content-Type: application/x-www-form-urlencoded
 
 ```
@@ -19,8 +19,8 @@ INSERT DATA {
 
 HTTP 204
 
-# Step 2: Dereference the entity URI — expect Turtle with DESCRIBE result
-GET http://localhost:8080/entity/deref-test-001
+# Step 2: Dereference the entity URI — expect Turtle with CONSTRUCT result
+GET {{gateway}}/entity/deref-test-001
 Accept: text/turtle
 
 HTTP 200
@@ -28,3 +28,8 @@ HTTP 200
 header "Content-Type" contains "text/turtle"
 body contains "deref-test-001"
 body contains "sosa/Observation"
+
+# Step 3: Negative test — nonexistent entity returns 404
+GET {{gateway}}/entity/nonexistent-00000
+
+HTTP 404

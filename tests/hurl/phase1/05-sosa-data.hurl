@@ -1,8 +1,18 @@
 # Cycle 5 — SOSA data load and retrieval
 # RED: INSERT a mock SOSA Observation, then SELECT and verify it exists
 
+# Step 0: Clear the test graph for idempotent runs
+POST {{gateway}}/sparql/update
+Content-Type: application/x-www-form-urlencoded
+
+```
+update=DROP SILENT GRAPH <http://localhost:8080/graph/observations>
+```
+
+HTTP 204
+
 # Step 1: INSERT mock SOSA Observation into /graph/observations
-POST http://localhost:8080/sparql/update
+POST {{gateway}}/sparql/update
 Content-Type: application/x-www-form-urlencoded
 
 ```
@@ -20,8 +30,8 @@ INSERT DATA {
 
 HTTP 204
 
-# Step 2: SELECT to verify the observation exists
-POST http://localhost:8080/sparql
+# Step 2: SELECT to verify exactly one observation exists
+POST {{gateway}}/sparql
 Accept: application/sparql-results+json
 [FormParams]
 query: PREFIX sosa: <http://www.w3.org/ns/sosa/> SELECT (COUNT(*) AS ?n) FROM <http://localhost:8080/graph/observations> WHERE { ?obs a sosa:Observation }
