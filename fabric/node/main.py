@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
 SHAPES_DIR = pathlib.Path(os.environ.get("SHAPES_DIR", "/app/shapes"))
+SPARQL_DIR = pathlib.Path(os.environ.get("SPARQL_DIR", "/app/sparql"))
 # Phase 1: unauthenticated — gated by VC-based access control in Phase 2 (D13, D19)
 SPARQL_UPDATE_ENABLED = os.environ.get("SPARQL_UPDATE_ENABLED", "true").lower() == "true"
 
@@ -19,7 +20,9 @@ _VOID_TURTLE = """\
 <{base}/.well-known/void>
     a void:Dataset ;
     dct:title "cogitarelink-fabric node"^^xsd:string ;
-    void:sparqlEndpoint <{base}/sparql> .
+    void:sparqlEndpoint <{base}/sparql> ;
+    void:vocabulary <http://www.w3.org/ns/sosa/> ;
+    void:vocabulary <http://www.w3.org/2006/time#> .
 """
 
 _VOID_JSONLD = """\
@@ -105,6 +108,15 @@ async def well_known_shacl():
         content=shapes_file.read_text(),
         media_type="text/turtle",
     )
+
+
+@app.get("/.well-known/sparql-examples")
+async def well_known_sparql_examples():
+    examples_file = SPARQL_DIR / "sosa-examples.ttl"
+    if not examples_file.exists():
+        raise HTTPException(status_code=404, detail="SPARQL examples not found")
+    content = examples_file.read_text().replace("{base}", NODE_BASE)
+    return PlainTextResponse(content=content, media_type="text/turtle")
 
 
 async def _proxy(request: Request, upstream_path: str) -> Response:

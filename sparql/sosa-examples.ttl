@@ -1,0 +1,41 @@
+# SPARQL examples catalog — SOSA domain (D9 L3, SIB pattern)
+# spex: https://purl.expasy.org/sparql-examples/ontology#
+@prefix spex:   <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix ex:     <{base}/sparql-examples/> .
+
+ex:list-observations
+    a spex:SPARQLExecutable, spex:SPARQLSELECT ;
+    rdfs:label "List recent observations" ;
+    rdfs:comment "Returns all sosa:Observation instances with result value and timestamp, ordered newest first." ;
+    schema:target <{base}/sparql> ;
+    sh:select """
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+SELECT ?obs ?result ?time WHERE {{
+  GRAPH <{base}/graph/observations> {{
+    ?obs a sosa:Observation ;
+         sosa:hasSimpleResult ?result ;
+         sosa:resultTime ?time .
+  }}
+}}
+ORDER BY DESC(?time)
+LIMIT 10""" .
+
+ex:observations-by-sensor
+    a spex:SPARQLExecutable, spex:SPARQLSELECT ;
+    rdfs:label "Observations by sensor" ;
+    rdfs:comment "Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI." ;
+    schema:target <{base}/sparql> ;
+    sh:select """
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+SELECT ?obs ?result ?time WHERE {{
+  GRAPH <{base}/graph/observations> {{
+    ?obs a sosa:Observation ;
+         sosa:madeBySensor ?sensor ;
+         sosa:hasSimpleResult ?result ;
+         sosa:resultTime ?time .
+  }}
+}}
+ORDER BY DESC(?time)""" .

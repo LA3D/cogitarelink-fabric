@@ -23,6 +23,8 @@ services:
       OXIGRAPH_URL: http://oxigraph:7878
     volumes:
       - ./shapes:/app/shapes:ro
+      - ./ontology:/app/ontology:ro
+      - ./sparql:/app/sparql:ro
     depends_on:
       oxigraph:
         condition: service_healthy
