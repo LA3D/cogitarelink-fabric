@@ -8,6 +8,7 @@
 
 @prefix sh:    <http://www.w3.org/ns/shacl#> .
 @prefix sosa:  <http://www.w3.org/ns/sosa/> .
+@prefix sio:   <http://semanticscience.org/resource/> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 @prefix dct:   <http://purl.org/dc/terms/> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
@@ -44,18 +45,37 @@ fabric:ObservationShape
     sh:targetClass sosa:Observation ;
     dct:description "Constraints on SOSA Observations stored in /graph/observations." ;
 
-    # Agent instruction: how an RLM agent should query this endpoint
-    sh:agentInstruction """To retrieve observations: POST /sparql with
-SELECT ?obs ?result ?time FROM <{base}/graph/observations>
-WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }
-ORDER BY DESC(?time) LIMIT 100""" ;
+    # Agent instruction: how an RLM agent should query this endpoint.
+    # Observations use one of two result patterns:
+    #   (A) Simple scalar:  sosa:hasSimpleResult "<value>"^^xsd:double
+    #   (B) SIO chain:      sio:has-attribute <MeasuredValue> ; <MeasuredValue> sio:has-value "<value>"^^xsd:double
+    # Check which pattern is present before assuming either.
+    sh:agentInstruction """Observations use one of two result patterns.
+Pattern A (simple scalar):
+  SELECT ?obs ?result ?time FROM <{base}/graph/observations>
+  WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }
 
-    # Required properties
+Pattern B (SIO measurement chain):
+  PREFIX sio: <http://semanticscience.org/resource/>
+  SELECT ?obs ?value ?time FROM <{base}/graph/observations>
+  WHERE { ?obs a sosa:Observation ; sosa:resultTime ?time ;
+               sio:has-attribute ?mv . ?mv sio:has-value ?value . }
+
+If Pattern A returns empty, try Pattern B.""" ;
+
+    # Result: either sosa:hasSimpleResult (scalar) or sio:has-attribute → MeasuredValue chain
     sh:property [
         sh:path sosa:hasSimpleResult ;
-        sh:minCount 1 ;
         sh:maxCount 1 ;
-        sh:description "Scalar measurement result." ;
+        sh:description "Simple scalar result. Present when measurement is encoded directly on the observation." ;
+    ] ;
+
+    sh:property [
+        sh:path sio:has-attribute ;
+        sh:maxCount 1 ;
+        sh:class sio:MeasuredValue ;
+        sh:severity sh:Info ;
+        sh:description "SIO measurement chain. Links to a sio:MeasuredValue node carrying sio:has-value and optionally sio:has-unit." ;
     ] ;
 
     sh:property [

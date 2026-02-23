@@ -1,4 +1,4 @@
-# SPARQL examples catalog — SOSA domain (D9 L3, SIB pattern)
+# SPARQL examples catalog — SOSA/SIO domain (D9 L3, SIB pattern)
 # spex: https://purl.expasy.org/sparql-examples/ontology#
 @prefix spex:   <https://purl.expasy.org/sparql-examples/ontology#> .
 @prefix sh:     <http://www.w3.org/ns/shacl#> .
@@ -65,6 +65,48 @@ SELECT ?p ?o WHERE {
     <{entity_iri}> ?p ?o .
   }
 }""" .
+
+ex:sio-measured-value
+    a spex:SPARQLExecutable, spex:SPARQLSELECT ;
+    rdfs:label "Observations with SIO measurements" ;
+    rdfs:comment "Returns observations where the result is encoded via the SIO measurement chain: sio:has-attribute -> sio:MeasuredValue -> sio:has-value. Use this when sosa:hasSimpleResult returns empty." ;
+    schema:target <{base}/sparql> ;
+    sh:select """
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX sio:  <http://semanticscience.org/resource/>
+SELECT ?obs ?value ?time WHERE {
+  GRAPH <{base}/graph/observations> {
+    ?obs a sosa:Observation ;
+         sosa:resultTime ?time ;
+         sio:has-attribute ?mv .
+    ?mv a sio:MeasuredValue ;
+        sio:has-value ?value .
+  }
+}
+ORDER BY DESC(?time)
+LIMIT 10""" .
+
+ex:sio-measured-value-with-unit
+    a spex:SPARQLExecutable, spex:SPARQLSELECT ;
+    rdfs:label "SIO measurements with units" ;
+    rdfs:comment "Returns SIO measurement chains including the unit label. Traverses: Observation -> sio:has-attribute -> MeasuredValue -> sio:has-unit -> rdfs:label." ;
+    schema:target <{base}/sparql> ;
+    sh:select """
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+PREFIX sio:  <http://semanticscience.org/resource/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?obs ?value ?unit ?time WHERE {
+  GRAPH <{base}/graph/observations> {
+    ?obs a sosa:Observation ;
+         sosa:resultTime ?time ;
+         sio:has-attribute ?mv .
+    ?mv a sio:MeasuredValue ;
+        sio:has-value ?value .
+    OPTIONAL { ?mv sio:has-unit ?u . ?u rdfs:label ?unit . }
+  }
+}
+ORDER BY DESC(?time)
+LIMIT 10""" .
 
 ex:count-observations
     a spex:SPARQLExecutable, spex:SPARQLSELECT ;
