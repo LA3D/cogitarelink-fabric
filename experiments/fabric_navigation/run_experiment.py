@@ -229,10 +229,22 @@ def main() -> None:
             verbose=args.verbose,
         )
 
+    _RDFS_TOOL_HINT = (
+        "\n\nANALYSIS TOOLS (call from REPL code):\n"
+        "  analyze_rdfs_routes(information_need: str) -> str\n"
+        "    Applies RDFS/OWL reasoning patterns to the endpoint ontology.\n"
+        "    Returns a routing plan with SPARQL triple patterns.\n"
+        "    Call this before querying unfamiliar vocabularies or multi-hop properties.\n"
+        "    Example: routes = analyze_rdfs_routes("
+        "'What property links Observation to MeasuredValue?')\n"
+    )
+
     def kwarg_builder(task: EvalTask) -> dict:
         sd = ep.routing_plan
         if 'tbox-graph-paths' not in PHASE_FEATURES[args.phase]:
             sd = _strip_tbox_paths(sd)
+        if 'rdfs-routes' in PHASE_FEATURES[args.phase]:
+            sd = sd + _RDFS_TOOL_HINT
         return {'endpoint_sd': sd, 'query': task.query}
 
     harness = FabricNavHarness(
