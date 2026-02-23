@@ -5,6 +5,7 @@ sys.path.insert(0, str(Path(__file__).parents[3]))
 
 from experiments.fabric_navigation.run_experiment import _strip_tbox_paths
 from experiments.fabric_navigation.run_experiment import _build_insert
+from experiments.fabric_navigation.run_experiment import PHASE_FEATURES
 
 
 ROUTING_PLAN_WITH_PATHS = """\
@@ -141,3 +142,17 @@ def test_build_insert_sio_is_about():
     assert "chem-kcl" in q
     assert "sio:ChemicalEntity" in q
     assert 'rdfs:label "potassium chloride"' in q
+
+
+def test_phase3_features_exist():
+    assert "phase3a-no-tbox-paths" in PHASE_FEATURES
+    assert "phase3b-tbox-paths" in PHASE_FEATURES
+
+def test_phase3b_has_tbox_graph_paths():
+    assert "tbox-graph-paths" in PHASE_FEATURES["phase3b-tbox-paths"]
+    assert "tbox-graph-paths" not in PHASE_FEATURES["phase3a-no-tbox-paths"]
+
+def test_phase3_features_match_phase2():
+    """Phase 3 should have same feature sets as Phase 2 (only task file differs)."""
+    assert PHASE_FEATURES["phase3a-no-tbox-paths"] == PHASE_FEATURES["phase2a-no-tbox-paths"]
+    assert PHASE_FEATURES["phase3b-tbox-paths"] == PHASE_FEATURES["phase2b-tbox-paths"]

@@ -84,6 +84,17 @@ PHASE_FEATURES = {
         "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
         "tbox-graph-paths",
     ],
+    "phase3a-no-tbox-paths": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+    ],
+    "phase3b-tbox-paths": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths",
+    ],
 }
 
 def _strip_tbox_paths(routing_plan: str) -> str:
