@@ -124,3 +124,20 @@ def test_public_api_importable():
     assert callable(discover_endpoint)
     assert callable(make_fabric_query_tool)
     assert callable(run_fabric_query)
+
+
+def test_discover_populates_vocab_graph_map():
+    """discover_endpoint should map vocabulary namespaces to local ontology graphs."""
+    from agents.fabric_discovery import discover_endpoint
+    ep = discover_endpoint(GATEWAY)
+    assert len(ep.vocab_graph_map) >= 2, f"Expected vocab graph mappings, got: {ep.vocab_graph_map}"
+    sosa_graph = ep.vocab_graph_map.get("http://www.w3.org/ns/sosa/", "")
+    assert "/ontology/sosa" in sosa_graph, f"Expected sosa graph, got: {sosa_graph}"
+
+
+def test_routing_plan_shows_graph_paths():
+    """Routing plan should render '-> /ontology/sosa' when graphs are loaded."""
+    from agents.fabric_discovery import discover_endpoint
+    ep = discover_endpoint(GATEWAY)
+    plan = ep.routing_plan
+    assert "-> /ontology/sosa" in plan, f"Expected graph path in plan. Plan:\n{plan}"
