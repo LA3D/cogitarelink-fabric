@@ -1,10 +1,16 @@
 """Fabric endpoint discovery — four-layer KR loading (D9)."""
 from __future__ import annotations
+import logging
+import re
 from dataclasses import dataclass, field
 
 import httpx
 from rdflib import Graph, Namespace
 from rdflib.namespace import RDF, RDFS, DCTERMS
+
+log = logging.getLogger(__name__)
+
+_SAFE_IRI = re.compile(r'^https?://[^\s"<>{}]+$')
 
 
 @dataclass
@@ -35,6 +41,7 @@ class FabricEndpoint:
     conforms_to: str = ""
     shapes: list[ShapeSummary] = field(default_factory=list)
     examples: list[ExampleSummary] = field(default_factory=list)
+    tbox_graph: Graph | None = field(default=None, repr=False)
 
     @property
     def routing_plan(self) -> str:
@@ -153,6 +160,48 @@ def _parse_examples(ttl: str) -> list[ExampleSummary]:
     return examples
 
 
+# --- TBox loading (L2) ----------------------------------------------------
+
+def _resolve_vocab_graphs(sparql_url: str, vocabs: list[str]) -> list[str]:
+    """Find named graphs containing triples whose subjects start with each vocabulary IRI."""
+    graphs: list[str] = []
+    for vocab in vocabs:
+        if not _SAFE_IRI.match(vocab):
+            log.warning("Skipping unsafe vocabulary IRI: %s", vocab)
+            continue
+        q = f'SELECT DISTINCT ?g WHERE {{ GRAPH ?g {{ ?s ?p ?o . FILTER(STRSTARTS(STR(?s), "{vocab}")) }} }}'
+        r = httpx.post(
+            sparql_url, data={"query": q},
+            headers={"Accept": "application/sparql-results+json"},
+            timeout=10.0,
+        )
+        r.raise_for_status()
+        for binding in r.json().get("results", {}).get("bindings", []):
+            uri = binding.get("g", {}).get("value", "")
+            if uri and uri not in graphs:
+                graphs.append(uri)
+    return graphs
+
+
+def _load_tbox(sparql_url: str, graph_uris: list[str]) -> Graph:
+    """CONSTRUCT all triples from discovered TBox named graphs into one rdflib.Graph."""
+    g = Graph()
+    for uri in graph_uris:
+        if not _SAFE_IRI.match(uri):
+            log.warning("Skipping unsafe graph IRI: %s", uri)
+            continue
+        q = f"CONSTRUCT {{ ?s ?p ?o }} WHERE {{ GRAPH <{uri}> {{ ?s ?p ?o }} }}"
+        r = httpx.post(
+            sparql_url, data={"query": q},
+            headers={"Accept": "text/turtle"},
+            timeout=30.0,
+        )
+        r.raise_for_status()
+        if r.text.strip():
+            g.parse(data=r.text, format="turtle")
+    return g
+
+
 # --- Public API ------------------------------------------------------------
 
 def discover_endpoint(url: str) -> FabricEndpoint:
@@ -169,10 +218,21 @@ def discover_endpoint(url: str) -> FabricEndpoint:
     shapes = _parse_shapes(shapes_ttl)
     examples = _parse_examples(examples_ttl)
 
+    # L2 TBox loading — non-fatal; routing plan text still works without it
+    tbox = None
+    if sparql_url and vocabs:
+        try:
+            graph_uris = _resolve_vocab_graphs(sparql_url, vocabs)
+            if graph_uris:
+                tbox = _load_tbox(sparql_url, graph_uris)
+        except (httpx.HTTPError, ValueError) as exc:
+            log.debug("TBox loading failed: %s", exc)
+
     return FabricEndpoint(
         base=base, sparql_url=sparql_url,
         void_ttl=void_ttl, profile_ttl=profile_ttl,
         shapes_ttl=shapes_ttl, examples_ttl=examples_ttl,
         vocabularies=vocabs, conforms_to=conforms,
         shapes=shapes, examples=examples,
+        tbox_graph=tbox,
     )

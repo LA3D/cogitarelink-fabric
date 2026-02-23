@@ -94,6 +94,30 @@ def test_discover_bad_endpoint():
         discover_endpoint("http://localhost:9999")
 
 
+def test_discover_loads_tbox():
+    """discover_endpoint loads TBox triples from ontology named graphs."""
+    from agents.fabric_discovery import discover_endpoint
+    from rdflib import URIRef
+    from rdflib.namespace import RDF, OWL
+    ep = discover_endpoint(GATEWAY)
+    assert ep.tbox_graph is not None
+    assert len(ep.tbox_graph) > 0
+    # sosa:Observation should be declared as an owl:Class in the TBox
+    SOSA = URIRef("http://www.w3.org/ns/sosa/Observation")
+    assert (SOSA, RDF.type, OWL.Class) in ep.tbox_graph
+
+
+def test_discover_tbox_backward_compat():
+    """FabricEndpoint without tbox_graph still works (default None)."""
+    ep = FabricEndpoint(
+        base="http://localhost:8080",
+        sparql_url="http://localhost:8080/sparql",
+        void_ttl="", profile_ttl="", shapes_ttl="", examples_ttl="",
+    )
+    assert ep.tbox_graph is None
+    assert ep.routing_plan  # still renders without error
+
+
 def test_public_api_importable():
     """Public API is importable from agents package."""
     from agents import discover_endpoint, make_fabric_query_tool, run_fabric_query

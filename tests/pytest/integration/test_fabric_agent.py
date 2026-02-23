@@ -56,5 +56,7 @@ def test_agent_answers_from_self_description():
         )
         assert "23.5" in result.answer
         assert result.sparql is not None
+        assert result.iterations > 0
+        assert result.converged is True
     finally:
         _cleanup_test_observation()
