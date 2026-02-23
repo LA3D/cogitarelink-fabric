@@ -1,0 +1,332 @@
+{
+  "benchmark": "fabric-navigation",
+  "model": "anthropic/claude-sonnet-4-6",
+  "fabric_phase": "phase2a-no-tbox-paths",
+  "fabric_features": [
+    "void-sd",
+    "void-urispace",
+    "void-graph-inventory",
+    "shacl-prefixes",
+    "shacl-class-pattern",
+    "shacl-agent-hints",
+    "sparql-examples",
+    "sparql-examples-extended",
+    "enhanced-routing-plan"
+  ],
+  "config": {
+    "maxIterations": 10
+  },
+  "timestamp": "2026-02-23T17:05:20Z",
+  "results": [
+    {
+      "taskId": "schema-property-type",
+      "answer": "According to the SOSA ontology, sosa:hasSimpleResult is a **datatype property** (owl:DatatypeProperty). It is used to link a sosa:Observation to a simple literal value (such as a numeric sensor reading), rather than to another resource/object.",
+      "expected": [
+        "DatatypeProperty"
+      ],
+      "score": 1.0,
+      "iterations": 4,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "The query asks about the nature of `sosa:hasSimpleResult` - whether it's a datatype property or object property. Let me first explore the endpoint self-description and then query the SPARQL endpoint for information about this property.",
+          "code": "print(endpoint_sd)\nprint(\"\\n\\nQuery:\", query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nEntity URI space: http://localhost:8080/entity/\n  Pattern: http://localhost:8080/entity/{id}\n  Dereferenceable: GET /entity/{id}\n\nLocal ontology cache (no external dereferencing needed):\n  prov: <http://www.w3.org/ns/prov#>\n  sio: <http://semanticscience.org/resource/>\n  sosa: <http://www.w3.org/ns/sosa/>\n  time: <http://www.w3.org/2006/time#>\n  xsd: <http://www.w3.org/2001/XMLSchema#>\n\nNamed graphs:\n  http://localhost:8080/graph/observations \u2014 Observations\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty, sosa:madeBySensor class=sosa:Sensor nodeKind=IRI pattern=^http://localhost:8080/entity/\n    Agent hint: To retrieve observations: POST /sparql with\n      SELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\n      WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\n      ORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (5):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n  \"Discover sensors\" -> http://localhost:8080/sparql\n    Returns all distinct sensors that have recorded observations at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT DISTINCT ?sensor WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor .\n      }\n    }\n  \"Entity lookup by IRI\" -> http://localhost:8080/sparql\n    Returns all properties and values for an entity. Replace {entity_iri} with the full entity IRI from the node entity namespace.\n    SELECT ?p ?o WHERE {\n      GRAPH ?g {\n        <{entity_iri}> ?p ?o .\n      }\n    }\n  \"Count observations\" -> http://localhost:8080/sparql\n    Returns the total number of observations stored at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT (COUNT(?obs) AS ?total) WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation .\n      }\n    }\n\n\nQuery: Is sosa:hasSimpleResult a datatype property or an object property according to the SOSA ontology?\n"
+        },
+        {
+          "reasoning": "The query asks about the nature of `sosa:hasSimpleResult` in the SOSA ontology. Let me query the SPARQL endpoint to find information about this property's type (datatype vs object property).",
+          "code": "# Query the SPARQL endpoint for information about sosa:hasSimpleResult\nresult = sparql_query(\"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nPREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\nSELECT ?p ?o WHERE {\n  sosa:hasSimpleResult ?p ?o .\n}\n\"\"\")\nprint(\"Property info:\", result)",
+          "output": "Property info: {\"head\":{\"vars\":[\"p\",\"o\"]},\"results\":{\"bindings\":[]}}\n"
+        },
+        {
+          "reasoning": "The SPARQL endpoint doesn't have the SOSA ontology triples stored. Let me try querying for the property type in named graphs, or use llm_query to answer based on knowledge about the SOSA ontology. The SOSA ontology defines `sosa:hasSimpleResult` as a datatype property because it holds simple literal values (like sensor readings). Let me verify this with an LLM query.",
+          "code": "# Try to find ontology info in any graph\nresult = sparql_query(\"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\n\nSELECT ?type WHERE {\n  GRAPH ?g {\n    sosa:hasSimpleResult a ?type .\n  }\n}\n\"\"\")\nprint(\"Ontology type query:\", result)\n\n# Also check what the actual values look like (to infer property type)\nresult2 = sparql_query(\"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?result WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:hasSimpleResult ?result .\n  }\n} LIMIT 5\n\"\"\")\nprint(\"Sample results:\", result2)",
+          "output": "Ontology type query: {\"head\":{\"vars\":[\"type\"]},\"results\":{\"bindings\":[{\"type\":{\"type\":\"uri\",\"value\":\"http://www.w3.org/2002/07/owl#DatatypeProperty\"}}]}}\nSample results: {\"head\":{\"vars\":[\"result\"]},\"results\":{\"bindings\":[]}}\n"
+        },
+        {
+          "reasoning": "The SPARQL endpoint returned that `sosa:hasSimpleResult` is of type `owl:DatatypeProperty`. This directly answers the question. I can now submit the answer.",
+          "code": "SUBMIT(\n    answer=\"According to the SOSA ontology, sosa:hasSimpleResult is a **datatype property** (owl:DatatypeProperty). It is used to link a sosa:Observation to a simple literal value (such as a numeric sensor reading), rather than to another resource/object.\",\n    sparql_used=\"\"\"PREFIX sosa: <http://www.w3.org/ns/sosa/>\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\n\nSELECT ?type WHERE {\n  GRAPH ?g {\n    sosa:hasSimpleResult a ?type .\n  }\n}\"\"\",\n    sources=[\"http://localhost:8080/sparql\"]\n)",
+          "output": "FINAL: {'answer': 'According to the SOSA ontology, sosa:hasSimpleResult is a **datatype property** (owl:DatatypeProperty). It is used to link a sosa:Observation to a simple literal value (such as a numeric sensor reading), rather than to another resource/object.', 'sparql_used': 'PREFIX sosa: <http://www.w3.org/ns/sosa/>\\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\\n\\nSELECT ?type WHERE {\\n  GRAPH ?g {\\n    sosa:hasSimpleResult a ?type .\\n  }\\n}', 'sources': ['http://localhost:8080/sparql']}"
+        }
+      ],
+      "wallTimeMs": 11798.094272613525,
+      "charCount": {
+        "input": 34117,
+        "output": 5606
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 3,
+        "empty_result_recoveries": 2,
+        "used_shacl_hint": true,
+        "used_sparql_example": false,
+        "named_graphs_queried": [
+          "http://localhost:8080/graph/observations"
+        ],
+        "final_named_graph": "http://localhost:8080/graph/observations"
+      },
+      "error": null
+    },
+    {
+      "taskId": "schema-used-procedure-range",
+      "answer": "According to the SOSA ontology, sosa:usedProcedure links an observation to the class sosa:Procedure. This property has sosa:Procedure as its range, meaning it connects an observation (or actuation/sampling) to an instance of sosa:Procedure, which represents the procedure, method, algorithm, or instrument used to make the observation.",
+      "expected": [
+        "Procedure"
+      ],
+      "score": 1.0,
+      "iterations": 4,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "The query asks about what class `sosa:usedProcedure` links an observation to, according to the SOSA ontology. This is a semantic/ontological question. Let me first look at the endpoint self-description to understand what's available, then try to query the SPARQL endpoint for information about `sosa:usedProcedure`.",
+          "code": "print(endpoint_sd)\nprint(\"\\n---\\n\")\nprint(query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nEntity URI space: http://localhost:8080/entity/\n  Pattern: http://localhost:8080/entity/{id}\n  Dereferenceable: GET /entity/{id}\n\nLocal ontology cache (no external dereferencing needed):\n  prov: <http://www.w3.org/ns/prov#>\n  sio: <http://semanticscience.org/resource/>\n  sosa: <http://www.w3.org/ns/sosa/>\n  time: <http://www.w3.org/2006/time#>\n  xsd: <http://www.w3.org/2001/XMLSchema#>\n\nNamed graphs:\n  http://localhost:8080/graph/observations \u2014 Observations\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty, sosa:madeBySensor class=sosa:Sensor nodeKind=IRI pattern=^http://localhost:8080/entity/\n    Agent hint: To retrieve observations: POST /sparql with\n      SELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\n      WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\n      ORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (5):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n  \"Discover sensors\" -> http://localhost:8080/sparql\n    Returns all distinct sensors that have recorded observations at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT DISTINCT ?sensor WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor .\n      }\n    }\n  \"Entity lookup by IRI\" -> http://localhost:8080/sparql\n    Returns all properties and values for an entity. Replace {entity_iri} with the full entity IRI from the node entity namespace.\n    SELECT ?p ?o WHERE {\n      GRAPH ?g {\n        <{entity_iri}> ?p ?o .\n      }\n    }\n  \"Count observations\" -> http://localhost:8080/sparql\n    Returns the total number of observations stored at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT (COUNT(?obs) AS ?total) WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation .\n      }\n    }\n\n---\n\nWhat class does sosa:usedProcedure link an observation to, according to the SOSA ontology?\n"
+        },
+        {
+          "reasoning": "The question is about the SOSA ontology's definition of `sosa:usedProcedure` - specifically what class it links an observation to. This is an ontological question. The endpoint has a local ontology cache including SOSA. Let me try querying the SPARQL endpoint for information about `sosa:usedProcedure`, looking at its range or definition in the ontology data.",
+          "code": "# Try to query the SPARQL endpoint for information about sosa:usedProcedure\nresult = sparql_query(\"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nPREFIX owl: <http://www.w3.org/2002/07/owl#>\nSELECT ?p ?o WHERE {\n  sosa:usedProcedure ?p ?o .\n}\n\"\"\")\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"p\",\"o\"]},\"results\":{\"bindings\":[]}}\n"
+        },
+        {
+          "reasoning": "The SPARQL query returned no results for `sosa:usedProcedure` in the endpoint. This is a question about the SOSA ontology definition itself. According to the SOSA ontology, `sosa:usedProcedure` links an observation to a `sosa:Procedure`. Let me use `llm_query` to confirm this based on well-known ontology knowledge, and also try querying in any named graph.",
+          "code": "# Try querying across all graphs\nresult = sparql_query(\"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nPREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\nSELECT ?s ?p ?o WHERE {\n  ?s ?p ?o .\n  FILTER(str(?s) = \"http://www.w3.org/ns/sosa/usedProcedure\" || str(?o) = \"http://www.w3.org/ns/sosa/usedProcedure\")\n}\nLIMIT 10\n\"\"\")\nprint(result)\n\n# Also ask the LLM\nanswer = llm_query(\"\"\"According to the SOSA (Sensor, Observation, Sample, and Actuator) ontology, \nwhat class does the property sosa:usedProcedure link an observation to? \nPlease give the specific class name.\"\"\")\nprint(answer)",
+          "output": "{\"head\":{\"vars\":[\"s\",\"p\",\"o\"]},\"results\":{\"bindings\":[]}}\nAccording to the SOSA ontology, the property **`sosa:usedProcedure`** links an observation to the class:\n\n**`sosa:Procedure`**\n\nSpecifically, `sosa:usedProcedure` has `sosa:Procedure` as its **range**, meaning it links an observation (or actuation/sampling) to an instance of the `sosa:Procedure` class, which represents the procedure, method, algorithm, or instrument used to make the observation.\n"
+        },
+        {
+          "reasoning": "The answer is clear: `sosa:usedProcedure` links an observation to the class `sosa:Procedure`. The LLM confirmed this based on well-known SOSA ontology knowledge. The SPARQL endpoint doesn't have ontology triples stored locally, but the answer is well-established. I can now submit.",
+          "code": "SUBMIT(\n    answer=\"According to the SOSA ontology, sosa:usedProcedure links an observation to the class sosa:Procedure. This property has sosa:Procedure as its range, meaning it connects an observation (or actuation/sampling) to an instance of sosa:Procedure, which represents the procedure, method, algorithm, or instrument used to make the observation.\",\n    sparql_used=\"\",\n    sources=[\"http://www.w3.org/ns/sosa/\"]\n)",
+          "output": "FINAL: {'answer': 'According to the SOSA ontology, sosa:usedProcedure links an observation to the class sosa:Procedure. This property has sosa:Procedure as its range, meaning it connects an observation (or actuation/sampling) to an instance of sosa:Procedure, which represents the procedure, method, algorithm, or instrument used to make the observation.', 'sparql_used': '', 'sources': ['http://www.w3.org/ns/sosa/']}"
+        }
+      ],
+      "wallTimeMs": 14251.420021057129,
+      "charCount": {
+        "input": 34849,
+        "output": 6780
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 2,
+        "empty_result_recoveries": 2,
+        "used_shacl_hint": false,
+        "used_sparql_example": false,
+        "named_graphs_queried": [],
+        "final_named_graph": null
+      },
+      "error": null
+    },
+    {
+      "taskId": "schema-phenomenon-time-exists",
+      "answer": "Yes. The SOSA ontology defines **`sosa:phenomenonTime`** as the property for when the observed phenomenon actually occurred in the real world, which is distinct from `sosa:resultTime`.\n\n- **`sosa:phenomenonTime`**: The time that the result of an Observation applies to the FeatureOfInterest \u2014 i.e., when the real-world phenomenon occurred. Its range is a `time:TemporalEntity` (from OWL-Time), supporting both instants and intervals.\n- **`sosa:resultTime`**: The time when the observation result was produced or recorded by the sensor.\n\nFor example, a sensor might record (resultTime) on Monday a temperature spike that actually occurred (phenomenonTime) the previous Friday. This mirrors the transaction-time vs. valid-time distinction in temporal databases.",
+      "expected": [
+        "phenomenonTime"
+      ],
+      "score": 1.0,
+      "iterations": 4,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "The query asks about whether SOSA ontology defines a property for when the observed phenomenon actually occurred (distinct from when the result was recorded). This is about the `sosa:phenomenonTime` property. Let me first explore the endpoint self-description and then query the endpoint to find information about SOSA properties.",
+          "code": "print(endpoint_sd)\nprint(\"---\")\nprint(query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nEntity URI space: http://localhost:8080/entity/\n  Pattern: http://localhost:8080/entity/{id}\n  Dereferenceable: GET /entity/{id}\n\nLocal ontology cache (no external dereferencing needed):\n  prov: <http://www.w3.org/ns/prov#>\n  sio: <http://semanticscience.org/resource/>\n  sosa: <http://www.w3.org/ns/sosa/>\n  time: <http://www.w3.org/2006/time#>\n  xsd: <http://www.w3.org/2001/XMLSchema#>\n\nNamed graphs:\n  http://localhost:8080/graph/observations \u2014 Observations\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty, sosa:madeBySensor class=sosa:Sensor nodeKind=IRI pattern=^http://localhost:8080/entity/\n    Agent hint: To retrieve observations: POST /sparql with\n      SELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\n      WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\n      ORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (5):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n  \"Discover sensors\" -> http://localhost:8080/sparql\n    Returns all distinct sensors that have recorded observations at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT DISTINCT ?sensor WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor .\n      }\n    }\n  \"Entity lookup by IRI\" -> http://localhost:8080/sparql\n    Returns all properties and values for an entity. Replace {entity_iri} with the full entity IRI from the node entity namespace.\n    SELECT ?p ?o WHERE {\n      GRAPH ?g {\n        <{entity_iri}> ?p ?o .\n      }\n    }\n  \"Count observations\" -> http://localhost:8080/sparql\n    Returns the total number of observations stored at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT (COUNT(?obs) AS ?total) WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation .\n      }\n    }\n---\nDoes the SOSA ontology define a property for when the observed phenomenon actually occurred (distinct from when the result was recorded)?\n"
+        },
+        {
+          "reasoning": "The query asks whether SOSA defines a property for when the observed phenomenon actually occurred (distinct from when the result was recorded). \n\nFrom my knowledge of SOSA ontology:\n- `sosa:resultTime` - when the result was produced/recorded\n- `sosa:phenomenonTime` - when the phenomenon being observed actually occurred\n\nThe endpoint's SHACL shape only shows `sosa:resultTime`, `sosa:hasSimpleResult`, `sosa:observedProperty`, and `sosa:madeBySensor`. Let me query the endpoint to see if `sosa:phenomenonTime` is referenced anywhere, and also use my knowledge to answer the question directly.\n\nLet me query the SPARQL endpoint to check what properties exist, and also use llm_query to get a definitive answer about SOSA ontology.",
+          "code": "# Query for any phenomenonTime usage in the data\nresult = sparql_query(\"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?p WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         ?p ?o .\n  }\n}\nGROUP BY ?p\n\"\"\")\nprint(\"Properties in observations:\", result)",
+          "output": "Properties in observations: {\"head\":{\"vars\":[\"p\"]},\"results\":{\"bindings\":[]}}\n"
+        },
+        {
+          "reasoning": "The SPARQL query returned empty results (no observations in the graph). But the question is about whether SOSA ontology *defines* a property for when the observed phenomenon actually occurred - this is a question about the ontology itself, not about the data in the endpoint.\n\nFrom my knowledge of SOSA ontology, `sosa:phenomenonTime` is indeed defined for when the phenomenon occurred, distinct from `sosa:resultTime` which is when the result was recorded. Let me use llm_query to get a detailed answer, and also try to query the endpoint for ontology terms.",
+          "code": "answer = llm_query(\"\"\"The question is: Does the SOSA ontology define a property for when the observed phenomenon actually occurred (distinct from when the result was recorded)?\n\nPlease answer based on your knowledge of the SOSA (Sensor, Observation, Sample, and Actuator) ontology:\n1. Is there a property in SOSA for when the phenomenon actually occurred?\n2. What is it called and what does it mean?\n3. How is it distinct from sosa:resultTime?\n\nProvide a concise, accurate answer.\"\"\")\nprint(answer)",
+          "output": "# SOSA Ontology: Phenomenon Time Property\n\n## Yes \u2014 SOSA defines `sosa:phenomenonTime`\n\n---\n\n## 1. The Property Exists\n\nSOSA explicitly defines **`sosa:phenomenonTime`** to capture *when the observed (or actuated) phenomenon actually occurred*, distinct from when the result was recorded.\n\n---\n\n## 2. Definition and Meaning\n\n**`sosa:phenomenonTime`**\n> *\"The time that the Result of an Observation, Actuation, or Sampling applies to the FeatureOfInterest \u2014 not the time when the Observation was made.\"*\n\n- It references the **real-world temporal extent** of the phenomenon being observed\n- Its range is **`owl:Time` / `time:TemporalEntity`** (from OWL-Time), allowing both instants and intervals\n- Example: An observation *recorded* on Monday may describe a temperature spike that *occurred* the previous Friday \u2014 phenomenonTime captures that Friday\n\n---\n\n## 3. Distinction from `sosa:resultTime`\n\n| Property | Captures | Example |\n|---|---|---|\n| `sosa:resultTime` | When the **observation result was produced/recorded** (sensor output time) | Timestamp when sensor logged the value |\n| `sosa:phenomenonTime` | When the **phenomenon itself occurred** in the real world | The actual time the temperature spike happened |\n\n### Key conceptual distinction:\n- `resultTime` \u2192 **epistemic time** (when we obtained the knowledge)\n- `phenomenonTime` \u2192 **ontological time** (when the world-state existed)\n\nThis mirrors the distinction in temporal databases between **transaction time** and **valid time**, and is critical for retrospective observations, remote sensing, and historical data ingestion.\n"
+        },
+        {
+          "reasoning": "I have all the information needed to answer the question. The SOSA ontology does define `sosa:phenomenonTime` for when the observed phenomenon actually occurred, distinct from `sosa:resultTime` which captures when the result was recorded. Let me submit the answer.",
+          "code": "answer = \"\"\"Yes. The SOSA ontology defines **`sosa:phenomenonTime`** as the property for when the observed phenomenon actually occurred in the real world, which is distinct from `sosa:resultTime`.\n\n- **`sosa:phenomenonTime`**: The time that the result of an Observation applies to the FeatureOfInterest \u2014 i.e., when the real-world phenomenon occurred. Its range is a `time:TemporalEntity` (from OWL-Time), supporting both instants and intervals.\n- **`sosa:resultTime`**: The time when the observation result was produced or recorded by the sensor.\n\nFor example, a sensor might record (resultTime) on Monday a temperature spike that actually occurred (phenomenonTime) the previous Friday. This mirrors the transaction-time vs. valid-time distinction in temporal databases.\"\"\"\n\nsparql_used = \"\"\"PREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?p WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         ?p ?o .\n  }\n}\nGROUP BY ?p\"\"\"\n\nsources = [\n    \"http://www.w3.org/ns/sosa/\",\n    \"https://www.w3.org/TR/vocab-ssn/\"\n]\n\nSUBMIT(answer, sparql_used, sources)",
+          "output": "FINAL: {'answer': 'Yes. The SOSA ontology defines **`sosa:phenomenonTime`** as the property for when the observed phenomenon actually occurred in the real world, which is distinct from `sosa:resultTime`.\\n\\n- **`sosa:phenomenonTime`**: The time that the result of an Observation applies to the FeatureOfInterest \u2014 i.e., when the real-world phenomenon occurred. Its range is a `time:TemporalEntity` (from OWL-Time), supporting both instants and intervals.\\n- **`sosa:resultTime`**: The time when the observation result was produced or recorded by the sensor.\\n\\nFor example, a sensor might record (resultTime) on Monday a temperature spike that actually occurred (phenomenonTime) the previous Friday. This mirrors the transaction-time vs. valid-time distinction in temporal databases.', 'sparql_used': 'PREFIX sosa: <http://www.w3.org/ns/sosa/>\\nSELECT ?p WHERE {\\n  GRAPH <http://localhost:8080/graph/observations> {\\n    ?obs a sosa:Observation ;\\n         ?p ?o .\\n  }\\n}\\nGROUP BY ?p', 'sources': ['http://www.w3.org/ns/sosa/', 'https://www.w3.org/TR/vocab-ssn/']}"
+        }
+      ],
+      "wallTimeMs": 22971.179008483887,
+      "charCount": {
+        "input": 37501,
+        "output": 11458
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 2,
+        "empty_result_recoveries": 1,
+        "used_shacl_hint": true,
+        "used_sparql_example": false,
+        "named_graphs_queried": [
+          "http://localhost:8080/graph/observations"
+        ],
+        "final_named_graph": "http://localhost:8080/graph/observations"
+      },
+      "error": null
+    },
+    {
+      "taskId": "obs-used-procedure",
+      "answer": "The procedure used to collect the observations was an electrochemical scan, identified by the IRI http://localhost:8080/entity/procedure-electrochemical-scan (sosa:usedProcedure).",
+      "expected": [
+        "electrochemical-scan"
+      ],
+      "score": 1.0,
+      "iterations": 4,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "Let me start by exploring the endpoint self-description to understand what's available, then construct a SPARQL query to find the procedure used to collect observations.",
+          "code": "print(endpoint_sd)\nprint(\"---\")\nprint(query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nEntity URI space: http://localhost:8080/entity/\n  Pattern: http://localhost:8080/entity/{id}\n  Dereferenceable: GET /entity/{id}\n\nLocal ontology cache (no external dereferencing needed):\n  prov: <http://www.w3.org/ns/prov#>\n  sio: <http://semanticscience.org/resource/>\n  sosa: <http://www.w3.org/ns/sosa/>\n  time: <http://www.w3.org/2006/time#>\n  xsd: <http://www.w3.org/2001/XMLSchema#>\n\nNamed graphs:\n  http://localhost:8080/graph/observations \u2014 Observations\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty, sosa:madeBySensor class=sosa:Sensor nodeKind=IRI pattern=^http://localhost:8080/entity/\n    Agent hint: To retrieve observations: POST /sparql with\n      SELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\n      WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\n      ORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (5):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n  \"Discover sensors\" -> http://localhost:8080/sparql\n    Returns all distinct sensors that have recorded observations at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT DISTINCT ?sensor WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor .\n      }\n    }\n  \"Entity lookup by IRI\" -> http://localhost:8080/sparql\n    Returns all properties and values for an entity. Replace {entity_iri} with the full entity IRI from the node entity namespace.\n    SELECT ?p ?o WHERE {\n      GRAPH ?g {\n        <{entity_iri}> ?p ?o .\n      }\n    }\n  \"Count observations\" -> http://localhost:8080/sparql\n    Returns the total number of observations stored at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT (COUNT(?obs) AS ?total) WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation .\n      }\n    }\n---\nWhat procedure was used to collect the observations?\n"
+        },
+        {
+          "reasoning": "The query asks about the procedure used to collect observations. In SOSA/SSN ontology, `sosa:usedProcedure` links observations to procedures. The endpoint description shows the observation shape has properties like `sosa:hasSimpleResult`, `sosa:resultTime`, `sosa:observedProperty`, and `sosa:madeBySensor`, but doesn't explicitly mention `sosa:usedProcedure`. Let me query the endpoint to check if there's a procedure property in the data.",
+          "code": "# Query for procedure used in observations\nresult = sparql_query(\"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT DISTINCT ?procedure WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:usedProcedure ?procedure .\n  }\n}\n\"\"\")\nprint(\"usedProcedure results:\", result)\n\n# Also check all predicates used in observations to see what's available\nresult2 = sparql_query(\"\"\"\nSELECT DISTINCT ?p WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a <http://www.w3.org/ns/sosa/Observation> ;\n         ?p ?o .\n  }\n}\n\"\"\")\nprint(\"All predicates:\", result2)",
+          "output": "usedProcedure results: {\"head\":{\"vars\":[\"procedure\"]},\"results\":{\"bindings\":[{\"procedure\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/procedure-electrochemical-scan\"}}]}}\nAll predicates: {\"head\":{\"vars\":[\"p\"]},\"results\":{\"bindings\":[{\"p\":{\"type\":\"uri\",\"value\":\"http://www.w3.org/ns/sosa/resultTime\"}},{\"p\":{\"type\":\"uri\",\"value\":\"http://www.w3.org/1999/02/22-rdf-syntax-ns#type\"}},{\"p\":{\"type\":\"uri\",\"value\":\"http://www.w3.org/ns/sosa/madeBySensor\"}},{\"p\":{\"type\":\"uri\",\"value\":\"http://www.w3.org/ns/sosa/hasSimpleResult\"}},{\"p\":{\"type\":\"uri\",\"value\":\"http://www.w3.org/ns/sosa/usedProcedure\"}}]}}\n"
+        },
+        {
+          "reasoning": "I found the procedure. The query for `sosa:usedProcedure` returned `http://localhost:8080/entity/procedure-electrochemical-scan`. Let me get more details about this procedure entity to provide a complete answer.",
+          "code": "# Look up the procedure entity to get more details\nresult = sparql_query(\"\"\"\nSELECT ?p ?o WHERE {\n  GRAPH ?g {\n    <http://localhost:8080/entity/procedure-electrochemical-scan> ?p ?o .\n  }\n}\n\"\"\")\nprint(\"Procedure details:\", result)",
+          "output": "Procedure details: {\"head\":{\"vars\":[\"p\",\"o\"]},\"results\":{\"bindings\":[]}}\n"
+        },
+        {
+          "reasoning": "The procedure entity doesn't have additional details in the graph. The procedure IRI is `http://localhost:8080/entity/procedure-electrochemical-scan`, which itself is descriptive. The name \"electrochemical-scan\" suggests the procedure is an electrochemical scan. I have enough information to answer the query. Let me submit.",
+          "code": "SUBMIT(\n    answer=\"The procedure used to collect the observations was an electrochemical scan, identified by the IRI http://localhost:8080/entity/procedure-electrochemical-scan (sosa:usedProcedure).\",\n    sparql_used=\"\"\"PREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT DISTINCT ?procedure WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:usedProcedure ?procedure .\n  }\n}\"\"\",\n    sources=[\"http://localhost:8080/entity/procedure-electrochemical-scan\"]\n)",
+          "output": "FINAL: {'answer': 'The procedure used to collect the observations was an electrochemical scan, identified by the IRI http://localhost:8080/entity/procedure-electrochemical-scan (sosa:usedProcedure).', 'sparql_used': 'PREFIX sosa: <http://www.w3.org/ns/sosa/>\\nSELECT DISTINCT ?procedure WHERE {\\n  GRAPH <http://localhost:8080/graph/observations> {\\n    ?obs a sosa:Observation ;\\n         sosa:usedProcedure ?procedure .\\n  }\\n}', 'sources': ['http://localhost:8080/entity/procedure-electrochemical-scan']}"
+        }
+      ],
+      "wallTimeMs": 16168.46489906311,
+      "charCount": {
+        "input": 34928,
+        "output": 5712
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 3,
+        "empty_result_recoveries": 1,
+        "used_shacl_hint": true,
+        "used_sparql_example": false,
+        "named_graphs_queried": [
+          "http://localhost:8080/graph/observations"
+        ],
+        "final_named_graph": "http://localhost:8080/graph/observations"
+      },
+      "error": null
+    },
+    {
+      "taskId": "obs-feature-of-interest",
+      "answer": "The feature of interest being observed was 'feature-sample-alpha' (URI: http://localhost:8080/entity/feature-sample-alpha).",
+      "expected": [
+        "sample-alpha"
+      ],
+      "score": 1.0,
+      "iterations": 4,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "Let me start by exploring the endpoint self-description to understand the data structure, then construct appropriate SPARQL queries to answer the question about what feature of interest was being observed.",
+          "code": "print(endpoint_sd)\nprint(\"\\n\\nQuery:\", query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nEntity URI space: http://localhost:8080/entity/\n  Pattern: http://localhost:8080/entity/{id}\n  Dereferenceable: GET /entity/{id}\n\nLocal ontology cache (no external dereferencing needed):\n  prov: <http://www.w3.org/ns/prov#>\n  sio: <http://semanticscience.org/resource/>\n  sosa: <http://www.w3.org/ns/sosa/>\n  time: <http://www.w3.org/2006/time#>\n  xsd: <http://www.w3.org/2001/XMLSchema#>\n\nNamed graphs:\n  http://localhost:8080/graph/observations \u2014 Observations\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty, sosa:madeBySensor class=sosa:Sensor nodeKind=IRI pattern=^http://localhost:8080/entity/\n    Agent hint: To retrieve observations: POST /sparql with\n      SELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\n      WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\n      ORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (5):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n  \"Discover sensors\" -> http://localhost:8080/sparql\n    Returns all distinct sensors that have recorded observations at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT DISTINCT ?sensor WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor .\n      }\n    }\n  \"Entity lookup by IRI\" -> http://localhost:8080/sparql\n    Returns all properties and values for an entity. Replace {entity_iri} with the full entity IRI from the node entity namespace.\n    SELECT ?p ?o WHERE {\n      GRAPH ?g {\n        <{entity_iri}> ?p ?o .\n      }\n    }\n  \"Count observations\" -> http://localhost:8080/sparql\n    Returns the total number of observations stored at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT (COUNT(?obs) AS ?total) WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation .\n      }\n    }\n\n\nQuery: What feature of interest was being observed?\n"
+        },
+        {
+          "reasoning": "The query asks about \"feature of interest\" which in SOSA/SSN ontology is represented by `sosa:hasFeatureOfInterest`. The endpoint description shows observations with properties like `sosa:hasSimpleResult`, `sosa:resultTime`, `sosa:observedProperty`, `sosa:madeBySensor`, but doesn't explicitly list `sosa:hasFeatureOfInterest`. Let me query for it directly.",
+          "code": "sparql = \"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT DISTINCT ?featureOfInterest WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:hasFeatureOfInterest ?featureOfInterest .\n  }\n}\n\"\"\"\nresult = sparql_query(sparql)\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"featureOfInterest\"]},\"results\":{\"bindings\":[{\"featureOfInterest\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/feature-sample-alpha\"}}]}}\n"
+        },
+        {
+          "reasoning": "The query returned a feature of interest URI: `http://localhost:8080/entity/feature-sample-alpha`. Let me look up more details about this entity to provide a better answer, then submit.",
+          "code": "# Look up the entity for more details\nentity_iri = \"http://localhost:8080/entity/feature-sample-alpha\"\nsparql = f\"\"\"\nSELECT ?p ?o WHERE {{\n  GRAPH ?g {{\n    <{entity_iri}> ?p ?o .\n  }}\n}}\n\"\"\"\nresult = sparql_query(sparql)\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"p\",\"o\"]},\"results\":{\"bindings\":[]}}\n"
+        },
+        {
+          "reasoning": "The feature of interest URI is `http://localhost:8080/entity/feature-sample-alpha`. The entity lookup returned no additional properties, so the name \"feature-sample-alpha\" is the identifier itself. Let me submit this answer.",
+          "code": "sparql_used = \"\"\"PREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT DISTINCT ?featureOfInterest WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:hasFeatureOfInterest ?featureOfInterest .\n  }\n}\"\"\"\n\nSUBMIT(\n    answer=\"The feature of interest being observed was 'feature-sample-alpha' (URI: http://localhost:8080/entity/feature-sample-alpha).\",\n    sparql_used=sparql_used,\n    sources=[\"http://localhost:8080/entity/feature-sample-alpha\"]\n)",
+          "output": "FINAL: {'answer': \"The feature of interest being observed was 'feature-sample-alpha' (URI: http://localhost:8080/entity/feature-sample-alpha).\", 'sparql_used': 'PREFIX sosa: <http://www.w3.org/ns/sosa/>\\nSELECT DISTINCT ?featureOfInterest WHERE {\\n  GRAPH <http://localhost:8080/graph/observations> {\\n    ?obs a sosa:Observation ;\\n         sosa:hasFeatureOfInterest ?featureOfInterest .\\n  }\\n}', 'sources': ['http://localhost:8080/entity/feature-sample-alpha']}"
+        }
+      ],
+      "wallTimeMs": 14345.334768295288,
+      "charCount": {
+        "input": 33253,
+        "output": 4692
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 3,
+        "empty_result_recoveries": 1,
+        "used_shacl_hint": true,
+        "used_sparql_example": false,
+        "named_graphs_queried": [
+          "http://localhost:8080/graph/observations"
+        ],
+        "final_named_graph": "http://localhost:8080/graph/observations"
+      },
+      "error": null
+    },
+    {
+      "taskId": "obs-phenomenon-time",
+      "answer": "The observed phenomenon actually occurred at 2026-02-23T11:30:00Z, as recorded by the sosa:phenomenonTime property of the observation (http://localhost:8080/entity/test-obs-tbox-6a). This is distinct from sosa:resultTime, which records when the result was logged.",
+      "expected": [
+        "11:30"
+      ],
+      "score": 1.0,
+      "iterations": 3,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "Let me start by exploring the endpoint self-description to understand what data is available, then construct appropriate SPARQL queries to answer the question about when an observed phenomenon actually occurred (phenomenonTime in SOSA/SSN vocabulary).",
+          "code": "print(endpoint_sd)\nprint(\"---\")\nprint(query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nEntity URI space: http://localhost:8080/entity/\n  Pattern: http://localhost:8080/entity/{id}\n  Dereferenceable: GET /entity/{id}\n\nLocal ontology cache (no external dereferencing needed):\n  prov: <http://www.w3.org/ns/prov#>\n  sio: <http://semanticscience.org/resource/>\n  sosa: <http://www.w3.org/ns/sosa/>\n  time: <http://www.w3.org/2006/time#>\n  xsd: <http://www.w3.org/2001/XMLSchema#>\n\nNamed graphs:\n  http://localhost:8080/graph/observations \u2014 Observations\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty, sosa:madeBySensor class=sosa:Sensor nodeKind=IRI pattern=^http://localhost:8080/entity/\n    Agent hint: To retrieve observations: POST /sparql with\n      SELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\n      WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\n      ORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (5):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n  \"Discover sensors\" -> http://localhost:8080/sparql\n    Returns all distinct sensors that have recorded observations at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT DISTINCT ?sensor WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor .\n      }\n    }\n  \"Entity lookup by IRI\" -> http://localhost:8080/sparql\n    Returns all properties and values for an entity. Replace {entity_iri} with the full entity IRI from the node entity namespace.\n    SELECT ?p ?o WHERE {\n      GRAPH ?g {\n        <{entity_iri}> ?p ?o .\n      }\n    }\n  \"Count observations\" -> http://localhost:8080/sparql\n    Returns the total number of observations stored at this node.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT (COUNT(?obs) AS ?total) WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation .\n      }\n    }\n---\nWhen did the observed phenomenon actually occur (not when the result was recorded)?\n"
+        },
+        {
+          "reasoning": "The question asks about when the observed phenomenon actually occurred. In SOSA/SSN vocabulary, `sosa:resultTime` is when the result was recorded/generated, while `sosa:phenomenonTime` is when the phenomenon actually occurred. The shape in the endpoint only shows `sosa:resultTime`, but the data might also contain `sosa:phenomenonTime`. Let me query for `sosa:phenomenonTime` in the observations.",
+          "code": "sparql = \"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?obs ?phenomenonTime WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:phenomenonTime ?phenomenonTime .\n  }\n}\nLIMIT 10\n\"\"\"\nresult = sparql_query(sparql)\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"obs\",\"phenomenonTime\"]},\"results\":{\"bindings\":[{\"obs\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/test-obs-tbox-6a\"},\"phenomenonTime\":{\"type\":\"literal\",\"value\":\"2026-02-23T11:30:00Z\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#dateTime\"}}]}}\n"
+        },
+        {
+          "reasoning": "I found the answer. There is one observation with `sosa:phenomenonTime` = \"2026-02-23T11:30:00Z\". This is when the observed phenomenon actually occurred (as opposed to `sosa:resultTime` which is when the result was recorded). Let me submit this answer.",
+          "code": "SUBMIT(\n    answer=\"The observed phenomenon actually occurred at 2026-02-23T11:30:00Z, as recorded by the sosa:phenomenonTime property of the observation (http://localhost:8080/entity/test-obs-tbox-6a). This is distinct from sosa:resultTime, which records when the result was logged.\",\n    sparql_used=\"\"\"PREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?obs ?phenomenonTime WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:phenomenonTime ?phenomenonTime .\n  }\n}\nLIMIT 10\"\"\",\n    sources=[\"http://localhost:8080/entity/test-obs-tbox-6a\"]\n)",
+          "output": "FINAL: {'answer': 'The observed phenomenon actually occurred at 2026-02-23T11:30:00Z, as recorded by the sosa:phenomenonTime property of the observation (http://localhost:8080/entity/test-obs-tbox-6a). This is distinct from sosa:resultTime, which records when the result was logged.', 'sparql_used': 'PREFIX sosa: <http://www.w3.org/ns/sosa/>\\nSELECT ?obs ?phenomenonTime WHERE {\\n  GRAPH <http://localhost:8080/graph/observations> {\\n    ?obs a sosa:Observation ;\\n         sosa:phenomenonTime ?phenomenonTime .\\n  }\\n}\\nLIMIT 10', 'sources': ['http://localhost:8080/entity/test-obs-tbox-6a']}"
+        }
+      ],
+      "wallTimeMs": 12262.590885162354,
+      "charCount": {
+        "input": 23679,
+        "output": 4112
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 2,
+        "empty_result_recoveries": 0,
+        "used_shacl_hint": true,
+        "used_sparql_example": false,
+        "named_graphs_queried": [
+          "http://localhost:8080/graph/observations"
+        ],
+        "final_named_graph": "http://localhost:8080/graph/observations"
+      },
+      "error": null
+    }
+  ],
+  "aggregate": {
+    "meanScore": 1.0,
+    "medianScore": 1.0,
+    "stdScore": 0.0,
+    "meanIterations": 3.8333333333333335,
+    "medianIterations": 4.0,
+    "meanWallTimeMs": 15299.513975779215,
+    "totalWallTimeMs": 91797.0838546753,
+    "totalInputChars": 198327,
+    "totalOutputChars": 38360,
+    "costEstimateUsd": 0.29259525,
+    "convergenceRate": 1.0,
+    "meanSparqlAttempts": 2.5,
+    "meanEmptyRecoveries": 1.1666666666666667,
+    "completedTasks": 6,
+    "failedTasks": 0
+  }
+}
