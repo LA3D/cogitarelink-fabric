@@ -83,7 +83,7 @@ import owlrl
 from rdflib import Graph
 
 g = Graph()
-g.parse("fabric-vocab.ttl", format="turtle")
+g.parse("fabric.ttl", format="turtle")
 g.parse("data.ttl", format="turtle")
 
 # Apply OWL-RL closure

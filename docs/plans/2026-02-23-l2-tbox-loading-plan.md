@@ -20,7 +20,7 @@
 - Create: `ontology/role.ttl` (copy from sibling repo)
 - Create: `ontology/sio.ttl` (copy from sibling repo)
 - Delete: `ontology/sosa-tbox-stub.ttl`
-- Rename: `ontology/fabric-vocab.ttl` -> `ontology/fabric.ttl`
+- Rename: `ontology/fabric.ttl` -> `ontology/fabric.ttl`
 
 **Step 1: Copy ontology files from sibling repos**
 
@@ -64,10 +64,10 @@ Verify it's valid Turtle:
 python3 -c "from rdflib import Graph; g = Graph(); g.parse('ontology/time.ttl', format='turtle'); print(f'{len(g)} triples')"
 ```
 
-**Step 3: Rename fabric-vocab.ttl to fabric.ttl**
+**Step 3: Rename fabric.ttl to fabric.ttl**
 
 ```bash
-git mv ontology/fabric-vocab.ttl ontology/fabric.ttl
+git mv ontology/fabric.ttl ontology/fabric.ttl
 ```
 
 **Step 4: Delete the stub**
@@ -110,7 +110,7 @@ git commit -m "[Agent: Claude] feat: add full L2 TBox ontologies (SOSA, OWL-Time
 
 Replace 70-line SOSA stub with full W3C SOSA (424 lines).
 Add OWL-Time (W3C download), PROV-O (consolidated), PROF, Role, SIO subset.
-Rename fabric-vocab.ttl to fabric.ttl for convention auto-loading.
+Rename fabric.ttl to fabric.ttl for convention auto-loading.
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
@@ -745,10 +745,10 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
 ---
 
-### Task 7: Update References to fabric-vocab.ttl
+### Task 7: Update References to fabric.ttl
 
 **Files:**
-- Modify: any file referencing `fabric-vocab.ttl`
+- Modify: any file referencing `fabric.ttl`
 
 **Step 1: Search for references**
 
@@ -770,7 +770,7 @@ Expected: all PASS
 
 ```bash
 git add -A
-git commit -m "[Agent: Claude] chore: update references from fabric-vocab.ttl to fabric.ttl
+git commit -m "[Agent: Claude] chore: update references from fabric.ttl to fabric.ttl
 
 Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 ```
@@ -943,7 +943,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 | `ontology/prof.ttl` | New (copy) | 1 |
 | `ontology/role.ttl` | New (copy) | 1 |
 | `ontology/sio.ttl` | New (copy) | 1 |
-| `ontology/fabric.ttl` | Rename from fabric-vocab.ttl | 1 |
+| `ontology/fabric.ttl` | Rename from fabric.ttl | 1 |
 | `ontology/sosa-tbox-stub.ttl` | Delete | 1 |
 | `ontology/fabric-core-profile.ttl` | Edit (add resources) | 4 |
 | `fabric/node/bootstrap.py` | Edit (convention auto-load) | 2 |

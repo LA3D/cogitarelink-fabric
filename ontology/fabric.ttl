@@ -426,5 +426,5 @@ fabric:Published
 # END OF VOCABULARY
 # Five-star status: ★★★★ (★★★★★ pending external vocabulary adoption + LOV registration)
 # Version: 0.1.0  |  Date: 2026-02-22
-# Source: https://github.com/LA3D/cogitarelink-fabric/ontology/fabric-vocab.ttl
+# Source: https://github.com/LA3D/cogitarelink-fabric/ontology/fabric.ttl
 # ============================================================

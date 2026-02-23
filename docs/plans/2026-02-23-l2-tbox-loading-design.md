@@ -22,7 +22,7 @@ Seven ontologies loaded into Oxigraph named graphs via convention `<{base}/ontol
 | `prof.ttl` | `/ontology/prof` | Copy from rlm | 175 | Profiles vocabulary (D7) |
 | `role.ttl` | `/ontology/role` | Copy from rlm | 114 | PROF role concepts (D7) |
 | `sio.ttl` | `/ontology/sio` | Copy from ontology-agent-kr (subset) | 144 | Entity type reasoning |
-| `fabric.ttl` | `/ontology/fabric` | Rename fabric-vocab.ttl | 430 | Fabric-specific vocabulary (D22) |
+| `fabric.ttl` | `/ontology/fabric` | Rename fabric.ttl | 430 | Fabric-specific vocabulary (D22) |
 
 **Excluded**: `fabric-core-profile.ttl` (served at `/.well-known/profile`, not a named graph). Convention: `*-profile.ttl` files are skipped by bootstrap.
 
@@ -94,7 +94,7 @@ Re-run Phase 1.5 experiments with enriched TBox. Richer ontology context (more c
 | `ontology/prof.ttl` | New (copy) |
 | `ontology/role.ttl` | New (copy) |
 | `ontology/sio.ttl` | New (copy) |
-| `ontology/fabric-vocab.ttl` | Rename to `fabric.ttl` |
+| `ontology/fabric.ttl` | Rename to `fabric.ttl` |
 | `ontology/fabric-core-profile.ttl` | Edit (add resources) |
 | `fabric/node/bootstrap.py` | Edit (convention auto-load) |
 | `fabric/node/main.py` | Edit (VoID vocabulary entries) |
