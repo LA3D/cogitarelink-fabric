@@ -1,0 +1,85 @@
+[
+  {
+    "id": "sensor-temp-by-name",
+    "query": "What temperature did sensor-1 measure?",
+    "context": "http://localhost:8080",
+    "expected": ["23.5"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-baseline-1",
+            "type": "sosa:Observation",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:hasSimpleResult": "23.5",
+            "sosa:resultTime": "2026-02-22T12:00:00Z"
+          }
+        ]
+      },
+      "description": "Basic sensor reading retrieval. Baseline: agent must discover entity URI namespace from /entity/ pattern.",
+      "phase_notes": "Phase 1: agent guesses /sensor/ IRI, fails, discovers /entity/ via SELECT DISTINCT ?sensor"
+    }
+  },
+  {
+    "id": "most-recent-observation",
+    "query": "What is the most recent observation in the fabric?",
+    "context": "http://localhost:8080",
+    "expected": ["23.5"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-baseline-2a",
+            "type": "sosa:Observation",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:hasSimpleResult": "20.1",
+            "sosa:resultTime": "2026-02-21T08:00:00Z"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-baseline-2b",
+            "type": "sosa:Observation",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-2",
+            "sosa:hasSimpleResult": "23.5",
+            "sosa:resultTime": "2026-02-22T14:00:00Z"
+          }
+        ]
+      },
+      "description": "Most-recent query tests ORDER BY DESC + LIMIT 1. SPARQL example provides the pattern directly.",
+      "phase_notes": "Phase 1: agent should use 'List recent observations' example verbatim — measures example adoption"
+    }
+  },
+  {
+    "id": "list-all-sensors",
+    "query": "Which sensors have recorded observations?",
+    "context": "http://localhost:8080",
+    "expected": ["sensor-1", "sensor-2"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-baseline-3a",
+            "type": "sosa:Observation",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:hasSimpleResult": "21.0",
+            "sosa:resultTime": "2026-02-22T10:00:00Z"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-baseline-3b",
+            "type": "sosa:Observation",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-2",
+            "sosa:hasSimpleResult": "18.5",
+            "sosa:resultTime": "2026-02-22T11:00:00Z"
+          }
+        ]
+      },
+      "description": "DISTINCT sensor enumeration. Tests whether agent generalises from the 'Observations by sensor' example to a discovery query.",
+      "phase_notes": "Phase 1: must adapt the example to SELECT DISTINCT ?sensor rather than filtering by known IRI"
+    }
+  }
+]

@@ -1,0 +1,142 @@
+# Analyze Fabric Navigation Experiment
+# Parallel analysis of how the RLM agent navigates the fabric endpoint,
+# tracking changes in behavior as fabric features are added (D9 four-layer KR).
+
+agent navigator_analyst:
+  model: sonnet
+  prompt: "You are an expert in agentic systems and knowledge fabric design, analyzing how RLM agents navigate self-describing SPARQL endpoints"
+
+agent trajectory_analyst:
+  model: sonnet
+  prompt: "You are an expert in SPARQL query patterns and agent reasoning traces"
+
+# Step 1: Load and summarize all results in the results/ directory
+let all_results = session: navigator_analyst
+  prompt: |
+    Load all JSON result files from experiments/fabric-navigation/results/
+
+    For each benchmark result file, extract:
+    - fabric_phase and fabric_features active
+    - timestamp and model
+    - Per-task: taskId, query, score, iterations, converged, fabric metrics:
+        - read_routing_plan_iter (which iteration agent read endpoint_sd)
+        - first_sparql_iter
+        - sparql_attempts
+        - empty_result_recoveries
+        - used_shacl_hint (boolean)
+        - used_sparql_example (boolean)
+        - named_graphs_queried
+    - Aggregate: meanScore, meanIterations, convergenceRate, meanSparqlAttempts, meanEmptyRecoveries, costEstimateUsd
+
+    If only one result file exists, treat it as the baseline.
+    If multiple phases exist, note which features changed between them.
+
+    Return structured summary of all runs.
+
+# Step 2: Parallel analysis of different behavioral dimensions
+parallel:
+  efficiency = session: navigator_analyst
+    prompt: |
+      Analyze navigation efficiency across all fabric phases:
+
+      - How many iterations does the agent need? Is this changing across phases?
+      - When does the first SPARQL call occur (after reading SD or immediately)?
+      - Convergence rate — does the agent SUBMIT cleanly or hit max_iterations?
+      - Cost per task — is the routing plan paying off in fewer LLM calls?
+
+      Connect to D9 (four-layer KR): which layers are reducing iteration count?
+      The hypothesis: each layer added should reduce navigation cost.
+    context: all_results
+
+  recovery = session: trajectory_analyst
+    prompt: |
+      Analyze self-correction behavior in the RLM trajectories:
+
+      - How often does the agent get empty SPARQL results and recover?
+      - What is the recovery strategy? (DISTINCT sensor query, CONTAINS filter, etc.)
+      - Does adding the TBox or better VoID reduce empty-result recoveries?
+
+      The baseline reveals a specific pattern: agent guesses /sensor/ IRI, fails,
+      then discovers /entity/ via SELECT DISTINCT ?sensor. Track whether this
+      pattern persists or disappears as fabric features are added.
+
+      URI namespace discovery is the key gap in Phase 1 — does Phase 2 VoID fix it?
+    context: all_results
+
+  routing_plan_usage = session: navigator_analyst
+    prompt: |
+      Analyze how the agent actually uses the routing plan (endpoint_sd):
+
+      - Does the agent read the routing plan in iteration 1? (read_routing_plan_iter == 1)
+      - Does it use the SHACL agent hint? (used_shacl_hint)
+      - Does it use the SPARQL example as a template? (used_sparql_example)
+      - Which named graphs does it query, and does it match the graph the hint suggests?
+
+      The routing plan contains four D9 layers — track which layers the agent
+      actually consults vs ignores. This is the empirical measurement of
+      which KR investments have the most agent-facing value.
+    context: all_results
+
+# Step 3: Phase comparison (if multiple phases available)
+let phase_comparison = session: navigator_analyst
+  prompt: |
+    If multiple fabric phases are present, create a before/after comparison:
+
+    For each metric that changed between phases, explain:
+    1. What changed in the fabric (which feature was added)
+    2. How agent behavior changed (iterations, recoveries, hint usage)
+    3. Whether the change matches the hypothesis (adding L2 TBox / L3 shapes / etc.)
+
+    If only one phase (baseline), characterize the baseline behavior and
+    state what we expect to change when each feature is added:
+    - When TBox is loaded: agent may use inference to reason about sosa:Observation subclasses
+    - When validate_tool is in REPL: agent may self-validate before submitting
+    - When VoID entity URI patterns added: agent should skip /sensor/ guess, go direct
+
+    Connect findings to research themes: progressive disclosure (D9),
+    routing plan as cognitive scaffold (D7), self-correcting agents (D2).
+  context: { all_results, efficiency, recovery, routing_plan_usage }
+
+# Step 4: Synthesize findings and generate report
+const synthesis = session: navigator_analyst
+  prompt: |
+    Create a comprehensive analysis report as markdown. Structure:
+
+    ## Fabric Navigation Analysis
+    **Date**: [timestamp]  **Phase**: [fabric_phase]  **Model**: [model]
+
+    ## Executive Summary
+    [2-3 sentence summary of what we learned about agent navigation]
+
+    ## Baseline Navigation Pattern
+    [Describe the agent's actual behavior: how it reads the SD, discovers
+    the entity namespace, and converges on the answer]
+
+    ## Metrics
+    | Metric | Value | Notes |
+    |--------|-------|-------|
+    | Mean iterations | X | |
+    | Convergence rate | X% | |
+    | SPARQL attempts | X | |
+    | Empty result recoveries | X | |
+    | SHACL hint usage | X/N tasks | |
+    | SPARQL example usage | X/N tasks | |
+    | Mean cost | $X | |
+
+    ## Navigation Signals (per task)
+    [Table of per-task routing plan usage, iteration breakdown, recoveries]
+
+    ## Routing Plan Effectiveness
+    [Which D9 layers is the agent actually using? Which are ignored?]
+
+    ## Phase Comparison
+    [Changes across phases if multiple runs exist, or expected changes for single phase]
+
+    ## Research Implications
+    [Connections to D9 four-layer KR, D20 SDL use case, progressive disclosure hypothesis]
+
+    ## Next Experiment
+    [What should change in the fabric to test next? What behavior do we expect?]
+
+    Save report to: experiments/fabric-navigation/reports/[phase]-[timestamp]-analysis.md
+  context: { all_results, efficiency, recovery, routing_plan_usage, phase_comparison }
