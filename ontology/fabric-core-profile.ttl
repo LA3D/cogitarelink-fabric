@@ -82,4 +82,21 @@ fabric:CoreProfile
 4. GET .well-known/sparql-examples → SPARQL examples (L4: query patterns)
 Entity URIs: https://{node}/entity/{uuidv7} (D11). Dereferenceable via GET.""" ;
         prof:hasRole role:guidance ;
+    ] ;
+
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "PROV-O ontology" ;
+        dct:description "W3C PROV-O — provenance entities, activities, and agents." ;
+        prof:hasRole role:schema ;
+        prof:hasArtifact <http://www.w3.org/ns/prov#> ;
+        dct:format <https://www.iana.org/assignments/media-types/text/turtle> ;
+    ] ;
+    prof:hasResource [
+        a prof:ResourceDescriptor ;
+        rdfs:label "SIO subset" ;
+        dct:description "Semanticscience Integrated Ontology — curated subset for entity type reasoning." ;
+        prof:hasRole role:schema ;
+        prof:hasArtifact <http://semanticscience.org/resource/> ;
+        dct:format <https://www.iana.org/assignments/media-types/text/turtle> ;
     ] .
