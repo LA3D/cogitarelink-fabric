@@ -7,13 +7,24 @@
 @prefix sosa:  <http://www.w3.org/ns/sosa/> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 @prefix dct:   <http://purl.org/dc/terms/> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
 @prefix fabric: <https://w3id.org/cogitarelink/fabric#> .
 
 # --- Metadata -----------------------------------------------------------
 
 <http://localhost:8080/.well-known/shacl>
     dct:title "cogitarelink-fabric node SHACL shapes" ;
-    dct:description "Endpoint-specific constraints for SOSA observations at this node." .
+    dct:description "Endpoint-specific constraints for SOSA observations at this node." ;
+    sh:declare [
+        sh:prefix "sosa" ;
+        sh:namespace "http://www.w3.org/ns/sosa/"^^xsd:anyURI ;
+    ] , [
+        sh:prefix "xsd" ;
+        sh:namespace "http://www.w3.org/2001/XMLSchema#"^^xsd:anyURI ;
+    ] , [
+        sh:prefix "time" ;
+        sh:namespace "http://www.w3.org/2006/time#"^^xsd:anyURI ;
+    ] .
 
 # --- sosa:Observation shape ---------------------------------------------
 
@@ -48,4 +59,12 @@ ORDER BY DESC(?time) LIMIT 100""" ;
         sh:path sosa:observedProperty ;
         sh:maxCount 1 ;
         sh:description "The property that was observed (optional but recommended)." ;
+    ] ;
+
+    sh:property [
+        sh:path sosa:madeBySensor ;
+        sh:class sosa:Sensor ;
+        sh:nodeKind sh:IRI ;
+        sh:pattern "^http://localhost:8080/entity/" ;
+        sh:description "The sensor that made this observation. Sensor IRIs use the node entity namespace." ;
     ] .
