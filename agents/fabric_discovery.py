@@ -116,6 +116,8 @@ _COMPACT_PREFIXES = {
     "http://qudt.org/schema/qudt/": "qudt:",
     "http://www.w3.org/ns/prov#": "prov:",
     "https://w3id.org/cogitarelink/fabric#": "fabric:",
+    "http://semanticscience.org/resource/": "sio:",
+    "http://www.w3.org/ns/dx/prof/": "prof:",
 }
 
 

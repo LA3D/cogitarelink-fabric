@@ -58,3 +58,17 @@ def test_made_by_sensor_has_pattern():
             assert "/entity/" in pattern
             return
     assert False, "sosa:madeBySensor property shape not found"
+
+
+def test_shacl_declares_prov_prefix():
+    """Shapes graph should declare prov: prefix via sh:declare."""
+    g = _load_shapes()
+    declare_nodes = list(g.objects(predicate=SH.declare))
+    prefixes = {}
+    for node in declare_nodes:
+        prefix = str(g.value(node, SH.prefix) or "")
+        ns = str(g.value(node, SH.namespace) or "")
+        if prefix:
+            prefixes[prefix] = ns
+    assert "prov" in prefixes
+    assert prefixes["prov"] == "http://www.w3.org/ns/prov#"

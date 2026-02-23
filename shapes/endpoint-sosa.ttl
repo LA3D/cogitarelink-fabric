@@ -29,6 +29,12 @@
     ] , [
         sh:prefix "time" ;
         sh:namespace "http://www.w3.org/2006/time#"^^xsd:anyURI ;
+    ] ,
+    [ sh:prefix "prov" ;
+      sh:namespace "http://www.w3.org/ns/prov#"^^xsd:anyURI ;
+    ] ,
+    [ sh:prefix "sio" ;
+      sh:namespace "http://semanticscience.org/resource/"^^xsd:anyURI ;
     ] .
 
 # --- sosa:Observation shape ---------------------------------------------
