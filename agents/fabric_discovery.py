@@ -67,6 +67,7 @@ class FabricEndpoint:
             for prefix, ns in sorted(self.prefix_declarations.items()):
                 graph_uri = self.vocab_graph_map.get(ns, "")
                 if graph_uri:
+                    # split("//host/path", 3) → ["https:", "", "host", "path"]
                     parts = graph_uri.split("/", 3)
                     path = "/" + parts[-1] if len(parts) >= 4 else graph_uri
                     lines.append(f"  {prefix}: <{ns}> -> {path}")
@@ -149,13 +150,22 @@ def _parse_void(ttl: str) -> tuple[str, list[str], str, str | None, list[dict]]:
     conforms = ""
     uri_space: str | None = None
     named_graphs: list[dict] = []
+    # Root dataset = void:Dataset subject that is not itself a void:subset object;
+    # subset blank nodes may also carry dct:conformsTo (their shape), which must
+    # not overwrite the top-level profile declaration.
+    subset_objects = set(g.objects(predicate=VOID.subset))
+    root = next(
+        (s for s in g.subjects(RDF.type, VOID.Dataset) if s not in subset_objects),
+        None,
+    )
     for s in g.subjects(RDF.type, VOID.Dataset):
         for o in g.objects(s, VOID.sparqlEndpoint):
             sparql_url = str(o)
         for o in g.objects(s, VOID.vocabulary):
             vocabs.append(str(o))
-        for o in g.objects(s, DCTERMS.conformsTo):
-            conforms = str(o)
+        if s == root:
+            for o in g.objects(s, DCTERMS.conformsTo):
+                conforms = str(o)
         for o in g.objects(s, VOID.uriSpace):
             uri_space = str(o)
         for subset in g.objects(s, VOID.subset):
@@ -295,7 +305,7 @@ def discover_endpoint(url: str) -> FabricEndpoint:
             graph_uris = list(dict.fromkeys(vocab_graph_map.values()))  # dedup, preserve order
             if graph_uris:
                 tbox = _load_tbox(sparql_url, graph_uris)
-        except (httpx.HTTPError, ValueError) as exc:
+        except (httpx.HTTPError, ValueError, SyntaxError) as exc:
             log.debug("TBox loading failed: %s", exc)
 
     return FabricEndpoint(
