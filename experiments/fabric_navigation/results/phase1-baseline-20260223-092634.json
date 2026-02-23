@@ -1,0 +1,179 @@
+{
+  "benchmark": "fabric-navigation",
+  "model": "anthropic/claude-sonnet-4-6",
+  "fabric_phase": "phase1-baseline",
+  "fabric_features": [
+    "void-sd",
+    "shacl-agent-hints",
+    "sparql-examples"
+  ],
+  "config": {
+    "maxIterations": 10
+  },
+  "timestamp": "2026-02-23T14:26:38Z",
+  "results": [
+    {
+      "taskId": "sensor-temp-by-name",
+      "answer": "Sensor-1 measured a temperature of 23.5 (at 2026-02-22T12:00:00Z).",
+      "expected": [
+        "23.5"
+      ],
+      "score": 1.0,
+      "iterations": 5,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "Let me start by exploring the endpoint self-description and then query for the temperature measurement from sensor-1.",
+          "code": "print(endpoint_sd)\nprint(\"---\")\nprint(query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nVocabularies:\n  - sosa: <http://www.w3.org/ns/sosa/>\n  - time: <http://www.w3.org/2006/time#>\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty\n    Agent hint: To retrieve observations: POST /sparql with\nSELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\nWHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\nORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (2):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n---\nWhat temperature did sensor-1 measure?\n"
+        },
+        {
+          "reasoning": "I can see the endpoint has a SPARQL example for \"Observations by sensor\". I need to query for observations made by sensor-1. I need to figure out the IRI for sensor-1. Let me try querying with a likely IRI pattern.",
+          "code": "sparql = \"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?obs ?result ?time WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:madeBySensor <http://localhost:8080/sensor/sensor-1> ;\n         sosa:hasSimpleResult ?result ;\n         sosa:resultTime ?time .\n  }\n}\nORDER BY DESC(?time)\n\"\"\"\nresult = sparql_query(sparql)\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"obs\",\"result\",\"time\"]},\"results\":{\"bindings\":[]}}\n"
+        },
+        {
+          "reasoning": "The query returned empty results with the IRI `http://localhost:8080/sensor/sensor-1`. Let me try to discover the actual sensor IRI by querying for all sensors, or try different IRI patterns.",
+          "code": "# First, let's see what sensors exist in the dataset\nsparql = \"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT DISTINCT ?sensor WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:madeBySensor ?sensor .\n  }\n}\n\"\"\"\nresult = sparql_query(sparql)\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"sensor\"]},\"results\":{\"bindings\":[{\"sensor\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/sensor-1\"}}]}}\n"
+        },
+        {
+          "reasoning": "I found the sensor IRI: `http://localhost:8080/entity/sensor-1`. Now let me query for its observations with this correct IRI.",
+          "code": "sparql = \"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?obs ?result ?time WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:madeBySensor <http://localhost:8080/entity/sensor-1> ;\n         sosa:hasSimpleResult ?result ;\n         sosa:resultTime ?time .\n  }\n}\nORDER BY DESC(?time)\n\"\"\"\nresult = sparql_query(sparql)\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"obs\",\"result\",\"time\"]},\"results\":{\"bindings\":[{\"obs\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/test-obs-baseline-1\"},\"result\":{\"type\":\"literal\",\"value\":\"23.5\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#double\"},\"time\":{\"type\":\"literal\",\"value\":\"2026-02-22T12:00:00Z\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#dateTime\"}}]}}\n"
+        },
+        {
+          "reasoning": "I found the result. Sensor-1 (`http://localhost:8080/entity/sensor-1`) measured a temperature of 23.5 (degrees, likely Celsius) at 2026-02-22T12:00:00Z. The observation is `http://localhost:8080/entity/test-obs-baseline-1`. Now I can submit the answer.",
+          "code": "import json\n\nresult_data = {\"head\":{\"vars\":[\"obs\",\"result\",\"time\"]},\"results\":{\"bindings\":[{\"obs\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/test-obs-baseline-1\"},\"result\":{\"type\":\"literal\",\"value\":\"23.5\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#double\"},\"time\":{\"type\":\"literal\",\"value\":\"2026-02-22T12:00:00Z\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#dateTime\"}}]}}\n\nbinding = result_data[\"results\"][\"bindings\"][0]\nprint(\"Observation:\", binding[\"obs\"][\"value\"])\nprint(\"Result:\", binding[\"result\"][\"value\"])\nprint(\"Time:\", binding[\"time\"][\"value\"])\n\nsparql_used = \"\"\"PREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?obs ?result ?time WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:madeBySensor <http://localhost:8080/entity/sensor-1> ;\n         sosa:hasSimpleResult ?result ;\n         sosa:resultTime ?time .\n  }\n}\nORDER BY DESC(?time)\"\"\"\n\nanswer = \"Sensor-1 measured a temperature of 23.5 (at 2026-02-22T12:00:00Z).\"\nsources = [\"http://localhost:8080/entity/test-obs-baseline-1\"]\n\nSUBMIT(answer, sparql_used, sources)",
+          "output": "FINAL: {'answer': 'Sensor-1 measured a temperature of 23.5 (at 2026-02-22T12:00:00Z).', 'sparql_used': 'PREFIX sosa: <http://www.w3.org/ns/sosa/>\\nSELECT ?obs ?result ?time WHERE {\\n  GRAPH <http://localhost:8080/graph/observations> {\\n    ?obs a sosa:Observation ;\\n         sosa:madeBySensor <http://localhost:8080/entity/sensor-1> ;\\n         sosa:hasSimpleResult ?result ;\\n         sosa:resultTime ?time .\\n  }\\n}\\nORDER BY DESC(?time)', 'sources': ['http://localhost:8080/entity/test-obs-baseline-1']}"
+        }
+      ],
+      "wallTimeMs": 1275.8867740631104,
+      "charCount": {
+        "input": 38029,
+        "output": 7032
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 4,
+        "empty_result_recoveries": 1,
+        "used_shacl_hint": true,
+        "used_sparql_example": true,
+        "named_graphs_queried": [
+          "http://localhost:8080/graph/observations"
+        ],
+        "final_named_graph": "http://localhost:8080/graph/observations"
+      },
+      "error": null
+    },
+    {
+      "taskId": "most-recent-observation",
+      "answer": "The most recent observation in the fabric is 'test-obs-baseline-2b' (http://localhost:8080/entity/test-obs-baseline-2b), with a result value of 23.5 and a timestamp of 2026-02-22T14:00:00Z.",
+      "expected": [
+        "23.5"
+      ],
+      "score": 1.0,
+      "iterations": 3,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "Let me explore the endpoint self-description first, then execute a SPARQL query to find the most recent observation.",
+          "code": "print(endpoint_sd)\nprint(\"---\")\nprint(query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nVocabularies:\n  - sosa: <http://www.w3.org/ns/sosa/>\n  - time: <http://www.w3.org/2006/time#>\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty\n    Agent hint: To retrieve observations: POST /sparql with\nSELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\nWHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\nORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (2):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n---\nWhat is the most recent observation in the fabric?\n"
+        },
+        {
+          "reasoning": "I have the endpoint self-description and the query. The example SPARQL query already shows how to get recent observations ordered by time DESC. I'll execute that query with LIMIT 1 to get the most recent observation.",
+          "code": "sparql = \"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?obs ?result ?time WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:hasSimpleResult ?result ;\n         sosa:resultTime ?time .\n  }\n}\nORDER BY DESC(?time)\nLIMIT 1\n\"\"\"\n\nresult = sparql_query(sparql)\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"obs\",\"result\",\"time\"]},\"results\":{\"bindings\":[{\"obs\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/test-obs-baseline-2b\"},\"result\":{\"type\":\"literal\",\"value\":\"23.5\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#double\"},\"time\":{\"type\":\"literal\",\"value\":\"2026-02-22T14:00:00Z\",\"datatype\":\"http://www.w3.org/2001/XMLSchema#dateTime\"}}]}}\n"
+        },
+        {
+          "reasoning": "I have the result. The most recent observation is:\n- URI: http://localhost:8080/entity/test-obs-baseline-2b\n- Result: 23.5\n- Time: 2026-02-22T14:00:00Z\n\nI can now submit the answer.",
+          "code": "SUBMIT(\n    answer=\"The most recent observation in the fabric is 'test-obs-baseline-2b' (http://localhost:8080/entity/test-obs-baseline-2b), with a result value of 23.5 and a timestamp of 2026-02-22T14:00:00Z.\",\n    sparql_used=\"\"\"PREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT ?obs ?result ?time WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:hasSimpleResult ?result ;\n         sosa:resultTime ?time .\n  }\n}\nORDER BY DESC(?time)\nLIMIT 1\"\"\",\n    sources=[\"http://localhost:8080/entity/test-obs-baseline-2b\"]\n)",
+          "output": "FINAL: {'answer': \"The most recent observation in the fabric is 'test-obs-baseline-2b' (http://localhost:8080/entity/test-obs-baseline-2b), with a result value of 23.5 and a timestamp of 2026-02-22T14:00:00Z.\", 'sparql_used': 'PREFIX sosa: <http://www.w3.org/ns/sosa/>\\nSELECT ?obs ?result ?time WHERE {\\n  GRAPH <http://localhost:8080/graph/observations> {\\n    ?obs a sosa:Observation ;\\n         sosa:hasSimpleResult ?result ;\\n         sosa:resultTime ?time .\\n  }\\n}\\nORDER BY DESC(?time)\\nLIMIT 1', 'sources': ['http://localhost:8080/entity/test-obs-baseline-2b']}"
+        }
+      ],
+      "wallTimeMs": 1189.713716506958,
+      "charCount": {
+        "input": 20395,
+        "output": 3376
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 2,
+        "empty_result_recoveries": 0,
+        "used_shacl_hint": true,
+        "used_sparql_example": false,
+        "named_graphs_queried": [
+          "http://localhost:8080/graph/observations"
+        ],
+        "final_named_graph": "http://localhost:8080/graph/observations"
+      },
+      "error": null
+    },
+    {
+      "taskId": "list-all-sensors",
+      "answer": "Two sensors have recorded observations: sensor-1 (http://localhost:8080/entity/sensor-1) and sensor-2 (http://localhost:8080/entity/sensor-2).",
+      "expected": [
+        "sensor-1",
+        "sensor-2"
+      ],
+      "score": 1.0,
+      "iterations": 3,
+      "converged": true,
+      "trace": [
+        {
+          "reasoning": "Let me explore the endpoint self-description first, then query for sensors that have recorded observations.",
+          "code": "print(endpoint_sd)\nprint(\"---\")\nprint(query)",
+          "output": "Endpoint: http://localhost:8080\nSPARQL: http://localhost:8080/sparql\nProfile: https://w3id.org/cogitarelink/fabric#CoreProfile\n\nVocabularies:\n  - sosa: <http://www.w3.org/ns/sosa/>\n  - time: <http://www.w3.org/2006/time#>\n\nShapes (1):\n  ObservationShape -> sosa:Observation\n    Properties: sosa:hasSimpleResult, sosa:resultTime, sosa:observedProperty\n    Agent hint: To retrieve observations: POST /sparql with\nSELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>\nWHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }\nORDER BY DESC(?time) LIMIT 100\n\nSPARQL Examples (2):\n  \"List recent observations\" -> http://localhost:8080/sparql\n    Returns all sosa:Observation instances with result value and timestamp, ordered newest first.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n    LIMIT 10\n  \"Observations by sensor\" -> http://localhost:8080/sparql\n    Returns observations made by a specific sensor. Bind ?sensor to a sosa:Sensor IRI.\n    PREFIX sosa: <http://www.w3.org/ns/sosa/>\n    SELECT ?obs ?result ?time WHERE {\n      GRAPH <http://localhost:8080/graph/observations> {\n        ?obs a sosa:Observation ;\n             sosa:madeBySensor ?sensor ;\n             sosa:hasSimpleResult ?result ;\n             sosa:resultTime ?time .\n      }\n    }\n    ORDER BY DESC(?time)\n---\nWhich sensors have recorded observations?\n"
+        },
+        {
+          "reasoning": "I need to query for distinct sensors that have recorded observations. The endpoint has a graph for observations and uses `sosa:madeBySensor` to link observations to sensors. I'll write a SPARQL query to get distinct sensors.",
+          "code": "sparql = \"\"\"\nPREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT DISTINCT ?sensor WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:madeBySensor ?sensor .\n  }\n}\n\"\"\"\nresult = sparql_query(sparql)\nprint(result)",
+          "output": "{\"head\":{\"vars\":[\"sensor\"]},\"results\":{\"bindings\":[{\"sensor\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/sensor-2\"}},{\"sensor\":{\"type\":\"uri\",\"value\":\"http://localhost:8080/entity/sensor-1\"}}]}}\n"
+        },
+        {
+          "reasoning": "I have the results. Two sensors have recorded observations: `sensor-1` and `sensor-2`. I can now submit the answer.",
+          "code": "sensors = [\"http://localhost:8080/entity/sensor-2\", \"http://localhost:8080/entity/sensor-1\"]\nprint(sensors)\n\nSUBMIT(\n    answer=\"Two sensors have recorded observations: sensor-1 (http://localhost:8080/entity/sensor-1) and sensor-2 (http://localhost:8080/entity/sensor-2).\",\n    sparql_used=\"\"\"PREFIX sosa: <http://www.w3.org/ns/sosa/>\nSELECT DISTINCT ?sensor WHERE {\n  GRAPH <http://localhost:8080/graph/observations> {\n    ?obs a sosa:Observation ;\n         sosa:madeBySensor ?sensor .\n  }\n}\"\"\",\n    sources=[\"http://localhost:8080/entity/sensor-1\", \"http://localhost:8080/entity/sensor-2\"]\n)",
+          "output": "FINAL: {'answer': 'Two sensors have recorded observations: sensor-1 (http://localhost:8080/entity/sensor-1) and sensor-2 (http://localhost:8080/entity/sensor-2).', 'sparql_used': 'PREFIX sosa: <http://www.w3.org/ns/sosa/>\\nSELECT DISTINCT ?sensor WHERE {\\n  GRAPH <http://localhost:8080/graph/observations> {\\n    ?obs a sosa:Observation ;\\n         sosa:madeBySensor ?sensor .\\n  }\\n}', 'sources': ['http://localhost:8080/entity/sensor-1', 'http://localhost:8080/entity/sensor-2']}"
+        }
+      ],
+      "wallTimeMs": 1164.4260883331299,
+      "charCount": {
+        "input": 20116,
+        "output": 3154
+      },
+      "fabric": {
+        "read_routing_plan_iter": 1,
+        "first_sparql_iter": 2,
+        "sparql_attempts": 2,
+        "empty_result_recoveries": 0,
+        "used_shacl_hint": true,
+        "used_sparql_example": false,
+        "named_graphs_queried": [
+          "http://localhost:8080/graph/observations"
+        ],
+        "final_named_graph": "http://localhost:8080/graph/observations"
+      },
+      "error": null
+    }
+  ],
+  "aggregate": {
+    "meanScore": 1.0,
+    "medianScore": 1.0,
+    "stdScore": 0.0,
+    "meanIterations": 3.6666666666666665,
+    "medianIterations": 3,
+    "meanWallTimeMs": 1210.0088596343994,
+    "totalWallTimeMs": 3630.0265789031982,
+    "totalInputChars": 78540,
+    "totalOutputChars": 13562,
+    "costEstimateUsd": 0.1097625,
+    "convergenceRate": 1.0,
+    "meanSparqlAttempts": 2.6666666666666665,
+    "meanEmptyRecoveries": 0.3333333333333333,
+    "completedTasks": 3,
+    "failedTasks": 0
+  }
+}
