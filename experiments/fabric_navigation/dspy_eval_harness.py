@@ -363,6 +363,37 @@ class FabricNavHarness:
         return br
 
 
+# --- Trajectory JSONL logging -----------------------------------------------
+
+def write_trajectory_jsonl(
+    trajectory: list[dict[str, Any]],
+    path: Path | str,
+    *,
+    phase: str,
+    task_id: str,
+    model: str,
+    timestamp: str,
+) -> None:
+    """Write RLM trajectory as JSONL — one line per step, compatible with fast-rlm viewer."""
+    if not trajectory:
+        return
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w") as f:
+        for i, step in enumerate(trajectory, 1):
+            entry = {
+                "step": i,
+                "phase": phase,
+                "task_id": task_id,
+                "model": model,
+                "timestamp": timestamp,
+                "reasoning": step.get("reasoning", ""),
+                "code": step.get("code", ""),
+                "output": step.get("output", ""),
+            }
+            f.write(json.dumps(entry) + "\n")
+
+
 # --- Scoring ----------------------------------------------------------------
 
 def substring_match_scorer(predicted: str, expected: str | list[str], metadata=None) -> float:

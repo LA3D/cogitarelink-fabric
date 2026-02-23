@@ -28,7 +28,7 @@ sys.path.insert(0, str(_REPO))
 
 from experiments.fabric_navigation.dspy_eval_harness import (
     EvalTask, EvalResult, FabricNavHarness, BenchmarkResult,
-    compute_aggregate_stats, substring_match_scorer,
+    compute_aggregate_stats, substring_match_scorer, write_trajectory_jsonl,
 )
 
 from agents.fabric_discovery import discover_endpoint
@@ -131,6 +131,9 @@ def main() -> None:
         verbose=args.verbose,
     )
 
+    timestamp = time.strftime('%Y%m%d-%H%M%S', time.localtime())
+    traj_dir = Path(args.output).parent / "trajectories"
+
     results: list[EvalResult] = []
     for task in tasks:
         log.info("Task: %s", task.id)
@@ -138,11 +141,18 @@ def main() -> None:
             setup_task_data(task)
             result = harness.run_task(task)
             results.append(result)
+            write_trajectory_jsonl(
+                result.trace,
+                traj_dir / f"{args.phase}-{task.id}-{timestamp}.jsonl",
+                phase=args.phase,
+                task_id=task.id,
+                model=args.model,
+                timestamp=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+            )
         finally:
             teardown_task_data(task)
 
     aggregate = compute_aggregate_stats(results)
-    timestamp = time.strftime('%Y%m%d-%H%M%S', time.localtime())
     br = BenchmarkResult(
         benchmark="fabric-navigation",
         model=args.model,
