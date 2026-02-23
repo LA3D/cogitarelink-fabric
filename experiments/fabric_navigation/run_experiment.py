@@ -94,6 +94,7 @@ def _strip_tbox_paths(routing_plan: str) -> str:
 # --- Test data setup -------------------------------------------------------
 
 def _build_insert(obs: dict) -> str:
+    SIO_NS = "http://semanticscience.org/resource/"
     g = obs.get('graph', GATEWAY + '/graph/observations')
     subj = obs['subject']
     props = [f"  <{subj}> a sosa:Observation"]
@@ -109,11 +110,41 @@ def _build_insert(obs: dict) -> str:
         props.append(f"    sosa:usedProcedure <{obs['sosa:usedProcedure']}>")
     if 'sosa:hasFeatureOfInterest' in obs:
         props.append(f"    sosa:hasFeatureOfInterest <{obs['sosa:hasFeatureOfInterest']}>")
+    if 'sio:has-attribute' in obs:
+        props.append(f"    sio:has-attribute <{obs['sio:has-attribute']}>")
+    if 'sio:is-about' in obs:
+        props.append(f"    sio:is-about <{obs['sio:is-about']}>")
     body = " ;\n".join(props) + " ."
+
+    # SIO secondary nodes (MeasuredValue, unit, ChemicalEntity)
+    extra = []
+    if 'sio:has-attribute' in obs:
+        mv = obs['sio:has-attribute']
+        mv_type = obs.get('sio:mv-type', SIO_NS + 'MeasuredValue')
+        local = mv_type.removeprefix(SIO_NS)
+        extra.append(f"  <{mv}> a sio:{local} .")
+        if 'sio:has-value' in obs:
+            extra.append(f"  <{mv}> sio:has-value \"{obs['sio:has-value']}\"^^xsd:double .")
+        if 'sio:has-unit' in obs:
+            unit = obs['sio:has-unit']
+            extra.append(f"  <{mv}> sio:has-unit <{unit}> .")
+            if 'sio:unit-label' in obs:
+                extra.append(f"  <{unit}> rdfs:label \"{obs['sio:unit-label']}\" .")
+    if 'sio:is-about' in obs:
+        about = obs['sio:is-about']
+        if 'sio:chem-type' in obs:
+            local = obs['sio:chem-type'].removeprefix(SIO_NS)
+            extra.append(f"  <{about}> a sio:{local} .")
+        if 'sio:chem-label' in obs:
+            extra.append(f"  <{about}> rdfs:label \"{obs['sio:chem-label']}\" .")
+
+    extra_body = "\n" + "\n".join(extra) + "\n" if extra else ""
     return (
         "PREFIX sosa: <http://www.w3.org/ns/sosa/>\n"
+        "PREFIX sio:  <http://semanticscience.org/resource/>\n"
         "PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>\n"
-        f"INSERT DATA {{ GRAPH <{g}> {{\n{body}\n}} }}"
+        "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+        f"INSERT DATA {{ GRAPH <{g}> {{\n{body}\n{extra_body}}} }}"
     )
 
 

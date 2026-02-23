@@ -85,3 +85,59 @@ def test_build_insert_includes_phenomenon_time():
     q = _build_insert(obs)
     assert "sosa:phenomenonTime" in q
     assert "11:30:00" in q
+
+
+def test_build_insert_sio_measurement_chain():
+    """SIO has-attribute -> MeasuredValue -> has-value chain."""
+    obs = {
+        "subject": "http://localhost:8080/entity/obs-sio-1",
+        "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+        "sosa:resultTime": "2026-02-23T09:00:00Z",
+        "sio:has-attribute": "http://localhost:8080/entity/mv-1",
+        "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+        "sio:has-value": "21.3",
+        "graph": "http://localhost:8080/graph/observations",
+    }
+    q = _build_insert(obs)
+    assert "sio:has-attribute" in q
+    assert "<http://localhost:8080/entity/mv-1>" in q
+    assert "sio:MeasuredValue" in q
+    assert 'sio:has-value "21.3"' in q
+
+
+def test_build_insert_sio_unit():
+    """SIO measurement with has-unit and rdfs:label on unit node."""
+    obs = {
+        "subject": "http://localhost:8080/entity/obs-sio-2",
+        "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+        "sosa:resultTime": "2026-02-23T10:00:00Z",
+        "sio:has-attribute": "http://localhost:8080/entity/mv-2",
+        "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+        "sio:has-value": "42.7",
+        "sio:has-unit": "http://localhost:8080/entity/unit-millimol",
+        "sio:unit-label": "MilliMOL",
+        "graph": "http://localhost:8080/graph/observations",
+    }
+    q = _build_insert(obs)
+    assert "sio:has-unit" in q
+    assert "unit-millimol" in q
+    assert 'rdfs:label "MilliMOL"' in q
+
+
+def test_build_insert_sio_is_about():
+    """SIO is-about linking to ChemicalEntity with rdfs:label."""
+    obs = {
+        "subject": "http://localhost:8080/entity/obs-sio-3",
+        "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+        "sosa:hasSimpleResult": "18.9",
+        "sosa:resultTime": "2026-02-23T11:00:00Z",
+        "sio:is-about": "http://localhost:8080/entity/chem-kcl",
+        "sio:chem-type": "http://semanticscience.org/resource/ChemicalEntity",
+        "sio:chem-label": "potassium chloride",
+        "graph": "http://localhost:8080/graph/observations",
+    }
+    q = _build_insert(obs)
+    assert "sio:is-about" in q
+    assert "chem-kcl" in q
+    assert "sio:ChemicalEntity" in q
+    assert 'rdfs:label "potassium chloride"' in q
