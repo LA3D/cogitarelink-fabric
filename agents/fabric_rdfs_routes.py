@@ -14,12 +14,10 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Callable
 
-from rdflib import BNode, Graph, Namespace, URIRef
+from rdflib import BNode, Graph, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
 
 from agents.fabric_discovery import FabricEndpoint
-
-SCHEMA = Namespace("http://schema.org/")
 
 RDFS_INSTRUCT_PATTERNS = """\
 You are an RDFS reasoning specialist. Given an ontology's structural
