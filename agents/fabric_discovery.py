@@ -39,6 +39,9 @@ class FabricEndpoint:
     examples_ttl: str
     vocabularies: list[str] = field(default_factory=list)
     conforms_to: str = ""
+    uri_space: str | None = None
+    prefix_declarations: dict[str, str] = field(default_factory=dict)
+    named_graphs: list[dict] = field(default_factory=list)
     shapes: list[ShapeSummary] = field(default_factory=list)
     examples: list[ExampleSummary] = field(default_factory=list)
     tbox_graph: Graph | None = field(default=None, repr=False)
@@ -49,12 +52,30 @@ class FabricEndpoint:
             f"Endpoint: {self.base}",
             f"SPARQL: {self.sparql_url}",
             f"Profile: {self.conforms_to}",
-            "",
-            "Vocabularies:",
         ]
-        for v in self.vocabularies:
-            short = v.rstrip("/#").rsplit("/", 1)[-1]
-            lines.append(f"  - {short}: <{v}>")
+
+        if self.uri_space:
+            lines.append("")
+            lines.append(f"Entity URI space: {self.uri_space}")
+            lines.append(f"  Pattern: {self.uri_space}{{id}}")
+            lines.append(f"  Dereferenceable: GET /entity/{{id}}")
+
+        lines.append("")
+        if self.prefix_declarations:
+            lines.append("Local ontology cache (no external dereferencing needed):")
+            for prefix, ns in sorted(self.prefix_declarations.items()):
+                lines.append(f"  {prefix}: <{ns}>")
+        else:
+            lines.append("Vocabularies:")
+            for v in self.vocabularies:
+                short = v.rstrip("/#").rsplit("/", 1)[-1]
+                lines.append(f"  - {short}: <{v}>")
+
+        if self.named_graphs:
+            lines.append("")
+            lines.append("Named graphs:")
+            for ng in self.named_graphs:
+                lines.append(f"  {ng['graph_uri']} — {ng['title']}")
 
         lines.append("")
         lines.append(f"Shapes ({len(self.shapes)}):")
@@ -108,12 +129,13 @@ def _fetch(url: str, accept: str = "text/turtle") -> str:
     return r.text
 
 
-def _parse_void(ttl: str) -> tuple[str, list[str], str]:
+def _parse_void(ttl: str) -> tuple[str, list[str], str, str | None]:
     g = Graph()
     g.parse(data=ttl, format="turtle")
     sparql_url = ""
     vocabs: list[str] = []
     conforms = ""
+    uri_space: str | None = None
     for s in g.subjects(RDF.type, VOID.Dataset):
         for o in g.objects(s, VOID.sparqlEndpoint):
             sparql_url = str(o)
@@ -121,7 +143,21 @@ def _parse_void(ttl: str) -> tuple[str, list[str], str]:
             vocabs.append(str(o))
         for o in g.objects(s, DCTERMS.conformsTo):
             conforms = str(o)
-    return sparql_url, vocabs, conforms
+        for o in g.objects(s, VOID.uriSpace):
+            uri_space = str(o)
+    return sparql_url, vocabs, conforms, uri_space
+
+
+def _parse_prefix_declarations(ttl: str) -> dict[str, str]:
+    g = Graph()
+    g.parse(data=ttl, format="turtle")
+    prefixes: dict[str, str] = {}
+    for decl in g.objects(predicate=SH.declare):
+        prefix = str(g.value(decl, SH.prefix) or "")
+        ns = str(g.value(decl, SH.namespace) or "")
+        if prefix and ns:
+            prefixes[prefix] = ns
+    return prefixes
 
 
 def _parse_shapes(ttl: str) -> list[ShapeSummary]:
@@ -139,7 +175,17 @@ def _parse_shapes(ttl: str) -> list[ShapeSummary]:
         props = []
         for prop_node in g.objects(s, SH.property):
             for path in g.objects(prop_node, SH.path):
-                props.append(_compact(str(path)))
+                parts = [_compact(str(path))]
+                cls = g.value(prop_node, SH["class"])
+                if cls:
+                    parts.append(f"class={_compact(str(cls))}")
+                nk = g.value(prop_node, SH.nodeKind)
+                if nk:
+                    parts.append(f"nodeKind={str(nk).rsplit('#', 1)[-1]}")
+                pattern = g.value(prop_node, SH.pattern)
+                if pattern:
+                    parts.append(f"pattern={str(pattern)}")
+                props.append(" ".join(parts))
         shapes.append(ShapeSummary(name=name, target_class=tc,
                                    agent_instruction=instr, properties=props))
     return shapes
@@ -209,7 +255,7 @@ def discover_endpoint(url: str) -> FabricEndpoint:
     base = url.rstrip("/")
 
     void_ttl = _fetch(f"{base}/.well-known/void")
-    sparql_url, vocabs, conforms = _parse_void(void_ttl)
+    sparql_url, vocabs, conforms, uri_space = _parse_void(void_ttl)
 
     profile_ttl = _fetch(f"{base}/.well-known/profile")
     shapes_ttl = _fetch(f"{base}/.well-known/shacl")
@@ -217,6 +263,7 @@ def discover_endpoint(url: str) -> FabricEndpoint:
 
     shapes = _parse_shapes(shapes_ttl)
     examples = _parse_examples(examples_ttl)
+    prefix_declarations = _parse_prefix_declarations(shapes_ttl)
 
     # L2 TBox loading — non-fatal; routing plan text still works without it
     tbox = None
@@ -233,6 +280,8 @@ def discover_endpoint(url: str) -> FabricEndpoint:
         void_ttl=void_ttl, profile_ttl=profile_ttl,
         shapes_ttl=shapes_ttl, examples_ttl=examples_ttl,
         vocabularies=vocabs, conforms_to=conforms,
+        uri_space=uri_space,
+        prefix_declarations=prefix_declarations,
         shapes=shapes, examples=examples,
         tbox_graph=tbox,
     )
