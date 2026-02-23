@@ -39,3 +39,42 @@ SELECT ?obs ?result ?time WHERE {
   }
 }
 ORDER BY DESC(?time)""" .
+
+ex:discover-sensors
+    a spex:SPARQLExecutable, spex:SPARQLSELECT ;
+    rdfs:label "Discover sensors" ;
+    rdfs:comment "Returns all distinct sensors that have recorded observations at this node." ;
+    schema:target <{base}/sparql> ;
+    sh:select """
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+SELECT DISTINCT ?sensor WHERE {
+  GRAPH <{base}/graph/observations> {
+    ?obs a sosa:Observation ;
+         sosa:madeBySensor ?sensor .
+  }
+}""" .
+
+ex:entity-lookup
+    a spex:SPARQLExecutable, spex:SPARQLSELECT ;
+    rdfs:label "Entity lookup by IRI" ;
+    rdfs:comment "Returns all properties and values for an entity. Replace {entity_iri} with the full entity IRI from the node entity namespace." ;
+    schema:target <{base}/sparql> ;
+    sh:select """
+SELECT ?p ?o WHERE {
+  GRAPH ?g {
+    <{entity_iri}> ?p ?o .
+  }
+}""" .
+
+ex:count-observations
+    a spex:SPARQLExecutable, spex:SPARQLSELECT ;
+    rdfs:label "Count observations" ;
+    rdfs:comment "Returns the total number of observations stored at this node." ;
+    schema:target <{base}/sparql> ;
+    sh:select """
+PREFIX sosa: <http://www.w3.org/ns/sosa/>
+SELECT (COUNT(?obs) AS ?total) WHERE {
+  GRAPH <{base}/graph/observations> {
+    ?obs a sosa:Observation .
+  }
+}""" .
