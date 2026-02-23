@@ -3,9 +3,13 @@
     "id": "schema-property-type",
     "query": "Is sosa:hasSimpleResult a datatype property or an object property according to the SOSA ontology?",
     "context": "http://localhost:8080",
-    "expected": ["DatatypeProperty"],
+    "expected": [
+      "DatatypeProperty"
+    ],
     "metadata": {
-      "setup": {"type": "none"},
+      "setup": {
+        "type": "none"
+      },
       "description": "Sharp discriminator: answer exists only in /ontology/sosa graph. Requires SPARQL against ontology named graph. Without tbox-graph-paths, agent has no signal that /ontology/sosa exists.",
       "task_type": "discriminator"
     }
@@ -14,10 +18,14 @@
     "id": "schema-used-procedure-range",
     "query": "What class does sosa:usedProcedure link an observation to, according to the SOSA ontology?",
     "context": "http://localhost:8080",
-    "expected": ["Procedure"],
+    "expected": [
+      "Procedure"
+    ],
     "metadata": {
-      "setup": {"type": "none"},
-      "description": "Sharp discriminator: rdfs:range of sosa:usedProcedure is sosa:Procedure. Not in SHACL shape. Requires ontology graph query.",
+      "setup": {
+        "type": "none"
+      },
+      "description": "Sharp discriminator: schema:rangeIncludes for sosa:usedProcedure points to sosa:Procedure. Not in SHACL shape or SPARQL examples. Requires ontology graph query.",
       "task_type": "discriminator"
     }
   },
@@ -25,9 +33,13 @@
     "id": "schema-phenomenon-time-exists",
     "query": "Does the SOSA ontology define a property for when the observed phenomenon actually occurred (distinct from when the result was recorded)?",
     "context": "http://localhost:8080",
-    "expected": ["phenomenonTime"],
+    "expected": [
+      "phenomenonTime"
+    ],
     "metadata": {
-      "setup": {"type": "none"},
+      "setup": {
+        "type": "none"
+      },
       "description": "Sharp discriminator: sosa:phenomenonTime exists in SOSA ontology but not in SHACL shape or SPARQL examples. Requires ontology graph query.",
       "task_type": "discriminator"
     }
@@ -36,7 +48,9 @@
     "id": "obs-used-procedure",
     "query": "What procedure was used to collect the observations?",
     "context": "http://localhost:8080",
-    "expected": ["electrochemical-scan"],
+    "expected": [
+      "electrochemical-scan"
+    ],
     "metadata": {
       "setup": {
         "type": "sparql_insert",
@@ -66,7 +80,9 @@
     "id": "obs-feature-of-interest",
     "query": "What feature of interest was being observed?",
     "context": "http://localhost:8080",
-    "expected": ["sample-alpha"],
+    "expected": [
+      "sample-alpha"
+    ],
     "metadata": {
       "setup": {
         "type": "sparql_insert",
@@ -89,7 +105,9 @@
     "id": "obs-phenomenon-time",
     "query": "When did the observed phenomenon actually occur (not when the result was recorded)?",
     "context": "http://localhost:8080",
-    "expected": ["11:30"],
+    "expected": [
+      "11:30"
+    ],
     "metadata": {
       "setup": {
         "type": "sparql_insert",
