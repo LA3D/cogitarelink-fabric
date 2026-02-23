@@ -133,6 +133,8 @@ def setup_task_data(task: EvalTask) -> None:
 
 def teardown_task_data(task: EvalTask) -> None:
     setup = task.metadata.get('setup', {})
+    if setup.get('type') != 'sparql_insert':
+        return
     graph = setup.get('graph', GATEWAY + '/graph/observations')
     httpx.post(
         f"{GATEWAY}/sparql/update",
