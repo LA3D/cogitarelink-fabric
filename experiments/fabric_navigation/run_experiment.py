@@ -73,6 +73,17 @@ PHASE_FEATURES = {
     "phase1+validate": [
         "void-sd", "shacl-agent-hints", "sparql-examples", "tbox-graph", "validate-tool",
     ],
+    "phase2a-no-tbox-paths": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+    ],
+    "phase2b-tbox-paths": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths",
+    ],
 }
 
 def _strip_tbox_paths(routing_plan: str) -> str:
@@ -158,7 +169,10 @@ def main() -> None:
         )
 
     def kwarg_builder(task: EvalTask) -> dict:
-        return {'endpoint_sd': ep.routing_plan, 'query': task.query}
+        sd = ep.routing_plan
+        if 'tbox-graph-paths' not in PHASE_FEATURES[args.phase]:
+            sd = _strip_tbox_paths(sd)
+        return {'endpoint_sd': sd, 'query': task.query}
 
     harness = FabricNavHarness(
         rlm_factory=rlm_factory,
