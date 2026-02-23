@@ -1,0 +1,111 @@
+[
+  {
+    "id": "schema-property-type",
+    "query": "Is sosa:hasSimpleResult a datatype property or an object property according to the SOSA ontology?",
+    "context": "http://localhost:8080",
+    "expected": ["DatatypeProperty"],
+    "metadata": {
+      "setup": {"type": "none"},
+      "description": "Sharp discriminator: answer exists only in /ontology/sosa graph. Requires SPARQL against ontology named graph. Without tbox-graph-paths, agent has no signal that /ontology/sosa exists.",
+      "task_type": "discriminator"
+    }
+  },
+  {
+    "id": "schema-used-procedure-range",
+    "query": "What class does sosa:usedProcedure link an observation to, according to the SOSA ontology?",
+    "context": "http://localhost:8080",
+    "expected": ["Procedure"],
+    "metadata": {
+      "setup": {"type": "none"},
+      "description": "Sharp discriminator: rdfs:range of sosa:usedProcedure is sosa:Procedure. Not in SHACL shape. Requires ontology graph query.",
+      "task_type": "discriminator"
+    }
+  },
+  {
+    "id": "schema-phenomenon-time-exists",
+    "query": "Does the SOSA ontology define a property for when the observed phenomenon actually occurred (distinct from when the result was recorded)?",
+    "context": "http://localhost:8080",
+    "expected": ["phenomenonTime"],
+    "metadata": {
+      "setup": {"type": "none"},
+      "description": "Sharp discriminator: sosa:phenomenonTime exists in SOSA ontology but not in SHACL shape or SPARQL examples. Requires ontology graph query.",
+      "task_type": "discriminator"
+    }
+  },
+  {
+    "id": "obs-used-procedure",
+    "query": "What procedure was used to collect the observations?",
+    "context": "http://localhost:8080",
+    "expected": ["electrochemical-scan"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-tbox-4a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:hasSimpleResult": "21.3",
+            "sosa:resultTime": "2026-02-23T09:00:00Z",
+            "sosa:usedProcedure": "http://localhost:8080/entity/procedure-electrochemical-scan"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-tbox-4b",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-2",
+            "sosa:hasSimpleResult": "22.1",
+            "sosa:resultTime": "2026-02-23T09:30:00Z",
+            "sosa:usedProcedure": "http://localhost:8080/entity/procedure-electrochemical-scan"
+          }
+        ]
+      },
+      "description": "Efficiency differentiator: sosa:usedProcedure not in SHACL shape or SPARQL examples. Without tbox-graph-paths, agent must probe for the property name. With paths, can look it up in /ontology/sosa first.",
+      "task_type": "efficiency"
+    }
+  },
+  {
+    "id": "obs-feature-of-interest",
+    "query": "What feature of interest was being observed?",
+    "context": "http://localhost:8080",
+    "expected": ["sample-alpha"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-tbox-5a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:hasSimpleResult": "19.8",
+            "sosa:resultTime": "2026-02-23T10:00:00Z",
+            "sosa:hasFeatureOfInterest": "http://localhost:8080/entity/feature-sample-alpha"
+          }
+        ]
+      },
+      "description": "Efficiency differentiator: sosa:hasFeatureOfInterest not in SHACL shape or examples. Agent must discover property name to answer.",
+      "task_type": "efficiency"
+    }
+  },
+  {
+    "id": "obs-phenomenon-time",
+    "query": "When did the observed phenomenon actually occur (not when the result was recorded)?",
+    "context": "http://localhost:8080",
+    "expected": ["11:30"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-tbox-6a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:hasSimpleResult": "24.7",
+            "sosa:resultTime": "2026-02-23T12:00:00Z",
+            "sosa:phenomenonTime": "2026-02-23T11:30:00Z"
+          }
+        ]
+      },
+      "description": "Efficiency differentiator: sosa:phenomenonTime (phenomenon occurrence) vs sosa:resultTime (recording time). Agent must distinguish the two; without TBox may return resultTime (12:00) instead of phenomenonTime (11:30).",
+      "task_type": "efficiency"
+    }
+  }
+]
