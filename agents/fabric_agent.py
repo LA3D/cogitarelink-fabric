@@ -70,9 +70,16 @@ def run_fabric_query(
 
     result = rlm(endpoint_sd=ep.routing_plan, query=query)
 
-    # TODO: extract iterations/converged from RLM trace when dspy exposes it
+    trajectory = getattr(result, "trajectory", [])
+    final_reasoning = getattr(result, "final_reasoning", None)
+    # dspy.RLM sets final_reasoning to this sentinel when max_iterations exhausted
+    converged = (final_reasoning is not None
+                 and final_reasoning != "Extract forced final output")
+
     return FabricQueryResult(
         answer=getattr(result, "answer", ""),
         sparql=getattr(result, "sparql_used", None),
         sources=getattr(result, "sources", []),
+        iterations=len(trajectory),
+        converged=converged,
     )
