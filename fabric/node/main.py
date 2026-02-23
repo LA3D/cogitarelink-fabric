@@ -25,6 +25,8 @@ _VOID_TURTLE = """\
     void:uriSpace "{base}/entity/" ;
     void:vocabulary <http://www.w3.org/ns/sosa/> ;
     void:vocabulary <http://www.w3.org/2006/time#> ;
+    void:vocabulary <http://www.w3.org/ns/prov#> ;
+    void:vocabulary <http://semanticscience.org/resource/> ;
     dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;
     void:subset [
         a void:Dataset ;
@@ -47,7 +49,9 @@ _VOID_JSONLD = """\
   "void:uriSpace": "{base}/entity/",
   "void:vocabulary": [
     {{ "@id": "http://www.w3.org/ns/sosa/" }},
-    {{ "@id": "http://www.w3.org/2006/time#" }}
+    {{ "@id": "http://www.w3.org/2006/time#" }},
+    {{ "@id": "http://www.w3.org/ns/prov#" }},
+    {{ "@id": "http://semanticscience.org/resource/" }}
   ],
   "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }},
   "void:subset": {{
