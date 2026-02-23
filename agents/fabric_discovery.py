@@ -129,13 +129,14 @@ def _fetch(url: str, accept: str = "text/turtle") -> str:
     return r.text
 
 
-def _parse_void(ttl: str) -> tuple[str, list[str], str, str | None]:
+def _parse_void(ttl: str) -> tuple[str, list[str], str, str | None, list[dict]]:
     g = Graph()
     g.parse(data=ttl, format="turtle")
     sparql_url = ""
     vocabs: list[str] = []
     conforms = ""
     uri_space: str | None = None
+    named_graphs: list[dict] = []
     for s in g.subjects(RDF.type, VOID.Dataset):
         for o in g.objects(s, VOID.sparqlEndpoint):
             sparql_url = str(o)
@@ -145,7 +146,12 @@ def _parse_void(ttl: str) -> tuple[str, list[str], str, str | None]:
             conforms = str(o)
         for o in g.objects(s, VOID.uriSpace):
             uri_space = str(o)
-    return sparql_url, vocabs, conforms, uri_space
+        for subset in g.objects(s, VOID.subset):
+            title = str(g.value(subset, DCTERMS.title) or "")
+            graph_uri = str(g.value(subset, VOID.sparqlGraphEndpoint) or "")
+            if graph_uri:
+                named_graphs.append({"title": title, "graph_uri": graph_uri})
+    return sparql_url, vocabs, conforms, uri_space, named_graphs
 
 
 def _parse_prefix_declarations(ttl: str) -> dict[str, str]:
@@ -255,7 +261,7 @@ def discover_endpoint(url: str) -> FabricEndpoint:
     base = url.rstrip("/")
 
     void_ttl = _fetch(f"{base}/.well-known/void")
-    sparql_url, vocabs, conforms, uri_space = _parse_void(void_ttl)
+    sparql_url, vocabs, conforms, uri_space, named_graphs = _parse_void(void_ttl)
 
     profile_ttl = _fetch(f"{base}/.well-known/profile")
     shapes_ttl = _fetch(f"{base}/.well-known/shacl")
@@ -282,6 +288,7 @@ def discover_endpoint(url: str) -> FabricEndpoint:
         vocabularies=vocabs, conforms_to=conforms,
         uri_space=uri_space,
         prefix_declarations=prefix_declarations,
+        named_graphs=named_graphs,
         shapes=shapes, examples=examples,
         tbox_graph=tbox,
     )

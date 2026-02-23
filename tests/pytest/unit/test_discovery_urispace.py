@@ -39,7 +39,7 @@ fabric:TestShape
 
 
 def test_parse_void_extracts_uri_space():
-    sparql_url, vocabs, conforms, uri_space = _parse_void(VOID_TTL)
+    sparql_url, vocabs, conforms, uri_space, named_graphs = _parse_void(VOID_TTL)
     assert uri_space == "http://x/entity/"
 
 
@@ -48,7 +48,7 @@ def test_parse_void_returns_none_when_no_uri_space():
 @prefix void: <http://rdfs.org/ns/void#> .
 <http://x/.well-known/void> a void:Dataset ; void:sparqlEndpoint <http://x/sparql> .
 """
-    _, _, _, uri_space = _parse_void(ttl)
+    _, _, _, uri_space, _ = _parse_void(ttl)
     assert uri_space is None
 
 

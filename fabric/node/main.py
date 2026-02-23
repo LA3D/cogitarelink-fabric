@@ -25,7 +25,12 @@ _VOID_TURTLE = """\
     void:uriSpace "{base}/entity/" ;
     void:vocabulary <http://www.w3.org/ns/sosa/> ;
     void:vocabulary <http://www.w3.org/2006/time#> ;
-    dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> .
+    dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;
+    void:subset [
+        a void:Dataset ;
+        dct:title "Observations" ;
+        void:sparqlGraphEndpoint <{base}/graph/observations> ;
+    ] .
 """
 
 _VOID_JSONLD = """\
