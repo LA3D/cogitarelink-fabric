@@ -46,6 +46,26 @@ PHASE_FEATURES = {
     "phase1-baseline": [
         "void-sd", "shacl-agent-hints", "sparql-examples",
     ],
+    "phase1.5a-urispace": [
+        "void-sd", "void-urispace", "shacl-prefixes",
+        "shacl-class-pattern", "shacl-agent-hints", "sparql-examples",
+    ],
+    "phase1.5b-graphinv": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples",
+    ],
+    "phase1.5c-examples": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended",
+    ],
+    "phase1.5d-routing": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended",
+        "enhanced-routing-plan",
+    ],
     "phase1+tbox": [
         "void-sd", "shacl-agent-hints", "sparql-examples", "tbox-graph",
     ],
