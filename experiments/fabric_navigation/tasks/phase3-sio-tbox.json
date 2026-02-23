@@ -1,0 +1,110 @@
+[
+  {
+    "id": "sio-has-value-type",
+    "query": "Is sio:has-value a datatype property or an object property according to the SIO ontology?",
+    "context": "http://localhost:8080",
+    "expected": ["DatatypeProperty"],
+    "metadata": {
+      "setup": { "type": "none" },
+      "description": "Sharp discriminator: owl:DatatypeProperty declaration in /ontology/sio. SIO property typing unlikely in LLM pretraining.",
+      "task_type": "discriminator"
+    }
+  },
+  {
+    "id": "sio-attribute-inverse",
+    "query": "What is the inverse property of sio:has-attribute according to the SIO ontology?",
+    "context": "http://localhost:8080",
+    "expected": ["is-attribute-of"],
+    "metadata": {
+      "setup": { "type": "none" },
+      "description": "Sharp discriminator: owl:inverseOf declaration in /ontology/sio. Hyphenated SIO property names not guessable from pretraining.",
+      "task_type": "discriminator"
+    }
+  },
+  {
+    "id": "sio-measured-value-range",
+    "query": "What class does sio:has-measurement-value link to according to the SIO ontology?",
+    "context": "http://localhost:8080",
+    "expected": ["MeasuredValue"],
+    "metadata": {
+      "setup": { "type": "none" },
+      "description": "Sharp discriminator: rdfs:range axiom in /ontology/sio. SIO class hierarchy not in pretraining.",
+      "task_type": "discriminator"
+    }
+  },
+  {
+    "id": "obs-sio-measured-value",
+    "query": "What is the measured value of the observation?",
+    "context": "http://localhost:8080",
+    "expected": ["21.3"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-sio-1a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:resultTime": "2026-02-23T09:00:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-1a",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "21.3"
+          }
+        ]
+      },
+      "description": "Efficiency differentiator: measurement encoded via SIO has-attribute -> MeasuredValue -> has-value chain. No sosa:hasSimpleResult present. Agent must discover SIO measurement pattern.",
+      "task_type": "efficiency"
+    }
+  },
+  {
+    "id": "obs-sio-unit",
+    "query": "What unit was the measurement recorded in?",
+    "context": "http://localhost:8080",
+    "expected": ["MilliMOL"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-sio-2a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:resultTime": "2026-02-23T10:00:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-2a",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "42.7",
+            "sio:has-unit": "http://localhost:8080/entity/unit-millimol",
+            "sio:unit-label": "MilliMOL"
+          }
+        ]
+      },
+      "description": "Efficiency differentiator: SIO measurement chain plus sio:has-unit with rdfs:label. Agent must traverse has-attribute -> MeasuredValue -> has-unit -> label.",
+      "task_type": "efficiency"
+    }
+  },
+  {
+    "id": "obs-sio-chemical-entity",
+    "query": "What chemical entity is the observation about?",
+    "context": "http://localhost:8080",
+    "expected": ["potassium chloride"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-sio-3a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-1",
+            "sosa:hasSimpleResult": "18.9",
+            "sosa:resultTime": "2026-02-23T11:00:00Z",
+            "sio:is-about": "http://localhost:8080/entity/chem-kcl",
+            "sio:chem-type": "http://semanticscience.org/resource/ChemicalEntity",
+            "sio:chem-label": "potassium chloride"
+          }
+        ]
+      },
+      "description": "Efficiency differentiator: sio:is-about linking observation to sio:ChemicalEntity with rdfs:label. Agent must discover is-about property and traverse to label.",
+      "task_type": "efficiency"
+    }
+  }
+]
