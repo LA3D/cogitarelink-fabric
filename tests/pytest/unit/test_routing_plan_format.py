@@ -65,3 +65,24 @@ def test_routing_plan_without_uri_space_still_works():
     plan = ep.routing_plan
     assert "Endpoint:" in plan
     assert "Entity URI space:" not in plan
+
+
+def test_routing_plan_shows_local_graph_paths():
+    """When vocab_graph_map is populated, routing plan shows -> /ontology/{stem}."""
+    ep = _make_endpoint()
+    ep.vocab_graph_map = {
+        "http://www.w3.org/ns/sosa/": "http://x/ontology/sosa",
+    }
+    plan = ep.routing_plan
+    assert "-> /ontology/sosa" in plan
+
+
+def test_routing_plan_without_graph_map_still_works():
+    """When vocab_graph_map is empty, routing plan renders prefixes without paths."""
+    ep = _make_endpoint()
+    ep.vocab_graph_map = {}
+    plan = ep.routing_plan
+    assert "sosa:" in plan
+    # No -> arrows in the ontology cache section
+    cache_section = plan.split("Local ontology cache")[1].split("Named graphs")[0]
+    assert "->" not in cache_section

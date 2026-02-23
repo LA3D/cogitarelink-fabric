@@ -45,6 +45,7 @@ class FabricEndpoint:
     shapes: list[ShapeSummary] = field(default_factory=list)
     examples: list[ExampleSummary] = field(default_factory=list)
     tbox_graph: Graph | None = field(default=None, repr=False)
+    vocab_graph_map: dict[str, str] = field(default_factory=dict)
 
     @property
     def routing_plan(self) -> str:
@@ -64,7 +65,13 @@ class FabricEndpoint:
         if self.prefix_declarations:
             lines.append("Local ontology cache (no external dereferencing needed):")
             for prefix, ns in sorted(self.prefix_declarations.items()):
-                lines.append(f"  {prefix}: <{ns}>")
+                graph_uri = self.vocab_graph_map.get(ns, "")
+                if graph_uri:
+                    parts = graph_uri.split("/", 3)
+                    path = "/" + parts[-1] if len(parts) >= 4 else graph_uri
+                    lines.append(f"  {prefix}: <{ns}> -> {path}")
+                else:
+                    lines.append(f"  {prefix}: <{ns}>")
         else:
             lines.append("Vocabularies:")
             for v in self.vocabularies:
@@ -219,9 +226,12 @@ def _parse_examples(ttl: str) -> list[ExampleSummary]:
 
 # --- TBox loading (L2) ----------------------------------------------------
 
-def _resolve_vocab_graphs(sparql_url: str, vocabs: list[str]) -> list[str]:
-    """Find named graphs containing triples whose subjects start with each vocabulary IRI."""
-    graphs: list[str] = []
+def _resolve_vocab_graphs(sparql_url: str, vocabs: list[str]) -> dict[str, str]:
+    """Find named graphs containing triples whose subjects start with each vocabulary IRI.
+
+    Returns: dict mapping vocabulary namespace -> graph URI.
+    """
+    mapping: dict[str, str] = {}
     for vocab in vocabs:
         if not _SAFE_IRI.match(vocab):
             log.warning("Skipping unsafe vocabulary IRI: %s", vocab)
@@ -235,9 +245,9 @@ def _resolve_vocab_graphs(sparql_url: str, vocabs: list[str]) -> list[str]:
         r.raise_for_status()
         for binding in r.json().get("results", {}).get("bindings", []):
             uri = binding.get("g", {}).get("value", "")
-            if uri and uri not in graphs:
-                graphs.append(uri)
-    return graphs
+            if uri and vocab not in mapping:
+                mapping[vocab] = uri
+    return mapping
 
 
 def _load_tbox(sparql_url: str, graph_uris: list[str]) -> Graph:
@@ -277,10 +287,12 @@ def discover_endpoint(url: str) -> FabricEndpoint:
     prefix_declarations = _parse_prefix_declarations(shapes_ttl)
 
     # L2 TBox loading — non-fatal; routing plan text still works without it
+    vocab_graph_map: dict[str, str] = {}
     tbox = None
     if sparql_url and vocabs:
         try:
-            graph_uris = _resolve_vocab_graphs(sparql_url, vocabs)
+            vocab_graph_map = _resolve_vocab_graphs(sparql_url, vocabs)
+            graph_uris = list(dict.fromkeys(vocab_graph_map.values()))  # dedup, preserve order
             if graph_uris:
                 tbox = _load_tbox(sparql_url, graph_uris)
         except (httpx.HTTPError, ValueError) as exc:
@@ -296,4 +308,5 @@ def discover_endpoint(url: str) -> FabricEndpoint:
         named_graphs=named_graphs,
         shapes=shapes, examples=examples,
         tbox_graph=tbox,
+        vocab_graph_map=vocab_graph_map,
     )
