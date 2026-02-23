@@ -22,6 +22,7 @@ _VOID_TURTLE = """\
     a void:Dataset ;
     dct:title "cogitarelink-fabric node"^^xsd:string ;
     void:sparqlEndpoint <{base}/sparql> ;
+    void:uriSpace "{base}/entity/" ;
     void:vocabulary <http://www.w3.org/ns/sosa/> ;
     void:vocabulary <http://www.w3.org/2006/time#> ;
     dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> .
@@ -37,6 +38,7 @@ _VOID_JSONLD = """\
   "@type": "void:Dataset",
   "dct:title": "cogitarelink-fabric node",
   "void:sparqlEndpoint": {{ "@id": "{base}/sparql" }},
+  "void:uriSpace": "{base}/entity/",
   "void:vocabulary": [
     {{ "@id": "http://www.w3.org/ns/sosa/" }},
     {{ "@id": "http://www.w3.org/2006/time#" }}
