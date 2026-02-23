@@ -83,17 +83,27 @@ def _strip_tbox_paths(routing_plan: str) -> str:
 # --- Test data setup -------------------------------------------------------
 
 def _build_insert(obs: dict) -> str:
-    lines = [
-        "PREFIX sosa: <http://www.w3.org/ns/sosa/>",
-        "PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>",
-        f"INSERT DATA {{ GRAPH <{obs.get('graph', GATEWAY + '/graph/observations')}> {{",
-        f"  <{obs['subject']}> a sosa:Observation ;",
-        f"    sosa:madeBySensor <{obs['sosa:madeBySensor']}> ;",
-        f"    sosa:hasSimpleResult \"{obs['sosa:hasSimpleResult']}\"^^xsd:double ;",
-        f"    sosa:resultTime \"{obs['sosa:resultTime']}\"^^xsd:dateTime .",
-        "} }",
-    ]
-    return "\n".join(lines)
+    g = obs.get('graph', GATEWAY + '/graph/observations')
+    subj = obs['subject']
+    props = [f"  <{subj}> a sosa:Observation"]
+    if 'sosa:madeBySensor' in obs:
+        props.append(f"    sosa:madeBySensor <{obs['sosa:madeBySensor']}>")
+    if 'sosa:hasSimpleResult' in obs:
+        props.append(f"    sosa:hasSimpleResult \"{obs['sosa:hasSimpleResult']}\"^^xsd:double")
+    if 'sosa:resultTime' in obs:
+        props.append(f"    sosa:resultTime \"{obs['sosa:resultTime']}\"^^xsd:dateTime")
+    if 'sosa:phenomenonTime' in obs:
+        props.append(f"    sosa:phenomenonTime \"{obs['sosa:phenomenonTime']}\"^^xsd:dateTime")
+    if 'sosa:usedProcedure' in obs:
+        props.append(f"    sosa:usedProcedure <{obs['sosa:usedProcedure']}>")
+    if 'sosa:hasFeatureOfInterest' in obs:
+        props.append(f"    sosa:hasFeatureOfInterest <{obs['sosa:hasFeatureOfInterest']}>")
+    body = " ;\n".join(props) + " ."
+    return (
+        "PREFIX sosa: <http://www.w3.org/ns/sosa/>\n"
+        "PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>\n"
+        f"INSERT DATA {{ GRAPH <{g}> {{\n{body}\n}} }}"
+    )
 
 
 def setup_task_data(task: EvalTask) -> None:
