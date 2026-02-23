@@ -10,8 +10,13 @@ Two environments — know which one applies:
 
 | Context | Python | Key packages |
 |---|---|---|
-| **Claude Code tool use** | `~/uvws/.venv/bin/python` (3.12.8) | rdflib 7.6, pyshacl 0.31, owlrl 7.1, dspy 3.1, sparqlx 0.10, httpx 0.28 |
+| **Claude Code tool use** | `~/uvws/.venv/bin/python` (3.12.12) | rdflib 7.6.0, pyshacl 0.31.0, owlrl 7.1.4, dspy 3.1.3†, sparqlx 0.10.0, httpx 0.28.1 |
 | **Fabric project code** | Project venv / Docker | Oxigraph HTTP server (no pyoxigraph in global venv); FastAPI, uvicorn |
+
+† **dspy is pinned to a fork**: `git+https://github.com/rawwerks/dspy.git@feat/rlm-media-types-protocol`
+(PR [stanfordnlp/dspy#9295](https://github.com/stanfordnlp/dspy/pull/9295) — adds multimodal media types, budget controls, multi-model routing, LocalInterpreter, depth>1 to RLM; not yet merged to main).
+Install: `uv pip install "git+https://github.com/rawwerks/dspy.git@feat/rlm-media-types-protocol"`
+When PR merges and a release ships, revert to: `uv pip install "dspy>=<merged-version>"`
 
 For ad-hoc RDF/SPARQL/validation work from Claude Code, use `~/uvws/.venv/bin/python`.
 
