@@ -209,12 +209,21 @@ def main() -> None:
     parser.add_argument('--model', default='anthropic/claude-sonnet-4-6')
     parser.add_argument('--max-iterations', type=int, default=10)
     parser.add_argument('--verbose', action='store_true')
+    parser.add_argument('--temperature', type=float, default=None,
+                        help='LM temperature. Use >0 (e.g. 0.7) for ensemble replications to defeat prompt caching.')
+    parser.add_argument('--no-cache', action='store_true',
+                        help='Disable dspy local cache. Use with --temperature for genuine independent samples.')
     args = parser.parse_args()
 
     tasks_raw = json.loads(Path(args.tasks).read_text())
     tasks = [EvalTask(**t) for t in tasks_raw]
 
-    dspy.configure(lm=dspy.LM(args.model))
+    lm_kwargs: dict = {}
+    if args.temperature is not None:
+        lm_kwargs['temperature'] = args.temperature
+    if args.no_cache:
+        lm_kwargs['cache'] = False
+    dspy.configure(lm=dspy.LM(args.model, **lm_kwargs))
     ep = discover_endpoint(GATEWAY)
 
     def rlm_factory() -> dspy.RLM:
