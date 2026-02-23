@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import sys
 import time
 from pathlib import Path
@@ -73,6 +74,11 @@ PHASE_FEATURES = {
         "void-sd", "shacl-agent-hints", "sparql-examples", "tbox-graph", "validate-tool",
     ],
 }
+
+def _strip_tbox_paths(routing_plan: str) -> str:
+    """Remove '-> /ontology/X' suffixes — produces phase2a control routing plan."""
+    return re.sub(r' -> /ontology/\S+', '', routing_plan)
+
 
 # --- Test data setup -------------------------------------------------------
 
