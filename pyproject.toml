@@ -1,0 +1,28 @@
+[project]
+name = "cogitarelink-fabric"
+version = "0.1.0"
+description = "Knowledge fabric prototype: RLM agents navigating self-describing SPARQL endpoints"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.12"
+authors = [
+    { name = "Charles F. Vardeman II", email = "cvardema@nd.edu" },
+]
+dependencies = [
+    "dspy @ git+https://github.com/rawwerks/dspy.git@feat/rlm-media-types-protocol",
+    "httpx>=0.28",
+    "rdflib>=7.0",
+    "pyshacl>=0.31",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=9.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/pytest"]

@@ -92,9 +92,8 @@ curl -s http://localhost:8080/.well-known/void | head -20
 ### Install Python dependencies
 
 ```bash
-uv pip install -r requirements.txt
-# Or install the dspy fork directly:
-uv pip install "git+https://github.com/rawwerks/dspy.git@feat/rlm-media-types-protocol"
+# Install the project and all dependencies (includes dspy fork)
+uv pip install -e ".[test]"
 ```
 
 ### Run the test suite
