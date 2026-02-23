@@ -14,10 +14,22 @@ from __future__ import annotations
 from collections import defaultdict
 from typing import Callable
 
-from rdflib import BNode, Graph, URIRef
+from rdflib import BNode, Graph, Namespace, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
 
 from agents.fabric_discovery import FabricEndpoint
+
+SCHEMA = Namespace("http://schema.org/")
+
+
+# ============================================================================
+# The Seven General RDFS Instruct Patterns (Pattern 0-6)
+#
+# ALL examples use abstract vocabulary (:ClassX, :propA, etc.) to avoid
+# leaking domain knowledge into the sub-agent prompt.  The patterns teach
+# RDFS/OWL reasoning principles; the actual ontology structure is supplied
+# separately via extract_ontology_structure().
+# ============================================================================
 
 RDFS_INSTRUCT_PATTERNS = """\
 You are an RDFS reasoning specialist. Given an ontology's structural
@@ -35,15 +47,15 @@ RDFS RULE: rdf:type declares which class an individual belongs to.
            without knowing its type.
 
 INSTANCE CONTEXT (provided by the caller):
-  inst:station-alpha  rdf:type  :Platform .
+  inst:alpha  rdf:type  :ClassA .
 
 ONTOLOGY:
-  :hosts  schema:domainIncludes :Platform ;
-          schema:rangeIncludes  :Sensor, :Actuator .
+  :propA  schema:domainIncludes :ClassA ;
+          schema:rangeIncludes  :ClassB, :ClassC .
 
-REASONING: The question asks what inst:station-alpha hosts. The instance
-  context says it is a :Platform. Properties with :Platform in domainIncludes:
-  :hosts. Route: inst:station-alpha :hosts ?device .
+REASONING: The question asks what inst:alpha relates to via :propA. The
+  instance context says it is a :ClassA. Properties with :ClassA in
+  domainIncludes: :propA. Route: inst:alpha :propA ?target .
 
 INCORRECT: Guessing the type from structural fingerprints or question text.
   WHY WRONG: Obfuscated URIs are opaque. Only rdf:type assertions in the
@@ -58,6 +70,7 @@ WHEN NO INSTANCE CONTEXT IS PROVIDED:
 
 RDFS RULE: rdfs:domain declares which class a property belongs to.
            rdfs:range declares what class the property points to.
+           (Also applies to schema:domainIncludes/rangeIncludes.)
 
 ONTOLOGY (any ontology):
   :propA  rdfs:domain :ClassX ;  rdfs:range :ClassY .
@@ -67,11 +80,31 @@ REASONING: To get from :ClassX to :ClassZ, there is no direct property.
   But :propA goes X->Y and :propB goes Y->Z.
   Route: ?x :propA ?y . ?y :propB ?z .
 
-DIRECTION RULE: At each hop, determine if the starting type is in domain or range:
+INCORRECT: ?x :propB ?z
+  WHY WRONG: :propB has rdfs:domain :ClassY, not :ClassX.
+  You need the intermediate hop through :ClassY.
+
+DIRECTION RULE: At each hop, determine if the starting node's type
+  appears in the property's domain or range:
   - Type in DOMAIN -> FORWARD: starting node is subject.
       SPARQL: ?startingNode :prop ?target .
   - Type in RANGE -> BACKWARD: starting node is object.
       SPARQL: ?target :prop ?startingNode .
+
+DIRECTION EXAMPLE:
+  :propC  domain :ClassM ;  range :ClassN .
+
+  Starting from a :ClassN instance (inst:beta):
+    :ClassN is in RANGE -> BACKWARD traversal.
+    SPARQL: ?m :propC inst:beta .
+
+  Starting from a :ClassM instance:
+    :ClassM is in DOMAIN -> FORWARD traversal.
+    SPARQL: ?m :propC ?n .
+
+INCORRECT: inst:beta :propC ?m .
+  WHY WRONG: :ClassN is the range, not the domain. The :ClassN instance
+  goes in object position when using :propC.
 
 SPARQL MATERIALIZATION:
   SELECT ?z WHERE { ?x :propA ?y . ?y :propB ?z . }
@@ -80,17 +113,29 @@ SPARQL MATERIALIZATION:
 === PATTERN 2: HIERARCHY EXPANSION ===
 
 RDFS RULE: rdfs:subClassOf creates a type hierarchy.
+           Instances of a subclass are also instances of the parent.
            Querying the parent misses instances typed only as the subclass.
 
 ONTOLOGY:
   :SubA  rdfs:subClassOf :Parent .
+  :SubB  rdfs:subClassOf :Parent .
   :propX rdfs:domain :SubA ; rdfs:range :Target .
 
-REASONING: Must query :SubA specifically, not :Parent.
+REASONING: If I need :Target from a :Parent instance, I must know which
+  subclass has the property. :propX is on :SubA only. Querying :Parent
+  for :propX will fail -- the domain is :SubA.
+  I must either: (a) query for :SubA specifically, or
+                 (b) use rdfs:subClassOf* to find which subclasses exist,
+                     then check which one has :propX.
 
-SPARQL MATERIALIZATION:
-  Option A: ?x a :SubA . ?x :propX ?target .
-  Option B: ?sub rdfs:subClassOf :Parent . ?x a ?sub . ?x :propX ?target .
+INCORRECT: ?x a :Parent . ?x :propX ?target
+  WHY WRONG: :propX has rdfs:domain :SubA. If ?x is typed as :Parent
+  but the actual data types it as :SubB, this returns nothing.
+
+SPARQL MATERIALIZATION (two options):
+  Option A (specific): ?x a :SubA . ?x :propX ?target .
+  Option B (discovery): ?sub rdfs:subClassOf :Parent .
+                        ?x a ?sub . ?x :propX ?target .
 
 
 === PATTERN 3: INVERSE PROPERTY NAVIGATION ===
@@ -98,29 +143,69 @@ SPARQL MATERIALIZATION:
 RDFS+ RULE: owl:inverseOf means two properties express the same
             relationship from opposite directions.
 
-BEST PRACTICE: Specify BOTH forward and backward forms:
-    FORWARD: inst:sensor :madeObservation ?obs .
-    BACKWARD: ?obs :madeBySensor inst:sensor .
-  Endpoints without inference may only materialize ONE direction.
+ONTOLOGY:
+  :propD  owl:inverseOf :propE .
+  :propD  domain :ClassP ;  range :ClassQ .
+  :propE  domain :ClassQ ;  range :ClassP .
+
+MATERIALIZATION RULE: Endpoints without inference may only materialize
+  ONE direction of an inverse pair. Do not assume both exist as triples.
+  Prefer the property where your starting type is in the DOMAIN
+  (forward traversal), as forward triples are more commonly asserted.
+
+REASONING: Starting from a :ClassP instance, I need :ClassQ.
+  Option A: inst:p1 :propD ?q  (forward on :propD)
+  Option B: ?q :propE inst:p1  (forward on :propE)
+  Both are semantically correct. But if the data only asserts
+  :propE triples, Option A returns nothing. Option B works.
+
+BEST PRACTICE: In the routing plan, specify BOTH the forward and
+  backward forms so the main agent can try the materialized one:
+    FORWARD: inst:p1 :propD ?q .
+    BACKWARD: ?q :propE inst:p1 .
+  If the forward form returns 0 results, the backward form uses the
+  inverse property and is equivalent.
 
 
 === PATTERN 4: EXISTENTIAL GUARANTEE (OWL RESTRICTION) ===
 
-OWL RULE: owl:someValuesFrom means every instance has at least one value.
+OWL RULE: owl:someValuesFrom on a property means every instance
+          of the restricted class has at least one value for that property.
+
+ONTOLOGY:
+  :ClassX rdfs:subClassOf [ owl:onProperty :propA ;
+                             owl:someValuesFrom :ClassY ] .
+
+REASONING: Every :ClassX instance is GUARANTEED to have a :propA link
+  to some :ClassY. If my query returns zero results for this path,
+  my query is wrong -- the data must be there.
 
 DIAGNOSTIC: Zero results on a guaranteed path = query error, not data absence.
 
 
 === PATTERN 5: DISJOINTNESS PRUNING ===
 
-OWL RULE: owl:disjointWith means no instance belongs to both classes.
-  Prunes the search space.
+OWL RULE: owl:disjointWith means no instance can belong to both classes.
+
+ONTOLOGY:
+  :SubA  owl:disjointWith :SubB .
+  :SubA  rdfs:subClassOf :Parent .
+  :SubB  rdfs:subClassOf :Parent .
+
+REASONING: If I'm looking for data via :SubA, I can ignore :SubB entirely.
+  No entity is both :SubA and :SubB. This prunes the search space.
+
+NEGATIVE AFFORDANCE: Don't look for :SubA-specific properties on :SubB instances.
 
 
 === PATTERN 6: UNIVERSAL TYPE RESTRICTION (OWL allValuesFrom) ===
 
-OWL RULE: owl:allValuesFrom = type safety, not existence guarantee.
-  Zero results does NOT mean query error.
+OWL RULE: owl:allValuesFrom means every value of that property MUST be
+          of the specified class. Type safety, not existence guarantee.
+
+REASONING: Can assume type of traversal result without explicit check.
+CONTRAST: someValuesFrom = "path exists"; allValuesFrom = "values are typed".
+          Zero results on allValuesFrom does NOT mean query error.
 
 
 === YOUR TASK ===
@@ -128,20 +213,36 @@ OWL RULE: owl:allValuesFrom = type safety, not existence guarantee.
 Given the ONTOLOGY STRUCTURE and INFORMATION NEED below, apply these
 patterns to produce a ROUTING ANALYSIS:
 
-1. Identify source entity type and target information type.
-2. Trace routing path using domain/range (Pattern 1). Show DIRECTION per hop.
-3. Flag hierarchy expansions (Pattern 2).
-4. For inverse pairs (Pattern 3), provide BOTH SPARQL forms.
-5. Flag existential guarantees (Pattern 4).
-6. Flag disjointness pruning (Pattern 5).
-7. Flag universal type restrictions (Pattern 6).
+1. Identify the source entity type and target information type.
+   If INSTANCE CONTEXT is provided, use the grounded rdf:type (Pattern 0).
+   If not provided for a named individual, flag that types must be resolved first.
+2. Trace the routing path from source to target using domain/range
+   declarations (Pattern 1). Show each hop with its DIRECTION:
+   - FORWARD if starting type is in domain (starting node = subject).
+   - BACKWARD if starting type is in range (starting node = object).
+3. Flag any hierarchy expansions needed (Pattern 2) -- where a property
+   is on a subclass, not the parent.
+4. For inverse property pairs (Pattern 3), provide BOTH forward and
+   backward SPARQL forms. Flag that only one direction may be
+   materialized in the data.
+5. Flag any existential guarantees (Pattern 4) -- paths guaranteed to
+   have results.
+6. Flag any disjointness pruning opportunities (Pattern 5).
+7. Flag any universal type restrictions (Pattern 6) -- values guaranteed
+   to be of a specific type.
 
-For EACH routing hop, cite the axiom:
-  "madeBySensor: domain=Observation, range=Sensor (BACKWARD from Sensor)"
+For EACH routing hop, cite the specific axiom and direction:
+  "propC: domain=ClassM, range=ClassN (BACKWARD from ClassN)"
 
-End with a ROUTING PLAN listing SPARQL triple patterns in order.
+End with a ROUTING PLAN: the sequence of SPARQL triple patterns the
+main agent should use, in order. For hops with inverse pairs, show
+both directions.
 """
 
+
+# ============================================================================
+# Ontology structure extraction
+# ============================================================================
 
 def _short_name(uri) -> str:
     s = str(uri)
@@ -151,9 +252,17 @@ def _short_name(uri) -> str:
 
 
 def extract_ontology_structure(g: Graph) -> str:
-    """Convert rdflib.Graph to routing-relevant text for RDFS sub-agent."""
+    """Extract RDFS/OWL structural declarations as a concise text summary.
+
+    Reads an rdflib.Graph and produces a summary suitable for the RDFS
+    reasoning sub-agent. Includes: classes, properties with domain/range,
+    soft routing hints (schema:domainIncludes/rangeIncludes), union domains,
+    subClassOf hierarchies, owl:inverseOf pairs, OWL restrictions, and
+    owl:disjointWith pairs.
+    """
     sections = []
 
+    # --- Object properties with hard domain/range (the routing paths) ---
     routes = []
     for p in sorted(g.subjects(RDF.type, OWL.ObjectProperty)):
         if not isinstance(p, URIRef):
@@ -165,6 +274,85 @@ def extract_ontology_structure(g: Graph) -> str:
     sections.append(f"ROUTING PATHS (object properties with domain -> range) [{len(routes)}]:")
     sections.extend(routes)
 
+    # Track which properties already have hard domain/range
+    _routed_props = {str(p) for p in g.subjects(RDF.type, OWL.ObjectProperty)
+                     if isinstance(p, URIRef)
+                     and g.value(p, RDFS.domain) and isinstance(g.value(p, RDFS.domain), URIRef)
+                     and g.value(p, RDFS.range) and isinstance(g.value(p, RDFS.range), URIRef)}
+
+    # --- schema:domainIncludes / schema:rangeIncludes (soft routing hints) ---
+    soft_obj_routes = []
+    for p in sorted(g.subjects(RDF.type, OWL.ObjectProperty)):
+        if not isinstance(p, URIRef) or str(p) in _routed_props:
+            continue
+        dom_includes = sorted(
+            {_short_name(o) for o in g.objects(p, SCHEMA.domainIncludes) if isinstance(o, URIRef)}
+        )
+        rng_includes = sorted(
+            {_short_name(o) for o in g.objects(p, SCHEMA.rangeIncludes) if isinstance(o, URIRef)}
+        )
+        if dom_includes or rng_includes:
+            dom_str = ", ".join(dom_includes) if dom_includes else "?"
+            rng_str = ", ".join(rng_includes) if rng_includes else "?"
+            soft_obj_routes.append(
+                f"  {_short_name(p)}: domainIncludes({dom_str}) -> rangeIncludes({rng_str})"
+            )
+    if soft_obj_routes:
+        sections.append(
+            f"\nSOFT ROUTING HINTS (schema:domainIncludes/rangeIncludes) [{len(soft_obj_routes)}]:"
+        )
+        sections.extend(soft_obj_routes)
+
+    # --- Datatype properties with schema:domainIncludes (soft hints) ---
+    soft_dt_routes = []
+    for p in sorted(g.subjects(RDF.type, OWL.DatatypeProperty)):
+        if not isinstance(p, URIRef):
+            continue
+        if g.value(p, RDFS.domain) and isinstance(g.value(p, RDFS.domain), URIRef):
+            continue
+        dom_includes = sorted(
+            {_short_name(o) for o in g.objects(p, SCHEMA.domainIncludes) if isinstance(o, URIRef)}
+        )
+        if dom_includes:
+            rng = g.value(p, RDFS.range)
+            rng_name = _short_name(rng) if rng else "literal"
+            dom_str = ", ".join(dom_includes)
+            soft_dt_routes.append(
+                f"  {_short_name(p)}: domainIncludes({dom_str}) -> {rng_name}"
+            )
+    if soft_dt_routes:
+        sections.append(
+            f"\nSOFT DATATYPE HINTS (schema:domainIncludes for datatype properties) [{len(soft_dt_routes)}]:"
+        )
+        sections.extend(soft_dt_routes)
+
+    # --- Object properties with owl:unionOf domains ---
+    union_routes = []
+    for p in sorted(g.subjects(RDF.type, OWL.ObjectProperty)):
+        if not isinstance(p, URIRef):
+            continue
+        dom = g.value(p, RDFS.domain)
+        rng = g.value(p, RDFS.range)
+        if not (dom and isinstance(dom, BNode) and rng and isinstance(rng, URIRef)):
+            continue
+        union_of = g.value(dom, OWL.unionOf)
+        if not union_of:
+            continue
+        try:
+            members = [_short_name(m) for m in g.items(union_of) if isinstance(m, URIRef)]
+        except Exception:
+            continue
+        if members:
+            union_routes.append(
+                f"  {_short_name(p)}: unionOf({', '.join(members)}) -> {_short_name(rng)}"
+            )
+    if union_routes:
+        sections.append(
+            f"\nUNION-DOMAIN PROPERTIES (owl:unionOf domains) [{len(union_routes)}]:"
+        )
+        sections.extend(union_routes)
+
+    # --- Datatype properties with hard domain ---
     dt_props = []
     for p in sorted(g.subjects(RDF.type, OWL.DatatypeProperty)):
         if not isinstance(p, URIRef):
@@ -178,6 +366,7 @@ def extract_ontology_structure(g: Graph) -> str:
     sections.append(f"\nDATATYPE PROPERTIES (domain -> literal type) [{len(dt_props)}]:")
     sections.extend(dt_props)
 
+    # --- SubClassOf hierarchies (grouped by parent, 2+ children) ---
     hierarchy: dict[str, list[str]] = defaultdict(list)
     for s, _, o in g.triples((None, RDFS.subClassOf, None)):
         if isinstance(s, URIRef) and isinstance(o, URIRef):
@@ -188,6 +377,7 @@ def extract_ontology_structure(g: Graph) -> str:
         if len(children) >= 2:
             sections.append(f"  {parent} ({len(children)}): {', '.join(children)}")
 
+    # --- owl:inverseOf pairs ---
     inverses = [
         (s, o) for s, _, o in g.triples((None, OWL.inverseOf, None))
         if isinstance(s, URIRef) and isinstance(o, URIRef)
@@ -197,6 +387,17 @@ def extract_ontology_structure(g: Graph) -> str:
         for s, o in inverses:
             sections.append(f"  {_short_name(s)} <-> {_short_name(o)}")
 
+    # --- owl:disjointWith pairs ---
+    disjoints = [
+        (s, o) for s, _, o in g.triples((None, OWL.disjointWith, None))
+        if isinstance(s, URIRef) and isinstance(o, URIRef)
+    ]
+    if disjoints:
+        sections.append("\nDISJOINT CLASSES (owl:disjointWith):")
+        for s, o in disjoints:
+            sections.append(f"  {_short_name(s)} disjoint {_short_name(o)}")
+
+    # --- OWL restrictions (someValuesFrom = existential guarantees) ---
     seen: set[tuple] = set()
     restrictions = []
     for cls in g.subjects(RDFS.subClassOf, None):
@@ -217,6 +418,30 @@ def extract_ontology_structure(g: Graph) -> str:
     if restrictions:
         sections.append("\nEXISTENTIAL GUARANTEES (owl:someValuesFrom restrictions):")
         sections.extend(restrictions)
+
+    # --- OWL restrictions (allValuesFrom = universal type constraints) ---
+    seen_universal: set[tuple] = set()
+    universals = []
+    for cls in g.subjects(RDFS.subClassOf, None):
+        if not isinstance(cls, URIRef):
+            continue
+        for restr in g.objects(cls, RDFS.subClassOf):
+            if not isinstance(restr, BNode):
+                continue
+            on_prop = g.value(restr, OWL.onProperty)
+            all_val = g.value(restr, OWL.allValuesFrom)
+            if on_prop and all_val and isinstance(all_val, URIRef):
+                if not isinstance(on_prop, URIRef):
+                    continue
+                key = (_short_name(cls), _short_name(on_prop), _short_name(all_val))
+                if key not in seen_universal:
+                    seen_universal.add(key)
+                    universals.append(
+                        f"  {key[0]}: {key[1]} constrained to {key[2]}"
+                    )
+    if universals:
+        sections.append(f"\nUNIVERSAL CONSTRAINTS (owl:allValuesFrom) [{len(universals)}]:")
+        sections.extend(universals)
 
     return "\n".join(sections)
 

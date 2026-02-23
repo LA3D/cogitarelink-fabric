@@ -117,20 +117,30 @@ SDO = Namespace("https://schema.org/")
 
 # --- Helpers ---------------------------------------------------------------
 
-_COMPACT_PREFIXES = {
-    "http://www.w3.org/ns/sosa/": "sosa:",
-    "http://www.w3.org/2006/time#": "time:",
+# W3C standard prefixes — always available regardless of endpoint
+_W3C_PREFIXES: dict[str, str] = {
     "http://www.w3.org/ns/shacl#": "sh:",
-    "http://qudt.org/schema/qudt/": "qudt:",
     "http://www.w3.org/ns/prov#": "prov:",
-    "https://w3id.org/cogitarelink/fabric#": "fabric:",
-    "http://semanticscience.org/resource/": "sio:",
+    "http://www.w3.org/2006/time#": "time:",
     "http://www.w3.org/ns/dx/prof/": "prof:",
+    "http://www.w3.org/1999/02/22-rdf-syntax-ns#": "rdf:",
+    "http://www.w3.org/2000/01/rdf-schema#": "rdfs:",
+    "http://www.w3.org/2002/07/owl#": "owl:",
 }
 
 
-def _compact(iri: str) -> str:
-    for ns, prefix in _COMPACT_PREFIXES.items():
+def _build_compact_map(prefix_declarations: dict[str, str] | None = None) -> dict[str, str]:
+    """Build namespace->prefix: map from endpoint declarations + W3C fallbacks."""
+    ns_to_prefix: dict[str, str] = dict(_W3C_PREFIXES)
+    if prefix_declarations:
+        for prefix, ns in prefix_declarations.items():
+            ns_to_prefix[ns] = f"{prefix}:"
+    return ns_to_prefix
+
+
+def _compact(iri: str, compact_map: dict[str, str] | None = None) -> str:
+    mapping = compact_map if compact_map is not None else _W3C_PREFIXES
+    for ns, prefix in mapping.items():
         if iri.startswith(ns):
             return prefix + iri[len(ns):]
     return iri
@@ -188,7 +198,7 @@ def _parse_prefix_declarations(ttl: str) -> dict[str, str]:
     return prefixes
 
 
-def _parse_shapes(ttl: str) -> list[ShapeSummary]:
+def _parse_shapes(ttl: str, compact_map: dict[str, str] | None = None) -> list[ShapeSummary]:
     g = Graph()
     g.parse(data=ttl, format="turtle")
     shapes = []
@@ -196,17 +206,17 @@ def _parse_shapes(ttl: str) -> list[ShapeSummary]:
         name = str(s).rsplit("/", 1)[-1].rsplit("#", 1)[-1]
         tc = ""
         for o in g.objects(s, SH.targetClass):
-            tc = _compact(str(o))
+            tc = _compact(str(o), compact_map)
         instr = None
         for o in g.objects(s, SH.agentInstruction):
             instr = str(o)
         props = []
         for prop_node in g.objects(s, SH.property):
             for path in g.objects(prop_node, SH.path):
-                parts = [_compact(str(path))]
+                parts = [_compact(str(path), compact_map)]
                 cls = g.value(prop_node, SH["class"])
                 if cls:
-                    parts.append(f"class={_compact(str(cls))}")
+                    parts.append(f"class={_compact(str(cls), compact_map)}")
                 nk = g.value(prop_node, SH.nodeKind)
                 if nk:
                     parts.append(f"nodeKind={str(nk).rsplit('#', 1)[-1]}")
@@ -292,9 +302,10 @@ def discover_endpoint(url: str) -> FabricEndpoint:
     shapes_ttl = _fetch(f"{base}/.well-known/shacl")
     examples_ttl = _fetch(f"{base}/.well-known/sparql-examples")
 
-    shapes = _parse_shapes(shapes_ttl)
-    examples = _parse_examples(examples_ttl)
     prefix_declarations = _parse_prefix_declarations(shapes_ttl)
+    compact_map = _build_compact_map(prefix_declarations)
+    shapes = _parse_shapes(shapes_ttl, compact_map)
+    examples = _parse_examples(examples_ttl)
 
     # L2 TBox loading — non-fatal; routing plan text still works without it
     vocab_graph_map: dict[str, str] = {}
