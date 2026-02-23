@@ -84,7 +84,10 @@ class FabricEndpoint:
             if s.properties:
                 lines.append(f"    Properties: {', '.join(s.properties)}")
             if s.agent_instruction:
-                lines.append(f"    Agent hint: {s.agent_instruction}")
+                hint_lines = s.agent_instruction.splitlines()
+                lines.append(f"    Agent hint: {hint_lines[0]}")
+                for hl in hint_lines[1:]:
+                    lines.append(f"      {hl}")
 
         lines.append("")
         lines.append(f"SPARQL Examples ({len(self.examples)}):")

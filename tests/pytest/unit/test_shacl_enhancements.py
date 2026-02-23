@@ -10,9 +10,11 @@ FABRIC = Namespace("https://w3id.org/cogitarelink/fabric#")
 SHAPES_PATH = Path(__file__).parents[3] / "shapes" / "endpoint-sosa.ttl"
 
 
-def _load_shapes() -> Graph:
+def _load_shapes(base: str = "http://localhost:8080") -> Graph:
+    # Simulate serve-time {base} substitution (same as /.well-known/shacl endpoint)
+    ttl = SHAPES_PATH.read_text().replace("{base}", base)
     g = Graph()
-    g.parse(SHAPES_PATH, format="turtle")
+    g.parse(data=ttl, format="turtle")
     return g
 
 

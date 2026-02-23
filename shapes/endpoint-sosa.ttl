@@ -2,6 +2,9 @@
 # Layer 3 (D9): endpoint SHACL — constrains observations stored at this node.
 # sh:agentInstruction follows Experiment 9 pattern: machine-readable guidance
 # for RLM agents navigating this endpoint.
+#
+# NOTE: {base} is substituted at serve time by /.well-known/shacl endpoint
+# (same pattern as VoID and SPARQL examples).
 
 @prefix sh:    <http://www.w3.org/ns/shacl#> .
 @prefix sosa:  <http://www.w3.org/ns/sosa/> .
@@ -12,7 +15,9 @@
 
 # --- Metadata -----------------------------------------------------------
 
-<http://localhost:8080/.well-known/shacl>
+# sh:declare requires owl:Ontology subject per SHACL spec (sh:declare rdfs:domain owl:Ontology)
+<{base}/.well-known/shacl>
+    a owl:Ontology ;
     dct:title "cogitarelink-fabric node SHACL shapes" ;
     dct:description "Endpoint-specific constraints for SOSA observations at this node." ;
     sh:declare [
@@ -35,7 +40,7 @@ fabric:ObservationShape
 
     # Agent instruction: how an RLM agent should query this endpoint
     sh:agentInstruction """To retrieve observations: POST /sparql with
-SELECT ?obs ?result ?time FROM <http://localhost:8080/graph/observations>
+SELECT ?obs ?result ?time FROM <{base}/graph/observations>
 WHERE { ?obs a sosa:Observation ; sosa:hasSimpleResult ?result ; sosa:resultTime ?time }
 ORDER BY DESC(?time) LIMIT 100""" ;
 
@@ -63,8 +68,11 @@ ORDER BY DESC(?time) LIMIT 100""" ;
 
     sh:property [
         sh:path sosa:madeBySensor ;
+        # sh:class sosa:Sensor is informational (sh:Info severity) — entity type assertions
+        # live in /graph/entities, not /graph/observations, so hard validation would false-positive.
         sh:class sosa:Sensor ;
+        sh:severity sh:Info ;
         sh:nodeKind sh:IRI ;
-        sh:pattern "^http://localhost:8080/entity/" ;
-        sh:description "The sensor that made this observation. Sensor IRIs use the node entity namespace." ;
+        sh:pattern "^{base}/entity/" ;
+        sh:description "The sensor that made this observation. Sensor IRIs use the node entity namespace ({base}/entity/)." ;
     ] .

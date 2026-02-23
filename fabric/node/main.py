@@ -30,6 +30,7 @@ _VOID_TURTLE = """\
         a void:Dataset ;
         dct:title "Observations" ;
         void:sparqlGraphEndpoint <{base}/graph/observations> ;
+        dct:conformsTo <https://w3id.org/cogitarelink/fabric#ObservationShape> ;
     ] .
 """
 
@@ -48,7 +49,13 @@ _VOID_JSONLD = """\
     {{ "@id": "http://www.w3.org/ns/sosa/" }},
     {{ "@id": "http://www.w3.org/2006/time#" }}
   ],
-  "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }}
+  "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }},
+  "void:subset": {{
+    "@type": "void:Dataset",
+    "dct:title": "Observations",
+    "void:sparqlGraphEndpoint": {{ "@id": "{base}/graph/observations" }},
+    "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#ObservationShape" }}
+  }}
 }}
 """
 
@@ -126,10 +133,10 @@ async def well_known_shacl():
     shapes_file = SHAPES_DIR / "endpoint-sosa.ttl"
     if not shapes_file.exists():
         raise HTTPException(status_code=404, detail="SHACL shapes not found")
-    return PlainTextResponse(
-        content=shapes_file.read_text(),
-        media_type="text/turtle",
-    )
+    # Apply {base} substitution (same pattern as VoID and SPARQL examples)
+    # so sh:pattern, sh:agentInstruction, and metadata IRI reflect actual node URL.
+    content = shapes_file.read_text().replace("{base}", NODE_BASE)
+    return PlainTextResponse(content=content, media_type="text/turtle")
 
 
 @app.get("/.well-known/sparql-examples")
