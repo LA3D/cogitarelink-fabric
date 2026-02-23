@@ -2,6 +2,7 @@
 from agents.fabric_discovery import discover_endpoint, FabricEndpoint, ShapeSummary, ExampleSummary
 from agents.fabric_query import make_fabric_query_tool
 from agents.fabric_validate import validate_result, ValidationResult, make_validate_tool
+from agents.fabric_rdfs_routes import make_rdfs_routes_tool
 
 
 def __getattr__(name):

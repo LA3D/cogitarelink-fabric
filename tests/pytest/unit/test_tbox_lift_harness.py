@@ -156,3 +156,26 @@ def test_phase3_features_match_phase2():
     """Phase 3 should have same feature sets as Phase 2 (only task file differs)."""
     assert PHASE_FEATURES["phase3a-no-tbox-paths"] == PHASE_FEATURES["phase2a-no-tbox-paths"]
     assert PHASE_FEATURES["phase3b-tbox-paths"] == PHASE_FEATURES["phase2b-tbox-paths"]
+
+
+# --- Phase 4 feature tests ---------------------------------------------------
+
+def test_phase4_features_exist():
+    from experiments.fabric_navigation.run_experiment import PHASE_FEATURES
+    assert "phase4a-no-rdfs-routes" in PHASE_FEATURES
+    assert "phase4b-rdfs-routes" in PHASE_FEATURES
+
+
+def test_phase4b_has_rdfs_routes_feature():
+    from experiments.fabric_navigation.run_experiment import PHASE_FEATURES
+    assert "rdfs-routes" in PHASE_FEATURES["phase4b-rdfs-routes"]
+    assert "tbox-graph-paths" in PHASE_FEATURES["phase4b-rdfs-routes"]
+
+
+def test_phase4a_matches_phase3b():
+    from experiments.fabric_navigation.run_experiment import PHASE_FEATURES
+    phase3b = set(PHASE_FEATURES["phase3b-tbox-paths"])
+    phase4a = set(PHASE_FEATURES["phase4a-no-rdfs-routes"])
+    # phase4a is identical to phase3b (no rdfs-routes in either)
+    assert "rdfs-routes" not in phase4a
+    assert phase4a == phase3b

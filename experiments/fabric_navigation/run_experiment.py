@@ -35,6 +35,7 @@ from experiments.fabric_navigation.dspy_eval_harness import (
 from agents.fabric_discovery import discover_endpoint
 from agents.fabric_agent import FabricQuery
 from agents.fabric_query import make_fabric_query_tool
+from agents.fabric_rdfs_routes import make_rdfs_routes_tool
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s: %(message)s')
 log = logging.getLogger(__name__)
@@ -94,6 +95,18 @@ PHASE_FEATURES = {
         "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
         "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
         "tbox-graph-paths",
+    ],
+    "phase4a-no-rdfs-routes": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths",
+    ],
+    "phase4b-rdfs-routes": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths", "rdfs-routes",
     ],
 }
 
@@ -205,9 +218,13 @@ def main() -> None:
     ep = discover_endpoint(GATEWAY)
 
     def rlm_factory() -> dspy.RLM:
+        features = PHASE_FEATURES[args.phase]
+        tools = [make_fabric_query_tool(ep)]
+        if "rdfs-routes" in features:
+            tools.append(make_rdfs_routes_tool(ep))
         return dspy.RLM(
             FabricQuery,
-            tools=[make_fabric_query_tool(ep)],
+            tools=tools,
             max_iterations=args.max_iterations,
             verbose=args.verbose,
         )
