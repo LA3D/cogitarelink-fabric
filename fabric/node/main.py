@@ -10,6 +10,7 @@ NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
 SHAPES_DIR = pathlib.Path(os.environ.get("SHAPES_DIR", "/app/shapes"))
 SPARQL_DIR = pathlib.Path(os.environ.get("SPARQL_DIR", "/app/sparql"))
 ONTOLOGY_DIR = pathlib.Path(os.environ.get("ONTOLOGY_DIR", "/app/ontology"))
+SHARED_DIR = pathlib.Path(os.environ.get("SHARED_DIR", "/shared"))
 # Phase 1: unauthenticated — gated by VC-based access control in Phase 2 (D13, D19)
 SPARQL_UPDATE_ENABLED = os.environ.get("SPARQL_UPDATE_ENABLED", "true").lower() == "true"
 
@@ -241,6 +242,44 @@ async def well_known_sparql_examples():
         raise HTTPException(status_code=404, detail="SPARQL examples not found")
     content = examples_file.read_text().replace("{base}", NODE_BASE)
     return PlainTextResponse(content=content, media_type="text/turtle")
+
+
+# --- Phase 2: DID + VC routes from shared Credo volume (D5, D8, D12) ---
+
+@app.get("/.well-known/did.jsonl")
+async def well_known_did_jsonl():
+    """Serve did:webvh DID log from Credo sidecar shared volume."""
+    did_log = SHARED_DIR / "did.jsonl"
+    if not did_log.exists():
+        raise HTTPException(status_code=404, detail="DID log not yet available")
+    return PlainTextResponse(content=did_log.read_text(), media_type="application/jsonl")
+
+
+@app.get("/.well-known/did.json")
+async def well_known_did_json():
+    """Serve current DID document (last entry in did.jsonl log)."""
+    import json
+    did_log = SHARED_DIR / "did.jsonl"
+    if not did_log.exists():
+        raise HTTPException(status_code=404, detail="DID log not yet available")
+    lines = [l.strip() for l in did_log.read_text().strip().split("\n") if l.strip()]
+    if not lines:
+        raise HTTPException(status_code=404, detail="DID log empty")
+    last_entry = json.loads(lines[-1])
+    # did:webvh log entries have the DID document in the "state" field
+    did_doc = last_entry.get("state", last_entry)
+    return JSONResponse(content=did_doc, media_type="application/ld+json")
+
+
+@app.get("/.well-known/conformance-vc.json")
+async def well_known_conformance_vc():
+    """Serve FabricConformanceCredential VC from Credo sidecar shared volume."""
+    import json
+    vc_file = SHARED_DIR / "conformance-vc.json"
+    if not vc_file.exists():
+        raise HTTPException(status_code=404, detail="Conformance VC not yet available")
+    vc = json.loads(vc_file.read_text())
+    return JSONResponse(content=vc, media_type="application/ld+json")
 
 
 async def _proxy(request: Request, upstream_path: str) -> Response:

@@ -22,10 +22,12 @@ services:
     environment:
       OXIGRAPH_URL: http://oxigraph:7878
       NODE_BASE: http://localhost:8080
+      SHARED_DIR: /shared
     volumes:
       - ./shapes:/app/shapes:ro
       - ./ontology:/app/ontology:ro
       - ./sparql:/app/sparql:ro
+      - did-data:/shared:ro
     depends_on:
       oxigraph:
         condition: service_healthy
@@ -38,8 +40,15 @@ services:
     environment:
       PORT: "3000"
       WALLET_KEY: "fabric-dev-key-change-in-production"
+      NODE_DOMAIN: "localhost:8080"
+      NODE_BASE: "http://localhost:8080"
+      SHARED_DIR: /shared
+    volumes:
+      - did-data:/shared
     depends_on:
-      - fabric-node
+      oxigraph:
+        condition: service_healthy
 
 volumes:
   oxigraph-data:
+  did-data:

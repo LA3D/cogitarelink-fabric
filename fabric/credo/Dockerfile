@@ -1,6 +1,7 @@
 # Credo sidecar — must run as linux/amd64 on Apple Silicon (Rosetta, D8)
-# Phase 1: ts-node --transpile-only (skip type-checking; focus on Rosetta runtime compat)
-FROM node:22-slim
+# Node 20: @credo-ts/core 0.6.x has ESM import without .js extension in nativeDocumentLoader.mjs
+# that breaks on Node 22's strict ESM resolution. Node 20 LTS resolves this correctly.
+FROM node:20-slim
 
 WORKDIR /app
 
