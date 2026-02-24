@@ -26,5 +26,11 @@ D21: SSSOM as native vocabulary alignment structure — /graph/mappings (vocab t
 
 D22: Fabric ontology — FAIR vocabulary at https://w3id.org/cogitarelink/fabric; OWL 2 DL; 5 modules; follows Five Stars of Linked Data Vocabulary Use (Janowicz et al. 2014, co-authored Vardeman) — current rating ★★★★; ★★★ alignments: FabricNode→dcat:DataService+prov:Agent, AgentRole→prov:Role, FabricApprovalRequest→prov:Entity, ApprovalStatus/PublicationStatus→skos:Concept, delegatedBy→prov:wasAttributedTo; voaf:reliesOn × 5; stored at /ontology/fabric (D9 L2 TBox); CC-BY 4.0
 
+D23: Fabric-level DCAT 3 catalog — /graph/catalog (WHAT each node has) distinct from /graph/registry (WHO is in fabric); member nodes publish dcat:Dataset in .well-known/void; bootstrap harvests at admission + periodic re-harvest; discover_fabric tool queries catalog by topic/keyword/vocabulary before scatter-gather; Stage 1 (Phase 1): per-node DCAT in void; Stage 2 (Phase 2): bootstrap harvest + catalog graph + /.well-known/catalog
+
+D24: Shape-bound minting — PID minting atomic with SHACL validation; PROF profiles declare fabric:targetEntityType + fabric:mintingObligation shape mappings; named graphs declare governing profile; commit_graph enforces as gate; trust gaps (missing VCs, unverifiable external PIDs, ambiguous dedup, shape version conflicts) surface fabric:PendingTask for D19 HitL — generalizes HitL beyond write approval; cross-node shape correspondence via SSSOM-style assertions
+
+D25: Linked Data Notifications — W3C LDN as actor-to-actor notification protocol; every DID (agent, human, node) advertises ldp:inbox service endpoint; upgrades D24 trust gap delivery from write-to-local-graph (/graph/pending) to push-to-credential-holder via DID resolution; FastAPI /inbox route (POST receive JSON-LD → /graph/inbox; GET list → ldp:contains); replaces D23 custom catalog-update endpoint with standard LDN; Solid Notifications Protocol deferred to Phase 3 for resource-change subscriptions
+
 Full log: ~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Prototype-Decisions.md
 Use case: ~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Use-Case-SDL-Instrument.md

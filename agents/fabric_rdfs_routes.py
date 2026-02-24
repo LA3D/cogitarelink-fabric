@@ -483,11 +483,14 @@ def make_rdfs_routes_tool(ep: FabricEndpoint) -> Callable[[str], str]:
     ont_summary = extract_ontology_structure(ep.tbox_graph)
 
     def analyze_rdfs_routes(information_need: str) -> str:
-        """Analyze RDFS/OWL routing paths to guide SPARQL construction.
+        """Consult ontology axioms NOT available via SPARQL on data graphs.
 
-        Applies 7 RDFS/OWL reasoning patterns to the loaded ontology and
-        returns a ROUTING PLAN with SPARQL triple patterns for the given
-        information need.
+        Returns property directions (forward/backward), inverse pairs,
+        class hierarchies, and SPARQL triple patterns from the loaded TBox.
+
+        Use when: SPARQL returns empty (suspect wrong property direction or
+        graph); need to distinguish similar property names; no instance data
+        to explore. Not needed when: instance data is available for discovery.
         """
         import dspy
         lm = dspy.settings.lm

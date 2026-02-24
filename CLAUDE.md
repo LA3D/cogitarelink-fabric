@@ -11,7 +11,8 @@ Three-container fabric node: FastAPI gateway + Oxigraph SPARQL + Credo-TS sideca
 Agents connect externally via HTTP; fabric does not host agents.
 Agent substrate lives in `~/dev/git/LA3D/agents/rlm` (Stage 6 adds fabric tools).
 
-See @.claude/rules/decisions-index.md for architectural decisions (D1-D21).
+See @.claude/rules/decisions-index.md for architectural decisions (D1-D25).
+See @.claude/memory/MEMORY.md for experiment state, key patterns, and findings.
 See @~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Prototype-PLAN.md
 
 ## Key Commands
