@@ -12,7 +12,7 @@ EXPECTED_VOCABS = {
 
 
 def test_void_turtle_declares_all_vocabularies():
-    from fabric.node.main import _VOID_TURTLE
+    from fabric.node.void_templates import VOID_TURTLE as _VOID_TURTLE
     ttl = _VOID_TURTLE.format(base="http://localhost:8080")
     g = Graph()
     g.parse(data=ttl, format="turtle")
@@ -23,7 +23,7 @@ def test_void_turtle_declares_all_vocabularies():
 
 def test_void_jsonld_declares_all_vocabularies():
     import json
-    from fabric.node.main import _VOID_JSONLD
+    from fabric.node.void_templates import VOID_JSONLD as _VOID_JSONLD
     doc = json.loads(_VOID_JSONLD.format(base="http://localhost:8080"))
     # JSON-LD uses @graph array; find the VoID dataset node
     graph = doc.get("@graph", [doc])

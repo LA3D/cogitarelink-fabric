@@ -6,7 +6,7 @@ DCT = Namespace("http://purl.org/dc/terms/")
 
 
 def test_void_declares_observations_graph():
-    from fabric.node.main import _VOID_TURTLE
+    from fabric.node.void_templates import VOID_TURTLE as _VOID_TURTLE
     ttl = _VOID_TURTLE.format(base="http://localhost:8080")
     g = Graph()
     g.parse(data=ttl, format="turtle")
