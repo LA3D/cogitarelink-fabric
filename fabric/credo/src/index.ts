@@ -358,6 +358,10 @@ async function bootstrap() {
       conformsTo: 'https://w3id.org/cogitarelink/fabric#CoreProfile',
       sparqlEndpoint: `${NODE_BASE}/sparql`,
       shaclEndpoint: `${NODE_BASE}/.well-known/shacl`,
+      voidEndpoint: `${NODE_BASE}/.well-known/void`,
+      sparqlExamplesEndpoint: `${NODE_BASE}/.well-known/sparql-examples`,
+      resolverEndpoint: `${NODE_BASE}/1.0/identifiers/`,
+      ldnInbox: `${NODE_BASE}/inbox`,
       attestedAt: new Date().toISOString(),
     },
   )

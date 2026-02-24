@@ -1,7 +1,9 @@
 import json
 import os
 import pathlib
+import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 import httpx
 from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -9,6 +11,18 @@ try:
     from fabric.node.void_templates import VOID_TURTLE as _VOID_TURTLE, VOID_JSONLD as _VOID_JSONLD
 except ModuleNotFoundError:
     from void_templates import VOID_TURTLE as _VOID_TURTLE, VOID_JSONLD as _VOID_JSONLD
+try:
+    from fabric.node.did_resolver import (
+        classify_identifier, parse_did_log, build_resolution_result,
+        build_error_result, build_deref_result, decode_webvh_domain,
+        sparql_escape, is_valid_uuid,
+    )
+except ModuleNotFoundError:
+    from did_resolver import (
+        classify_identifier, parse_did_log, build_resolution_result,
+        build_error_result, build_deref_result, decode_webvh_domain,
+        sparql_escape, is_valid_uuid,
+    )
 
 OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
@@ -18,6 +32,9 @@ ONTOLOGY_DIR = pathlib.Path(os.environ.get("ONTOLOGY_DIR", "/app/ontology"))
 SHARED_DIR = pathlib.Path(os.environ.get("SHARED_DIR", "/shared"))
 # Phase 1: unauthenticated — gated by VC-based access control in Phase 2 (D13, D19)
 SPARQL_UPDATE_ENABLED = os.environ.get("SPARQL_UPDATE_ENABLED", "true").lower() == "true"
+
+# LDN inbox Link header (D25)
+_LDN_LINK = f'<{NODE_BASE}/inbox>; rel="http://www.w3.org/ns/ldp#inbox"'
 
 # Proxy header allowlists — forward only what Oxigraph needs
 _PROXY_REQUEST_HEADERS = {"accept", "content-type", "accept-encoding"}
@@ -108,6 +125,68 @@ async def well_known_sparql_examples():
     return PlainTextResponse(content=content, media_type="text/turtle")
 
 
+# --- Phase 2: W3C DID Resolution HTTP API (D3, D5, D25) ---
+
+@app.get("/1.0/identifiers/{identifier:path}")
+async def resolve_identifier(identifier: str, request: Request):
+    kind = classify_identifier(identifier, NODE_BASE)
+    accept = request.headers.get("accept", "application/did-resolution")
+
+    if kind == "local-did":
+        did_log = SHARED_DIR / "did.jsonl"
+        if not did_log.exists():
+            err = build_error_result("notFound", "DID log not yet available")
+            return JSONResponse(content=err, status_code=404)
+        result = parse_did_log(did_log.read_text(), target_did=identifier)
+        if result is None:
+            err = build_error_result("notFound", f"DID not found: {identifier}")
+            return JSONResponse(content=err, status_code=404)
+        did_doc, metadata = result
+        if "application/did+ld+json" in accept or "application/did+json" in accept:
+            return JSONResponse(content=did_doc, media_type="application/did+ld+json",
+                headers={"Link": _LDN_LINK})
+        return JSONResponse(content=build_resolution_result(did_doc, metadata),
+            headers={"Link": _LDN_LINK})
+
+    if kind == "local-entity":
+        entity_id = identifier.rsplit("/entity/", 1)[-1]
+        entity_uri = f"{NODE_BASE}/entity/{entity_id}"
+        query = f"CONSTRUCT {{ <{entity_uri}> ?p ?o }} WHERE {{ GRAPH ?g {{ <{entity_uri}> ?p ?o }} }}"
+        resp = await app.state.http.get(
+            "/query", params={"query": query},
+            headers={"Accept": "application/ld+json"},
+        )
+        body = resp.content.strip()
+        if resp.status_code == 200 and (len(body) == 0 or entity_uri.encode() not in body):
+            err = build_error_result("notFound", f"Entity not found: {entity_uri}")
+            return JSONResponse(content=err, status_code=404)
+        try:
+            content = json.loads(resp.content)
+        except json.JSONDecodeError:
+            content = {"@value": resp.content.decode(errors="replace")}
+        return JSONResponse(content=build_deref_result(content, "application/ld+json"))
+
+    if kind == "remote-did":
+        domain = decode_webvh_domain(identifier)
+        if not domain:
+            err = build_error_result("invalidDid", f"Cannot decode domain: {identifier}")
+            return JSONResponse(content=err, status_code=400)
+        err = build_error_result("methodNotSupported",
+            f"Remote DID resolution not yet implemented (domain: {domain})")
+        return JSONResponse(content=err, status_code=501)
+
+    if kind == "did-key":
+        err = build_error_result("methodNotSupported", "did:key resolution not yet implemented")
+        return JSONResponse(content=err, status_code=501)
+
+    if kind == "external-http":
+        err = build_error_result("methodNotSupported", "External HTTP dereference not yet implemented")
+        return JSONResponse(content=err, status_code=501)
+
+    err = build_error_result("invalidDid", f"Unrecognized identifier: {identifier}")
+    return JSONResponse(content=err, status_code=400)
+
+
 # --- Phase 2: DID + VC routes from shared Credo volume (D5, D8, D12) ---
 
 @app.get("/.well-known/did.jsonl")
@@ -131,7 +210,8 @@ async def well_known_did_json():
     last_entry = json.loads(lines[-1])
     # did:webvh log entries have the DID document in the "state" field
     did_doc = last_entry.get("state", last_entry)
-    return JSONResponse(content=did_doc, media_type="application/ld+json")
+    return JSONResponse(content=did_doc, media_type="application/ld+json",
+        headers={"Link": _LDN_LINK})
 
 
 @app.get("/.well-known/conformance-vc.json")
@@ -142,6 +222,101 @@ async def well_known_conformance_vc():
         raise HTTPException(status_code=404, detail="Conformance VC not yet available")
     vc = json.loads(vc_file.read_text())
     return JSONResponse(content=vc, media_type="application/ld+json")
+
+
+# --- Phase 2: W3C Linked Data Notifications inbox (D25) ---
+
+_LDN_MAX_PAYLOAD = 65536  # 64KB cap
+
+
+@app.post("/inbox")
+async def ldn_inbox_receive(request: Request):
+    content_type = request.headers.get("content-type", "")
+    if "application/ld+json" not in content_type and "application/json" not in content_type:
+        return JSONResponse(status_code=415,
+            content={"error": "Content-Type must be application/ld+json"})
+
+    body = await request.body()
+    if len(body) > _LDN_MAX_PAYLOAD:
+        return JSONResponse(status_code=413,
+            content={"error": "Payload too large (64KB max)"})
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
+
+    if "@context" not in payload:
+        return JSONResponse(status_code=400,
+            content={"error": "Missing @context — must be JSON-LD"})
+
+    notif_id = str(uuid.uuid4())
+    notif_iri = f"{NODE_BASE}/inbox/{notif_id}"
+    now = datetime.now(timezone.utc).isoformat()
+    safe_actor = sparql_escape(str(payload.get("actor", "anonymous")))
+    escaped = sparql_escape(json.dumps(payload))
+    sparql = f"""INSERT DATA {{
+      GRAPH <{NODE_BASE}/graph/inbox> {{
+        <{notif_iri}> a <http://www.w3.org/ns/ldp#Resource> ;
+          <http://purl.org/dc/terms/created> "{now}"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;
+          <https://w3id.org/cogitarelink/fabric#actor> "{safe_actor}" ;
+          <https://w3id.org/cogitarelink/fabric#notificationContent> "{escaped}" .
+      }}
+    }}"""
+    resp = await app.state.http.post("/update", content=sparql,
+        headers={"Content-Type": "application/sparql-update"})
+
+    if resp.status_code >= 400:
+        return JSONResponse(status_code=500, content={"error": "Storage failed"})
+
+    return JSONResponse(status_code=201, content={"id": notif_iri},
+        headers={"Location": notif_iri})
+
+
+@app.get("/inbox")
+async def ldn_inbox_list():
+    query = f"""SELECT ?notif WHERE {{
+      GRAPH <{NODE_BASE}/graph/inbox> {{
+        ?notif a <http://www.w3.org/ns/ldp#Resource> ;
+          <http://purl.org/dc/terms/created> ?created .
+      }}
+    }} ORDER BY DESC(?created)"""
+    resp = await app.state.http.post("/query", content=query,
+        headers={"Content-Type": "application/sparql-query",
+                 "Accept": "application/sparql-results+json"})
+    if resp.status_code >= 400:
+        return JSONResponse(status_code=502, content={"error": "SPARQL query failed"})
+    results = json.loads(resp.content)
+    notifs = [b["notif"]["value"]
+              for b in results.get("results", {}).get("bindings", [])]
+    return JSONResponse(content={
+        "@context": "http://www.w3.org/ns/ldp",
+        "@id": f"{NODE_BASE}/inbox",
+        "contains": notifs,
+    }, media_type="application/ld+json")
+
+
+@app.get("/inbox/{notification_id}")
+async def ldn_inbox_get(notification_id: str):
+    if not is_valid_uuid(notification_id):
+        raise HTTPException(status_code=400, detail="Invalid notification ID")
+    notif_iri = f"{NODE_BASE}/inbox/{notification_id}"
+    query = f"""SELECT ?content WHERE {{
+      GRAPH <{NODE_BASE}/graph/inbox> {{
+        <{notif_iri}> <https://w3id.org/cogitarelink/fabric#notificationContent> ?content .
+      }}
+    }}"""
+    resp = await app.state.http.post("/query", content=query,
+        headers={"Content-Type": "application/sparql-query",
+                 "Accept": "application/sparql-results+json"})
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail="SPARQL query failed")
+    results = json.loads(resp.content)
+    bindings = results.get("results", {}).get("bindings", [])
+    if not bindings:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    content_str = bindings[0]["content"]["value"]
+    return JSONResponse(content=json.loads(content_str), media_type="application/ld+json")
 
 
 async def _proxy(request: Request, upstream_path: str) -> Response:
