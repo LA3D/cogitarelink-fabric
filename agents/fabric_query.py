@@ -7,10 +7,14 @@ from agents.fabric_discovery import FabricEndpoint
 
 # Detects triple patterns with unbound predicate AND object variables.
 # Catches: <iri> ?p ?o, ?s ?p ?o — the "entity lookup escape hatch".
-_UNBOUNDED_SCAN = re.compile(
-    r'(?:<[^>]+>|\?\w+)\s+'   # subject: IRI or variable
-    r'\?\w+\s+'                # predicate: variable (this is what we detect)
-    r'\?\w+',                  # object: variable
+# Key: predicate must be a ?variable (not a prefixed name like sosa:x or <URI>).
+# We split on . and ; (SPARQL triple-pattern terminators) to avoid matching
+# across adjacent triple patterns like "?obs sosa:madeBySensor ?sensor ;
+# sosa:resultTime ?time" where ?sensor and ?time are in different patterns.
+_UNBOUNDED_PRED = re.compile(
+    r'(?:<[^>]+>|\?\w+)\s+'    # subject: IRI or variable
+    r'(\?\w+)\s+'               # predicate: MUST be variable (captured)
+    r'(?:\?\w+|<[^>]+>)',       # object: variable or IRI
 )
 
 _UNBOUNDED_MSG = (
@@ -24,7 +28,29 @@ def _is_unbounded_scan(query: str) -> bool:
     """Detect unbounded predicate scans like <iri> ?p ?o or ?s ?p ?o."""
     body = re.sub(r'PREFIX\s+\S+\s+<[^>]+>', '', query, flags=re.IGNORECASE)
     body = re.sub(r'#[^\n]*', '', body)
-    return bool(_UNBOUNDED_SCAN.search(body))
+    # Extract only the WHERE clause body (skip SELECT, ORDER BY, etc.)
+    where_match = re.search(r'WHERE\s*\{(.+)\}\s*(?:ORDER|GROUP|LIMIT|OFFSET|$)',
+                            body, flags=re.IGNORECASE | re.DOTALL)
+    if not where_match:
+        return False
+    where_body = where_match.group(1)
+    # Replace <URIs> with placeholder to prevent dots in domain names
+    # from being treated as triple-pattern terminators.
+    where_body = re.sub(r'<[^>]+>', '<_IRI_>', where_body)
+    # Split on . and ; (SPARQL triple-pattern terminators)
+    fragments = re.split(r'[.;]', where_body)
+    for frag in fragments:
+        frag = frag.strip()
+        if not frag:
+            continue
+        m = _UNBOUNDED_PRED.search(frag)
+        if m:
+            pred = m.group(1)
+            # 'a' is the SPARQL keyword for rdf:type, not a variable
+            if pred == 'a':
+                continue
+            return True
+    return False
 
 
 def make_fabric_query_tool(
