@@ -25,7 +25,14 @@ def test_void_jsonld_declares_all_vocabularies():
     import json
     from fabric.node.main import _VOID_JSONLD
     doc = json.loads(_VOID_JSONLD.format(base="http://localhost:8080"))
-    vocab_list = doc.get("void:vocabulary", [])
+    # JSON-LD uses @graph array; find the VoID dataset node
+    graph = doc.get("@graph", [doc])
+    void_node = next(
+        (n for n in graph if "void:Dataset" in (n.get("@type") or []
+         if isinstance(n.get("@type"), list) else [n.get("@type", "")])),
+        doc,
+    )
+    vocab_list = void_node.get("void:vocabulary", [])
     vocab_iris = {v["@id"] for v in vocab_list}
     for expected in EXPECTED_VOCABS:
         assert expected in vocab_iris, f"Missing void:vocabulary <{expected}>"
