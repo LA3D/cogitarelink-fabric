@@ -4,7 +4,7 @@
 
 **Repo**: `~/dev/git/LA3D/agents/cogitarelink-fabric`
 **Branch**: main (all work merged)
-**Tests**: 81 passing (unit + integration)
+**Tests**: 113 passing (32 DID resolver unit + 81 existing) + 30 HURL integration (13 phase1 + 17 phase2)
 
 ## Completed Work
 
@@ -15,6 +15,8 @@
 - **RDFS infrastructure refactor** (commit `286278f`): removed SOSA domain contamination from patterns; restored 5 missing extractors; dynamic prefix map
 - **Phase 5 cross-graph navigation**: phase5a/5b — cross-graph joins between /graph/observations and /graph/entities; both scored 1.000; tool never invoked (0/5 tasks)
 - **Phase 6 escape hatch closure** (commits `94f8b09`, `d7596dc`): three mechanisms — unbounded query guardrail, entity lookup stripping, noise predicates. Result: no effect — agent never used the escape hatch. Tool still 0/5 calls. Guardrail had false-positive bug (matching across semicolons + SELECT clause), fixed in `d7596dc`.
+- **Phase 2 bootstrap** (commit `f5a5327`): did:webvh + VC issuance via Credo 0.6.x sidecar; shared Docker volume
+- **Phase 2 DID integration** (commits `4eda91c`–`2422669`): W3C DID Resolution HTTP API, LDN inbox (POST/GET), enriched conformance VC, Link header discovery, DID resolver helper module, SPARQL injection prevention
 
 ## Key Architecture Patterns
 
@@ -28,6 +30,22 @@
 - Phase 6 feature flags: `no-entity-lookup` (strips example), `no-unbounded-scan` (guardrail on sparql_query tool)
 - `setup_task_data` graph override fix: per-record `graph` key preserved, setup-level default only applies when absent
 - `teardown_task_data` multi-graph: reads `setup.extra_graphs` list, drops each in addition to primary
+
+### Phase 2 DID Integration Patterns
+
+- `fabric/node/did_resolver.py`: pure Python helpers (no FastAPI dep) — same pattern as `void_templates.py`; imported by both `main.py` (Docker) and unit tests (local)
+- `decode_webvh_domain(did)`: splits on `:`, takes `parts[3:]` as encoded domain; iterative `urllib.parse.unquote` handles double-encoding
+- `_fully_decode(s)`: iterative percent-decode until stable — used for normalized DID comparison in `parse_did_log`
+- `sparql_escape(s)`: escapes `\`, `"`, `\n`, `\r`, `\t` for SPARQL string literal interpolation; **must** be used on all user-supplied values
+- `is_valid_uuid(s)`: regex gate before interpolating path params into SPARQL IRIs — prevents injection
+- `uuid7()`: inline RFC 9562 UUIDv7 — timestamp-sortable, no external deps; used for notification IDs
+- Credo did:webvh format: `did:webvh:{scid}:{domain}` — scid first, domain last; domain double-percent-encoded (`%253A` not `%3A`)
+- FastAPI URL-decodes path params: `%253A` → `%3A` (one level stripped); stored DID still has `%253A`; comparison must normalize both sides
+- LDN inbox graph: `/graph/inbox` — notifications stored as `ldp:Resource` with `dct:created`, `fabric:actor`, `fabric:notificationContent` (escaped JSON string)
+- Link header: `_LDN_LINK = f'<{NODE_BASE}/inbox>; rel="http://www.w3.org/ns/ldp#inbox"'` — added to `/.well-known/did.json` and local DID resolution responses
+- HURL JSONPath: `@` is reserved; use bracket notation `$['@context']` not `$.@context`
+- Conformance VC service directory fields: `voidEndpoint`, `sparqlExamplesEndpoint`, `resolverEndpoint`, `ldnInbox`
+- Shared Docker volume (`did-data`): Credo writes `did.jsonl` + `conformance-vc.json`; FastAPI reads with 404 fallback (eventual consistency)
 
 ## Critical Findings
 
