@@ -120,11 +120,35 @@ PHASE_FEATURES = {
         "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
         "tbox-graph-paths", "rdfs-routes",
     ],
+    "phase6a-no-rdfs-routes": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths",
+        "no-entity-lookup", "no-unbounded-scan",
+    ],
+    "phase6b-rdfs-routes": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths", "rdfs-routes",
+        "no-entity-lookup", "no-unbounded-scan",
+    ],
 }
 
 def _strip_tbox_paths(routing_plan: str) -> str:
     """Remove '-> /ontology/X' suffixes — produces phase2a control routing plan."""
     return re.sub(r' -> /ontology/\S+', '', routing_plan)
+
+
+def _strip_entity_lookup(routing_plan: str) -> str:
+    """Remove the 'Entity lookup by IRI' example from SD text."""
+    return re.sub(
+        r'  "Entity lookup by IRI".*?(?=  "|$)',
+        '',
+        routing_plan,
+        flags=re.DOTALL,
+    )
 
 
 # --- Test data setup -------------------------------------------------------
@@ -156,10 +180,22 @@ def _build_sensor_insert(rec: dict) -> str:
         if 'sosa:isHostedBy-label' in rec:
             extra.append(f'  <{plat}> rdfs:label "{rec["sosa:isHostedBy-label"]}" .')
 
+    # Noise predicates — plausible but irrelevant triples to defeat ?p ?o scanning
+    for np in rec.get('noise_predicates', []):
+        extra.append(f"  <{subj}> {np['p']} {np['o']} .")
+
     extra_body = "\n" + "\n".join(extra) + "\n" if extra else ""
     return (
         "PREFIX sosa: <http://www.w3.org/ns/sosa/>\n"
         "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+        "PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>\n"
+        "PREFIX dct:  <http://purl.org/dc/terms/>\n"
+        "PREFIX prov: <http://www.w3.org/ns/prov#>\n"
+        "PREFIX skos: <http://www.w3.org/2004/02/skos/core#>\n"
+        "PREFIX schema: <https://schema.org/>\n"
+        "PREFIX dcat: <http://www.w3.org/ns/dcat#>\n"
+        "PREFIX ssn:  <http://www.w3.org/ns/ssn/>\n"
+        "PREFIX owl:  <http://www.w3.org/2002/07/owl#>\n"
         f"INSERT DATA {{ GRAPH <{g}> {{\n{body}\n{extra_body}}} }}"
     )
 
@@ -281,7 +317,8 @@ def main() -> None:
 
     def rlm_factory() -> dspy.RLM:
         features = PHASE_FEATURES[args.phase]
-        tools = [make_fabric_query_tool(ep)]
+        reject_unbounded = 'no-unbounded-scan' in features
+        tools = [make_fabric_query_tool(ep, reject_unbounded=reject_unbounded)]
         if "rdfs-routes" in features:
             tools.append(make_rdfs_routes_tool(ep))
         return dspy.RLM(
@@ -303,9 +340,12 @@ def main() -> None:
 
     def kwarg_builder(task: EvalTask) -> dict:
         sd = ep.routing_plan
-        if 'tbox-graph-paths' not in PHASE_FEATURES[args.phase]:
+        features = PHASE_FEATURES[args.phase]
+        if 'tbox-graph-paths' not in features:
             sd = _strip_tbox_paths(sd)
-        if 'rdfs-routes' in PHASE_FEATURES[args.phase]:
+        if 'no-entity-lookup' in features:
+            sd = _strip_entity_lookup(sd)
+        if 'rdfs-routes' in features:
             sd = sd + _RDFS_TOOL_HINT
         return {'endpoint_sd': sd, 'query': task.query}
 

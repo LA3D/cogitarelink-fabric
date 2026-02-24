@@ -1,0 +1,264 @@
+[
+  {
+    "id": "sensor-label-from-observation",
+    "query": "What is the label of the sensor that produced observation test-obs-p6-1?",
+    "context": "http://localhost:8080",
+    "expected": ["CV Potentiostat Alpha"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p6-1",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-cv-alpha",
+            "sosa:hasSimpleResult": "12.5",
+            "sosa:resultTime": "2026-02-24T09:00:00Z"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-cv-alpha",
+            "rdfs:label": "CV Potentiostat Alpha",
+            "noise_predicates": [
+              {"p": "dct:creator", "o": "\"Lab Instrument Services\""},
+              {"p": "dct:created", "o": "\"2024-06-15\"^^xsd:date"},
+              {"p": "dct:description", "o": "\"Multi-channel electrochemical workstation for CV and EIS measurements\""},
+              {"p": "prov:wasGeneratedBy", "o": "<http://localhost:8080/entity/calibration-2024>"},
+              {"p": "prov:wasAttributedTo", "o": "<http://localhost:8080/entity/lab-manager-1>"},
+              {"p": "skos:altLabel", "o": "\"Potentiostat Unit Alpha\""},
+              {"p": "skos:notation", "o": "\"CV-ALPHA-001\""},
+              {"p": "schema:manufacturer", "o": "\"BioLogic\""},
+              {"p": "schema:model", "o": "\"SP-300\""},
+              {"p": "schema:serialNumber", "o": "\"SN-2024-0847\""},
+              {"p": "dcat:contactPoint", "o": "<http://localhost:8080/entity/lab-contact>"},
+              {"p": "sosa:isHostedBy", "o": "<http://localhost:8080/entity/platform-bench-3>"},
+              {"p": "ssn:hasDeployment", "o": "<http://localhost:8080/entity/deployment-2024q3>"},
+              {"p": "rdfs:seeAlso", "o": "<http://localhost:8080/entity/manual-cv-alpha>"},
+              {"p": "owl:sameAs", "o": "<https://example.org/instruments/cv-alpha>"}
+            ]
+          }
+        ]
+      },
+      "description": "Cross-graph join with noise: observation in /graph/observations references sensor IRI, sensor label in /graph/entities. 15 noise predicates on sensor entity defeat ?p ?o scanning.",
+      "task_type": "cross-graph"
+    }
+  },
+  {
+    "id": "observations-by-sensor-label",
+    "query": "List all observations from sensors whose label contains 'potentiostat'",
+    "context": "http://localhost:8080",
+    "expected": ["test-obs-p6-2a", "test-obs-p6-2b"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p6-2a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-beta",
+            "sosa:hasSimpleResult": "88.1",
+            "sosa:resultTime": "2026-02-24T10:00:00Z"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p6-2b",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-beta",
+            "sosa:hasSimpleResult": "91.3",
+            "sosa:resultTime": "2026-02-24T10:05:00Z"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-eis-beta",
+            "rdfs:label": "EIS potentiostat Beta",
+            "noise_predicates": [
+              {"p": "dct:creator", "o": "\"Electrochemistry Division\""},
+              {"p": "dct:created", "o": "\"2024-03-20\"^^xsd:date"},
+              {"p": "dct:description", "o": "\"Broadband impedance analyzer for battery and corrosion studies\""},
+              {"p": "prov:wasGeneratedBy", "o": "<http://localhost:8080/entity/procurement-2024>"},
+              {"p": "prov:wasAttributedTo", "o": "<http://localhost:8080/entity/lab-director>"},
+              {"p": "skos:altLabel", "o": "\"EIS Analyzer Beta\""},
+              {"p": "skos:notation", "o": "\"EIS-BETA-002\""},
+              {"p": "schema:manufacturer", "o": "\"Gamry Instruments\""},
+              {"p": "schema:model", "o": "\"Reference 3000\""},
+              {"p": "schema:serialNumber", "o": "\"SN-2024-1203\""},
+              {"p": "dcat:contactPoint", "o": "<http://localhost:8080/entity/lab-contact>"},
+              {"p": "sosa:isHostedBy", "o": "<http://localhost:8080/entity/platform-bench-2>"},
+              {"p": "ssn:hasDeployment", "o": "<http://localhost:8080/entity/deployment-2024q2>"},
+              {"p": "sosa:hosts", "o": "<http://localhost:8080/entity/electrode-array-b>"},
+              {"p": "rdfs:seeAlso", "o": "<http://localhost:8080/entity/manual-eis-beta>"}
+            ]
+          }
+        ]
+      },
+      "description": "Inverse cross-graph with noise: find observations by sensor label. Noise includes sosa:isHostedBy and sosa:hosts for same-vocabulary confusion.",
+      "task_type": "cross-graph"
+    }
+  },
+  {
+    "id": "average-value-per-sensor",
+    "query": "What is the average measured value per sensor for the EIS measurement session?",
+    "context": "http://localhost:8080",
+    "expected": ["319"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p6-3a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-gamma",
+            "sosa:resultTime": "2026-02-24T11:00:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-p6-3a",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "318.7"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p6-3b",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-gamma",
+            "sosa:resultTime": "2026-02-24T11:05:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-p6-3b",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "320.0"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-eis-gamma",
+            "rdfs:label": "EIS Spectrometer Gamma",
+            "noise_predicates": [
+              {"p": "dct:creator", "o": "\"Materials Characterization Lab\""},
+              {"p": "dct:created", "o": "\"2023-11-08\"^^xsd:date"},
+              {"p": "dct:description", "o": "\"High-frequency impedance spectrometer for thin film analysis\""},
+              {"p": "prov:wasGeneratedBy", "o": "<http://localhost:8080/entity/grant-setup-2023>"},
+              {"p": "prov:wasAttributedTo", "o": "<http://localhost:8080/entity/pi-smith>"},
+              {"p": "skos:altLabel", "o": "\"Gamma Spectrometer\""},
+              {"p": "skos:notation", "o": "\"EIS-GAMMA-003\""},
+              {"p": "schema:manufacturer", "o": "\"Metrohm Autolab\""},
+              {"p": "schema:model", "o": "\"PGSTAT302N\""},
+              {"p": "schema:serialNumber", "o": "\"SN-2023-0592\""},
+              {"p": "sosa:isHostedBy", "o": "<http://localhost:8080/entity/platform-cleanroom-1>"},
+              {"p": "ssn:hasDeployment", "o": "<http://localhost:8080/entity/deployment-2023q4>"},
+              {"p": "sosa:observes", "o": "<http://localhost:8080/entity/obsprop-impedance>"},
+              {"p": "rdfs:seeAlso", "o": "<http://localhost:8080/entity/manual-eis-gamma>"},
+              {"p": "owl:sameAs", "o": "<https://example.org/instruments/eis-gamma>"}
+            ]
+          }
+        ]
+      },
+      "description": "Cross-graph aggregation with noise: SIO chain extraction + GROUP BY sensor. Noise includes sosa:observes creating same-vocabulary confusion alongside the real SIO data path.",
+      "task_type": "cross-graph"
+    }
+  },
+  {
+    "id": "unit-for-sensor-measurement",
+    "query": "What unit are the measurements from sensor sensor-cv-delta recorded in?",
+    "context": "http://localhost:8080",
+    "expected": ["milliampere", "mA"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p6-4a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-cv-delta",
+            "sosa:resultTime": "2026-02-24T12:00:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-p6-4a",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "4.21",
+            "sio:has-unit": "http://localhost:8080/entity/unit-milliampere",
+            "sio:unit-label": "milliampere"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p6-4b",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-cv-delta",
+            "sosa:resultTime": "2026-02-24T12:05:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-p6-4b",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "4.58",
+            "sio:has-unit": "http://localhost:8080/entity/unit-milliampere",
+            "sio:unit-label": "milliampere"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-cv-delta",
+            "rdfs:label": "CV Potentiostat Delta",
+            "noise_predicates": [
+              {"p": "dct:creator", "o": "\"Electroanalytical Chemistry Group\""},
+              {"p": "dct:created", "o": "\"2024-01-12\"^^xsd:date"},
+              {"p": "dct:description", "o": "\"Precision cyclic voltammetry instrument for redox characterization\""},
+              {"p": "prov:wasGeneratedBy", "o": "<http://localhost:8080/entity/installation-2024>"},
+              {"p": "prov:wasAttributedTo", "o": "<http://localhost:8080/entity/technician-jones>"},
+              {"p": "skos:altLabel", "o": "\"Delta CV Station\""},
+              {"p": "skos:notation", "o": "\"CV-DELTA-004\""},
+              {"p": "schema:manufacturer", "o": "\"Pine Research\""},
+              {"p": "schema:model", "o": "\"WaveDriver 200\""},
+              {"p": "schema:serialNumber", "o": "\"SN-2024-0331\""},
+              {"p": "sosa:isHostedBy", "o": "<http://localhost:8080/entity/platform-fume-hood-1>"},
+              {"p": "ssn:hasDeployment", "o": "<http://localhost:8080/entity/deployment-2024q1>"},
+              {"p": "sosa:hosts", "o": "<http://localhost:8080/entity/electrode-rotating-disk>"},
+              {"p": "rdfs:seeAlso", "o": "<http://localhost:8080/entity/manual-cv-delta>"},
+              {"p": "owl:sameAs", "o": "<https://example.org/instruments/cv-delta>"}
+            ]
+          }
+        ]
+      },
+      "description": "3-hop SIO chain with noise: observation -> madeBySensor -> has-attribute -> has-unit -> label. Noise includes sosa:hosts creating property direction confusion.",
+      "task_type": "cross-graph"
+    }
+  },
+  {
+    "id": "what-property-does-sensor-observe",
+    "query": "What observable property does sensor sensor-eis-epsilon measure?",
+    "context": "http://localhost:8080",
+    "expected": ["Electrochemical Impedance Spectroscopy"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p6-5",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-epsilon",
+            "sosa:hasSimpleResult": "156.2",
+            "sosa:resultTime": "2026-02-24T13:00:00Z"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-eis-epsilon",
+            "rdfs:label": "EIS Spectrometer Epsilon",
+            "sosa:observes": "http://localhost:8080/entity/obsprop-eis",
+            "sosa:observes-label": "Electrochemical Impedance Spectroscopy",
+            "noise_predicates": [
+              {"p": "dct:creator", "o": "\"Surface Science Division\""},
+              {"p": "dct:created", "o": "\"2024-08-22\"^^xsd:date"},
+              {"p": "dct:description", "o": "\"Wide-spectrum impedance analyzer for electrode interface characterization\""},
+              {"p": "prov:wasGeneratedBy", "o": "<http://localhost:8080/entity/commissioning-2024>"},
+              {"p": "prov:wasAttributedTo", "o": "<http://localhost:8080/entity/lab-coordinator>"},
+              {"p": "skos:altLabel", "o": "\"Epsilon EIS Unit\""},
+              {"p": "skos:notation", "o": "\"EIS-EPSILON-005\""},
+              {"p": "schema:manufacturer", "o": "\"Solartron Analytical\""},
+              {"p": "schema:model", "o": "\"ModuLab XM\""},
+              {"p": "schema:serialNumber", "o": "\"SN-2024-1576\""},
+              {"p": "sosa:isHostedBy", "o": "<http://localhost:8080/entity/platform-glovebox-1>"},
+              {"p": "ssn:hasDeployment", "o": "<http://localhost:8080/entity/deployment-2024q3>"},
+              {"p": "sosa:hosts", "o": "<http://localhost:8080/entity/electrode-array-e>"},
+              {"p": "ssn:implements", "o": "<http://localhost:8080/entity/procedure-eis-sweep>"},
+              {"p": "rdfs:seeAlso", "o": "<http://localhost:8080/entity/manual-eis-epsilon>"}
+            ]
+          }
+        ]
+      },
+      "description": "Highest difficulty with noise: agent must find sosa:observes on sensor (entity graph), not sosa:observedProperty on observation. Noise includes sosa:isHostedBy, sosa:hosts, ssn:implements — same-vocabulary confusion makes ?p ?o scanning return a wall of SOSA/SSN predicates.",
+      "task_type": "cross-graph"
+    }
+  }
+]
