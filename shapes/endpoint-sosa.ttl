@@ -61,7 +61,11 @@ Pattern B (SIO measurement chain):
   WHERE { ?obs a sosa:Observation ; sosa:resultTime ?time ;
                sio:has-attribute ?mv . ?mv sio:has-value ?value . }
 
-If Pattern A returns empty, try Pattern B.""" ;
+If Pattern A returns empty, try Pattern B.
+
+Sensor descriptions (labels, types, observed properties) are stored in
+the entities graph. When you need sensor metadata beyond the IRI, check
+the endpoint graph inventory for the entities graph.""" ;
 
     # Result: either sosa:hasSimpleResult (scalar) or sio:has-attribute → MeasuredValue chain
     sh:property [

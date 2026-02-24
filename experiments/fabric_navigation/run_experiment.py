@@ -108,6 +108,18 @@ PHASE_FEATURES = {
         "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
         "tbox-graph-paths", "rdfs-routes",
     ],
+    "phase5a-no-rdfs-routes": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths",
+    ],
+    "phase5b-rdfs-routes": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths", "rdfs-routes",
+    ],
 }
 
 def _strip_tbox_paths(routing_plan: str) -> str:
@@ -117,7 +129,44 @@ def _strip_tbox_paths(routing_plan: str) -> str:
 
 # --- Test data setup -------------------------------------------------------
 
+def _build_sensor_insert(rec: dict) -> str:
+    """Build INSERT DATA for a sosa:Sensor entity in /graph/entities."""
+    g = rec.get('graph', GATEWAY + '/graph/entities')
+    subj = rec['subject']
+    props = [f"  <{subj}> a sosa:Sensor"]
+    if 'rdfs:label' in rec:
+        props.append(f'    rdfs:label "{rec["rdfs:label"]}"')
+    if 'sosa:observes' in rec:
+        props.append(f"    sosa:observes <{rec['sosa:observes']}>")
+    if 'sosa:isHostedBy' in rec:
+        props.append(f"    sosa:isHostedBy <{rec['sosa:isHostedBy']}>")
+    body = " ;\n".join(props) + " ."
+
+    extra = []
+    # ObservableProperty secondary node
+    if 'sosa:observes' in rec:
+        op = rec['sosa:observes']
+        extra.append(f"  <{op}> a sosa:ObservableProperty .")
+        if 'sosa:observes-label' in rec:
+            extra.append(f'  <{op}> rdfs:label "{rec["sosa:observes-label"]}" .')
+    # Platform secondary node
+    if 'sosa:isHostedBy' in rec:
+        plat = rec['sosa:isHostedBy']
+        extra.append(f"  <{plat}> a sosa:Platform .")
+        if 'sosa:isHostedBy-label' in rec:
+            extra.append(f'  <{plat}> rdfs:label "{rec["sosa:isHostedBy-label"]}" .')
+
+    extra_body = "\n" + "\n".join(extra) + "\n" if extra else ""
+    return (
+        "PREFIX sosa: <http://www.w3.org/ns/sosa/>\n"
+        "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+        f"INSERT DATA {{ GRAPH <{g}> {{\n{body}\n{extra_body}}} }}"
+    )
+
+
 def _build_insert(obs: dict) -> str:
+    if obs.get('record_type') == 'sensor':
+        return _build_sensor_insert(obs)
     SIO_NS = "http://semanticscience.org/resource/"
     g = obs.get('graph', GATEWAY + '/graph/observations')
     subj = obs['subject']
@@ -177,7 +226,9 @@ def setup_task_data(task: EvalTask) -> None:
     if setup.get('type') != 'sparql_insert':
         return
     for obs in setup.get('data', []):
-        obs_with_graph = {**obs, 'graph': setup.get('graph', GATEWAY + '/graph/observations')}
+        obs_with_graph = {**obs}
+        if 'graph' not in obs_with_graph:
+            obs_with_graph['graph'] = setup.get('graph', GATEWAY + '/graph/observations')
         q = _build_insert(obs_with_graph)
         httpx.post(
             f"{GATEWAY}/sparql/update",
@@ -190,12 +241,14 @@ def teardown_task_data(task: EvalTask) -> None:
     setup = task.metadata.get('setup', {})
     if setup.get('type') != 'sparql_insert':
         return
-    graph = setup.get('graph', GATEWAY + '/graph/observations')
-    httpx.post(
-        f"{GATEWAY}/sparql/update",
-        data={"update": f"DROP SILENT GRAPH <{graph}>"},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-    )
+    graphs = [setup.get('graph', GATEWAY + '/graph/observations')]
+    graphs.extend(setup.get('extra_graphs', []))
+    for graph in graphs:
+        httpx.post(
+            f"{GATEWAY}/sparql/update",
+            data={"update": f"DROP SILENT GRAPH <{graph}>"},
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
 
 
 # --- Main ------------------------------------------------------------------

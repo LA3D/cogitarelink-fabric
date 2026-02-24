@@ -31,6 +31,10 @@ _VOID_TURTLE = """\
             dct:conformsTo <https://w3id.org/cogitarelink/fabric#ObservationShape> ;
         ] ;
         sd:namedGraph [
+            sd:name <{base}/graph/entities> ;
+            dct:description "Sensor, platform, and observable-property descriptions (sosa:Sensor, sosa:Platform, sosa:ObservableProperty)." ;
+        ] ;
+        sd:namedGraph [
             sd:name <{base}/graph/metadata> ;
         ] ;
     ] .
@@ -51,6 +55,12 @@ _VOID_TURTLE = """\
         dct:title "Observations" ;
         void:sparqlGraphEndpoint <{base}/graph/observations> ;
         dct:conformsTo <https://w3id.org/cogitarelink/fabric#ObservationShape> ;
+    ] ;
+    void:subset [
+        a void:Dataset ;
+        dct:title "Entities" ;
+        dct:description "Sensor, platform, and observable-property descriptions." ;
+        void:sparqlGraphEndpoint <{base}/graph/entities> ;
     ] .
 
 # --- DCAT Dataset Description (D23) ---
@@ -101,12 +111,20 @@ _VOID_JSONLD = """\
         {{ "@id": "http://semanticscience.org/resource/" }}
       ],
       "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }},
-      "void:subset": {{
-        "@type": "void:Dataset",
-        "dct:title": "Observations",
-        "void:sparqlGraphEndpoint": {{ "@id": "{base}/graph/observations" }},
-        "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#ObservationShape" }}
-      }}
+      "void:subset": [
+        {{
+          "@type": "void:Dataset",
+          "dct:title": "Observations",
+          "void:sparqlGraphEndpoint": {{ "@id": "{base}/graph/observations" }},
+          "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#ObservationShape" }}
+        }},
+        {{
+          "@type": "void:Dataset",
+          "dct:title": "Entities",
+          "dct:description": "Sensor, platform, and observable-property descriptions.",
+          "void:sparqlGraphEndpoint": {{ "@id": "{base}/graph/entities" }}
+        }}
+      ]
     }},
     {{
       "@id": "{base}/dataset/observations",

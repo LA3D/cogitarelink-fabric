@@ -1,0 +1,179 @@
+[
+  {
+    "id": "sensor-label-from-observation",
+    "query": "What is the label of the sensor that produced observation test-obs-p5-1?",
+    "context": "http://localhost:8080",
+    "expected": ["CV Potentiostat Alpha"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p5-1",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-cv-alpha",
+            "sosa:hasSimpleResult": "12.5",
+            "sosa:resultTime": "2026-02-24T09:00:00Z"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-cv-alpha",
+            "rdfs:label": "CV Potentiostat Alpha"
+          }
+        ]
+      },
+      "description": "Cross-graph join: observation in /graph/observations references sensor IRI, sensor label in /graph/entities. Agent must follow madeBySensor IRI into entities graph.",
+      "task_type": "cross-graph"
+    }
+  },
+  {
+    "id": "observations-by-sensor-label",
+    "query": "List all observations from sensors whose label contains 'potentiostat'",
+    "context": "http://localhost:8080",
+    "expected": ["test-obs-p5-2a", "test-obs-p5-2b"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p5-2a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-beta",
+            "sosa:hasSimpleResult": "88.1",
+            "sosa:resultTime": "2026-02-24T10:00:00Z"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p5-2b",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-beta",
+            "sosa:hasSimpleResult": "91.3",
+            "sosa:resultTime": "2026-02-24T10:05:00Z"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-eis-beta",
+            "rdfs:label": "EIS potentiostat Beta"
+          }
+        ]
+      },
+      "description": "Inverse cross-graph: find observations by sensor label. Requires cross-graph FILTER join — sensor label in entities, observations in observations graph.",
+      "task_type": "cross-graph"
+    }
+  },
+  {
+    "id": "average-value-per-sensor",
+    "query": "What is the average measured value per sensor for the EIS measurement session?",
+    "context": "http://localhost:8080",
+    "expected": ["319"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p5-3a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-gamma",
+            "sosa:resultTime": "2026-02-24T11:00:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-p5-3a",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "318.7"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p5-3b",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-gamma",
+            "sosa:resultTime": "2026-02-24T11:05:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-p5-3b",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "320.0"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-eis-gamma",
+            "rdfs:label": "EIS Spectrometer Gamma"
+          }
+        ]
+      },
+      "description": "Cross-graph aggregation: SIO chain extraction + GROUP BY sensor. Combines SIO has-attribute -> has-value with cross-graph sensor reference. AVG(318.7, 320.0) = 319.35, expected '319' via substring match.",
+      "task_type": "cross-graph"
+    }
+  },
+  {
+    "id": "unit-for-sensor-measurement",
+    "query": "What unit are the measurements from sensor sensor-cv-delta recorded in?",
+    "context": "http://localhost:8080",
+    "expected": ["milliampere", "mA"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p5-4a",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-cv-delta",
+            "sosa:resultTime": "2026-02-24T12:00:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-p5-4a",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "4.21",
+            "sio:has-unit": "http://localhost:8080/entity/unit-milliampere",
+            "sio:unit-label": "milliampere"
+          },
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p5-4b",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-cv-delta",
+            "sosa:resultTime": "2026-02-24T12:05:00Z",
+            "sio:has-attribute": "http://localhost:8080/entity/mv-p5-4b",
+            "sio:mv-type": "http://semanticscience.org/resource/MeasuredValue",
+            "sio:has-value": "4.58",
+            "sio:has-unit": "http://localhost:8080/entity/unit-milliampere",
+            "sio:unit-label": "milliampere"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-cv-delta",
+            "rdfs:label": "CV Potentiostat Delta"
+          }
+        ]
+      },
+      "description": "3-hop SIO chain filtered by sensor IRI fragment: observation -> madeBySensor (match 'sensor-cv-delta') -> has-attribute -> has-unit -> label. Combines sensor name matching with full SIO unit traversal.",
+      "task_type": "cross-graph"
+    }
+  },
+  {
+    "id": "what-property-does-sensor-observe",
+    "query": "What observable property does sensor sensor-eis-epsilon measure?",
+    "context": "http://localhost:8080",
+    "expected": ["Electrochemical Impedance Spectroscopy"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/test-obs-p5-5",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-epsilon",
+            "sosa:hasSimpleResult": "156.2",
+            "sosa:resultTime": "2026-02-24T13:00:00Z"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-eis-epsilon",
+            "rdfs:label": "EIS Spectrometer Epsilon",
+            "sosa:observes": "http://localhost:8080/entity/obsprop-eis",
+            "sosa:observes-label": "Electrochemical Impedance Spectroscopy"
+          }
+        ]
+      },
+      "description": "Highest difficulty: agent will likely try sosa:observedProperty (on Observation, optional in shape) first. The answer requires sosa:observes (on Sensor, entity graph only). Property name confusion is the core challenge.",
+      "task_type": "cross-graph"
+    }
+  }
+]
