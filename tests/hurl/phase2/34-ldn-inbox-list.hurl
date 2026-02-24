@@ -16,6 +16,6 @@ notif_url: jsonpath "$.id"
 GET {{gateway}}/inbox
 HTTP 200
 [Asserts]
-jsonpath "$.@context" == "http://www.w3.org/ns/ldp"
+jsonpath "$['@context']" == "http://www.w3.org/ns/ldp"
 jsonpath "$.contains" isCollection
 body contains "{{notif_url}}"

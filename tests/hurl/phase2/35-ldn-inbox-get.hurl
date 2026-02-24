@@ -20,7 +20,7 @@ HTTP 200
 [Asserts]
 jsonpath "$.actor" == "did:example:get-test"
 jsonpath "$.type" == "Announce"
-jsonpath "$.@context" == "https://www.w3.org/ns/activitystreams"
+jsonpath "$['@context']" == "https://www.w3.org/ns/activitystreams"
 
 # Non-existent notification
 GET {{gateway}}/inbox/00000000-0000-0000-0000-000000000000

@@ -19,12 +19,19 @@ NODE_BASE = "http://localhost:8080"
 # --- classify_identifier ---
 
 def test_classify_local_did():
-    did = "did:webvh:localhost%3A8080:abc123"
+    # did:webvh format: did:webvh:{scid}:{encoded-domain}
+    did = "did:webvh:abc123scid:localhost%3A8080"
+    assert classify_identifier(did, NODE_BASE) == "local-did"
+
+
+def test_classify_local_did_double_encoded():
+    # Credo 0.6.x produces double-percent-encoded domains
+    did = "did:webvh:QmV7DDucsu8u:localhost%253A8080"
     assert classify_identifier(did, NODE_BASE) == "local-did"
 
 
 def test_classify_remote_did():
-    did = "did:webvh:example.com%3A8080:xyz789"
+    did = "did:webvh:xyz789scid:example.com%3A8080"
     assert classify_identifier(did, NODE_BASE) == "remote-did"
 
 
@@ -49,7 +56,8 @@ def test_classify_invalid():
 
 def test_classify_domain_suffix_not_confused():
     # "8080" and "ost:8080" are suffixes of "localhost:8080" but not the same host
-    assert classify_identifier("did:webvh:8080:abc", NODE_BASE) == "remote-did"
+    assert classify_identifier("did:webvh:abc:8080", NODE_BASE) == "remote-did"
+    assert classify_identifier("did:webvh:abc:ost%3A8080", NODE_BASE) == "remote-did"
     assert classify_identifier("did:webvh:ost%3A8080:abc", NODE_BASE) == "remote-did"
 
 
@@ -59,7 +67,7 @@ SAMPLE_LOG_ENTRY = {
     "versionId": "1",
     "versionTime": "2026-02-24T12:00:00Z",
     "state": {
-        "id": "did:webvh:localhost%3A8080:abc123",
+        "id": "did:webvh:abc123:localhost%3A8080",
         "@context": ["https://www.w3.org/ns/did/v1"],
         "verificationMethod": [{"id": "#key-1", "type": "Multikey"}],
         "authentication": ["#key-1"],
@@ -77,7 +85,7 @@ def test_parse_did_log():
     result = parse_did_log(text)
     assert result is not None
     did_doc, metadata = result
-    assert did_doc["id"] == "did:webvh:localhost%3A8080:abc123"
+    assert did_doc["id"] == "did:webvh:abc123:localhost%3A8080"
     assert metadata["versionId"] == "1"
 
 
@@ -94,11 +102,11 @@ def test_parse_did_log_malformed_json():
 
 def test_parse_did_log_no_state_field():
     # Entry without "state" falls back to the entry itself
-    entry = json.dumps({"id": "did:webvh:localhost%3A8080:fallback", "versionId": "1"})
+    entry = json.dumps({"id": "did:webvh:fallback:localhost%3A8080", "versionId": "1"})
     result = parse_did_log(entry)
     assert result is not None
     did_doc, metadata = result
-    assert did_doc["id"] == "did:webvh:localhost%3A8080:fallback"
+    assert did_doc["id"] == "did:webvh:fallback:localhost%3A8080"
 
 
 def test_parse_did_log_created_updated_metadata():
@@ -107,7 +115,7 @@ def test_parse_did_log_created_updated_metadata():
         "versionTime": "2026-02-24T14:00:00Z",
         "created": "2026-02-24T12:00:00Z",
         "updated": "2026-02-24T14:00:00Z",
-        "state": {"id": "did:webvh:localhost%3A8080:ts123"},
+        "state": {"id": "did:webvh:ts123:localhost%3A8080"},
     }
     result = parse_did_log(json.dumps(entry_with_timestamps))
     assert result is not None
@@ -121,21 +129,36 @@ def test_parse_did_log_created_updated_metadata():
 def test_parse_did_log_target_did():
     entry = json.dumps(SAMPLE_LOG_ENTRY)
     # Matching DID
-    result = parse_did_log(entry, target_did="did:webvh:localhost%3A8080:abc123")
+    result = parse_did_log(entry, target_did="did:webvh:abc123:localhost%3A8080")
     assert result is not None
     # Non-matching DID
     result = parse_did_log(entry, target_did="did:webvh:other:xyz")
     assert result is None
 
 
+def test_parse_did_log_target_did_double_encoded():
+    """Credo stores %253A but URL-decoded identifier has %3A — should still match."""
+    double_encoded = {
+        "versionId": "1",
+        "state": {"id": "did:webvh:abc123:localhost%253A8080"},
+    }
+    entry = json.dumps(double_encoded)
+    # URL-decoded form (%253A → %3A) should match stored %253A form
+    result = parse_did_log(entry, target_did="did:webvh:abc123:localhost%3A8080")
+    assert result is not None
+    # Fully decoded form should also match
+    result = parse_did_log(entry, target_did="did:webvh:abc123:localhost:8080")
+    assert result is not None
+
+
 # --- build_resolution_result ---
 
 def test_build_resolution_result():
-    did_doc = {"id": "did:webvh:localhost%3A8080:abc123"}
+    did_doc = {"id": "did:webvh:abc123:localhost%3A8080"}
     metadata = {"versionId": "1", "versionTime": "2026-02-24T12:00:00Z"}
     result = build_resolution_result(did_doc, metadata)
 
-    assert result["didDocument"]["id"] == "did:webvh:localhost%3A8080:abc123"
+    assert result["didDocument"]["id"] == "did:webvh:abc123:localhost%3A8080"
     assert result["didResolutionMetadata"]["contentType"] == "application/did+ld+json"
     assert "didDocumentMetadata" in result
     assert result["didDocumentMetadata"]["versionId"] == "1"
@@ -164,13 +187,21 @@ def test_build_deref_result():
 # --- decode_webvh_domain ---
 
 def test_decode_webvh_domain():
-    did = "did:webvh:localhost%3A8080:abc123scid"
+    # did:webvh:{scid}:{encoded-domain}
+    did = "did:webvh:abc123scid:localhost%3A8080"
+    domain = decode_webvh_domain(did)
+    assert domain == "localhost:8080"
+
+
+def test_decode_webvh_domain_double_encoded():
+    # Credo 0.6.x double-percent-encodes the domain
+    did = "did:webvh:QmV7scid:localhost%253A8080"
     domain = decode_webvh_domain(did)
     assert domain == "localhost:8080"
 
 
 def test_decode_webvh_domain_no_port():
-    did = "did:webvh:example.com:abc123scid"
+    did = "did:webvh:abc123scid:example.com"
     domain = decode_webvh_domain(did)
     assert domain == "example.com"
 

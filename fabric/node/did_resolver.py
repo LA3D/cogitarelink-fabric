@@ -44,6 +44,15 @@ def classify_identifier(identifier: str, node_base: str) -> str:
     return "invalid"
 
 
+def _fully_decode(s: str) -> str:
+    """Iteratively percent-decode until stable (handles double+ encoding)."""
+    prev = None
+    while prev != s:
+        prev = s
+        s = urllib.parse.unquote(s)
+    return s
+
+
 def parse_did_log(did_jsonl_text: str, target_did: str | None = None) -> tuple[dict, dict] | None:
     """Parse did.jsonl, return (did_document, metadata) from last matching entry."""
     lines = [l.strip() for l in did_jsonl_text.strip().split("\n") if l.strip()]
@@ -53,7 +62,7 @@ def parse_did_log(did_jsonl_text: str, target_did: str | None = None) -> tuple[d
     last_entry = json.loads(lines[-1])
     did_doc = last_entry.get("state", last_entry)
 
-    if target_did and did_doc.get("id") != target_did:
+    if target_did and _fully_decode(did_doc.get("id", "")) != _fully_decode(target_did):
         return None
 
     metadata = {
@@ -92,11 +101,25 @@ def build_error_result(error_code: str, message: str) -> dict:
 
 
 def decode_webvh_domain(did: str) -> str | None:
-    """Extract and decode domain from did:webvh:{encoded-domain}:{scid}."""
-    m = re.match(r"^did:webvh:([^:]+):(.+)$", did)
-    if not m:
+    """Extract and decode domain from did:webvh:{scid}:{encoded-domain}.
+
+    did:webvh format: did:webvh:<scid>:<encoded-domain>
+    The domain may be double-percent-encoded (%253A → %3A → :).
+    """
+    # Split after "did:webvh:" — take the last colon-separated segment as domain
+    parts = did.split(":")
+    if len(parts) < 4 or parts[0] != "did" or parts[1] != "webvh":
         return None
-    return urllib.parse.unquote(m.group(1))
+    # Domain is everything after scid (last segment, may contain encoded colons)
+    # Rejoin parts[3:] in case domain itself had unencoded colons (unlikely but safe)
+    encoded_domain = ":".join(parts[3:])
+    # Decode iteratively — handles double encoding (%253A → %3A → :)
+    decoded = encoded_domain
+    prev = None
+    while prev != decoded:
+        prev = decoded
+        decoded = urllib.parse.unquote(decoded)
+    return decoded
 
 
 def uuid7() -> str:
