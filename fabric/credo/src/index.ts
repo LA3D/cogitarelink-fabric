@@ -322,8 +322,9 @@ app.post('/credentials/verify', async (req, res) => {
       ...(result.verified ? {} : { error: 'Proof verification failed' }),
     })
   } catch (err) {
+    // DID resolution failures, missing keys, etc. = verification failure (not server error)
     console.error('VC verification error:', err)
-    return res.status(500).json({ error: String(err) })
+    return res.json({ verified: false, error: String(err) })
   }
 })
 

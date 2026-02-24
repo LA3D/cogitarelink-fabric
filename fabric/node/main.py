@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 from contextlib import asynccontextmanager
@@ -258,7 +259,6 @@ async def well_known_did_jsonl():
 @app.get("/.well-known/did.json")
 async def well_known_did_json():
     """Serve current DID document (last entry in did.jsonl log)."""
-    import json
     did_log = SHARED_DIR / "did.jsonl"
     if not did_log.exists():
         raise HTTPException(status_code=404, detail="DID log not yet available")
@@ -274,7 +274,6 @@ async def well_known_did_json():
 @app.get("/.well-known/conformance-vc.json")
 async def well_known_conformance_vc():
     """Serve FabricConformanceCredential VC from Credo sidecar shared volume."""
-    import json
     vc_file = SHARED_DIR / "conformance-vc.json"
     if not vc_file.exists():
         raise HTTPException(status_code=404, detail="Conformance VC not yet available")
