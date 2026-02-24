@@ -18,3 +18,4 @@ HTTP 200
 [Asserts]
 jsonpath "$.@context" == "http://www.w3.org/ns/ldp"
 jsonpath "$.contains" isCollection
+body contains "{{notif_url}}"

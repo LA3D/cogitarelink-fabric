@@ -3,7 +3,9 @@
 Same pattern as void_templates.py: imported by main.py and unit tests.
 """
 import json
+import os
 import re
+import time
 import urllib.parse
 
 
@@ -95,3 +97,15 @@ def decode_webvh_domain(did: str) -> str | None:
     if not m:
         return None
     return urllib.parse.unquote(m.group(1))
+
+
+def uuid7() -> str:
+    """Generate UUIDv7 per RFC 9562 — timestamp-sortable, no external deps (D11)."""
+    ms = int(time.time() * 1000)
+    rand = int.from_bytes(os.urandom(10), "big")
+    # 48 bits timestamp | 4 bits version (0x7) | 12 bits rand_a
+    # 2 bits variant (0b10) | 62 bits rand_b
+    hi = (ms << 16) | 0x7000 | ((rand >> 62) & 0x0FFF)
+    lo = (0b10 << 62) | (rand & 0x3FFFFFFFFFFFFFFF)
+    h = f"{hi:016x}{lo:016x}"
+    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"

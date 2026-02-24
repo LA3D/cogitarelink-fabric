@@ -10,6 +10,7 @@ from fabric.node.did_resolver import (
     build_error_result,
     decode_webvh_domain,
     sparql_escape,
+    uuid7,
 )
 
 NODE_BASE = "http://localhost:8080"
@@ -83,6 +84,38 @@ def test_parse_did_log():
 def test_parse_did_log_empty():
     assert parse_did_log("") is None
     assert parse_did_log("   \n  ") is None
+
+
+def test_parse_did_log_malformed_json():
+    import pytest
+    with pytest.raises(json.JSONDecodeError):
+        parse_did_log("this is not json\n")
+
+
+def test_parse_did_log_no_state_field():
+    # Entry without "state" falls back to the entry itself
+    entry = json.dumps({"id": "did:webvh:localhost%3A8080:fallback", "versionId": "1"})
+    result = parse_did_log(entry)
+    assert result is not None
+    did_doc, metadata = result
+    assert did_doc["id"] == "did:webvh:localhost%3A8080:fallback"
+
+
+def test_parse_did_log_created_updated_metadata():
+    entry_with_timestamps = {
+        "versionId": "2",
+        "versionTime": "2026-02-24T14:00:00Z",
+        "created": "2026-02-24T12:00:00Z",
+        "updated": "2026-02-24T14:00:00Z",
+        "state": {"id": "did:webvh:localhost%3A8080:ts123"},
+    }
+    result = parse_did_log(json.dumps(entry_with_timestamps))
+    assert result is not None
+    _, metadata = result
+    assert metadata["created"] == "2026-02-24T12:00:00Z"
+    assert metadata["updated"] == "2026-02-24T14:00:00Z"
+    assert metadata["versionId"] == "2"
+    assert metadata["versionTime"] == "2026-02-24T14:00:00Z"
 
 
 def test_parse_did_log_target_did():
@@ -179,3 +212,31 @@ def test_is_valid_uuid_rejects_bad():
     assert not is_valid_uuid("not-a-uuid")
     assert not is_valid_uuid("test> <evil> <y> <z")
     assert not is_valid_uuid("")
+
+
+# --- uuid7 ---
+
+def test_uuid7_format():
+    u = uuid7()
+    assert is_valid_uuid(u)
+
+
+def test_uuid7_version_bits():
+    # RFC 9562: version nibble (bits 48-51) = 0x7
+    u = uuid7()
+    assert u[14] == "7"  # version nibble at position 14
+
+
+def test_uuid7_variant_bits():
+    # RFC 9562: variant bits (bits 64-65) = 0b10 → hex digit 8,9,a,b
+    u = uuid7()
+    assert u[19] in "89ab"
+
+
+def test_uuid7_monotonic():
+    # Two UUIDs generated in sequence should be ordered
+    import time
+    u1 = uuid7()
+    time.sleep(0.002)
+    u2 = uuid7()
+    assert u1 < u2

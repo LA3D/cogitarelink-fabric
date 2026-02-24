@@ -1,7 +1,6 @@
 import json
 import os
 import pathlib
-import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import httpx
@@ -15,13 +14,13 @@ try:
     from fabric.node.did_resolver import (
         classify_identifier, parse_did_log, build_resolution_result,
         build_error_result, build_deref_result, decode_webvh_domain,
-        sparql_escape, is_valid_uuid,
+        sparql_escape, is_valid_uuid, uuid7,
     )
 except ModuleNotFoundError:
     from did_resolver import (
         classify_identifier, parse_did_log, build_resolution_result,
         build_error_result, build_deref_result, decode_webvh_domain,
-        sparql_escape, is_valid_uuid,
+        sparql_escape, is_valid_uuid, uuid7,
     )
 
 OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
@@ -250,7 +249,7 @@ async def ldn_inbox_receive(request: Request):
         return JSONResponse(status_code=400,
             content={"error": "Missing @context — must be JSON-LD"})
 
-    notif_id = str(uuid.uuid4())
+    notif_id = uuid7()
     notif_iri = f"{NODE_BASE}/inbox/{notif_id}"
     now = datetime.now(timezone.utc).isoformat()
     safe_actor = sparql_escape(str(payload.get("actor", "anonymous")))
