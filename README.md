@@ -377,25 +377,75 @@ CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir ~/Obsidian/obsid
 
 ### What Claude Code has access to
 
-- **CLAUDE.md** — project context, architecture decisions (D1–D26), key commands
+- **CLAUDE.md** — project context, architecture decisions (D1–D28), key commands
 - **`.claude/rules/`** — decisions index (always loaded), Python patterns, coding conventions
 - **`.claude/skills/`** — workflow skills (`/fabric-discover`, `/fabric-test`, `/fabric-status`)
+- **[Superpowers](https://github.com/obra/superpowers)** — agentic skills framework enforcing structured development methodology
 
-### Development methodology
+### Development methodology: skills as process governance
+
+The fabric uses SHACL shapes to govern data writes. It uses PROF profiles to govern node conformance. And it uses [Superpowers](https://github.com/obra/superpowers) — an agentic skills framework — to govern the development process itself.
+
+Superpowers provides composable skills that auto-trigger based on context: brainstorming, planning, test-driven development, code review, and verification. Each skill enforces hard gates — constraints that cannot be bypassed without explicit human override. The skills don't suggest a workflow; they enforce one. The parallel to SHACL is deliberate: just as a `fabric:ObservationShape` prevents malformed data from entering `/graph/observations`, the TDD skill prevents production code from being written without a failing test, and the verification skill prevents success claims without fresh evidence.
+
+The enforced pipeline:
+
+```
+Brainstorming (design)
+    ↓ HARD GATE: no code until design approved
+Writing Plans (implementation plan)
+    ↓ tasks decomposed to 2-5 minute granularity
+Test-Driven Development (RED → GREEN → REFACTOR)
+    ↓ IRON LAW: no production code without failing test first
+Code Review (spec compliance, then code quality)
+    ↓ critical issues block progress
+Verification Before Completion
+    ↓ IRON LAW: no success claims without fresh evidence
+Branch Completion (merge/PR/discard with test verification)
+```
+
+Each stage has an explicit hard gate:
+
+| Skill | Hard gate | Fabric analogy |
+|---|---|---|
+| **Brainstorming** | No code until design approved | PROF profile declares what a node must provide before admission |
+| **Writing Plans** | Each task = one action with exact file paths and verification steps | SHACL shapes declare required properties with cardinalities |
+| **TDD** | No production code without a failing test first | `commit_graph` rejects writes that fail SHACL validation |
+| **Verification** | No completion claims without fresh evidence | D26 `digestMultibase` — claims backed by verifiable hashes |
+| **Code Review** | Critical issues block merge | D24 trust gaps surface `fabric:PendingTask` instead of silent acceptance |
+
+This matters for research reproducibility. When Claude Code builds a SPARQL endpoint, the brainstorming skill forces explicit design decisions before implementation. Those decisions are recorded in the project's decision log (D1–D28 in the Obsidian vault). The writing-plans skill decomposes the design into tasks small enough that each can be verified independently. The TDD skill forces each task to start with a test encoding a specific requirement — often a W3C spec requirement — before the implementation exists. The git history records the RED→GREEN transition for every feature: the test was written, it failed, the implementation was written, it passed.
+
+That git history is the raw material for D28's conformance evidence chain. The `[Agent: Claude]` commit prefix identifies which commits were produced by the development agent. The HURL tests map to W3C spec section URIs. The test results become EARL (W3C Evaluation and Report Language) assertions stored in `/graph/conformance`. The EARL assertions link back to the agent's DID via PROV-O provenance. The result is a verifiable chain: spec requirement → test → implementation → test result → agent identity → git commit — queryable by SPARQL, bound to the conformance credential by `digestMultibase`, and auditable by anyone who wants to verify how the infrastructure was built.
+
+### The vault as planning substrate
+
+The Obsidian vault (`~/Obsidian/obsidian/`) provides the planning and decision-making substrate that the superpowers skills operate within. The vault holds:
+
+- **`KF-Prototype-PLAN.md`** — phased implementation plan with prioritized tasks (P0/P1/P2), timelines, and success criteria. This is what the writing-plans skill references when decomposing work.
+- **`KF-Prototype-Decisions.md`** — 28 architectural decisions (D1–D28) with context, alternatives considered, and implications. When the brainstorming skill forces design exploration before coding, the decisions log captures what was decided and why.
+- **Daily notes** — chronological work log linking concepts, implementations, and papers. Provides the "why was this decision made on this day" context that git commits alone don't capture.
+
+The vault is not documentation written after the fact. It is the active planning environment that the agent works within. When a brainstorming session produces a new decision (e.g., D27: SHACL-gated vocabulary admission), the decision is written to the vault, tasks are added to the plan, and only then does the implementation pipeline begin. The vault provides the strategic context; the skills enforce the tactical execution; the tests verify the result.
+
+### Test infrastructure
 
 Infrastructure is built test-first using two testing layers:
 
-**Hurl tests** (`tests/hurl/phase1/`) — HTTP-level conformance tests for the fabric node. Each test file corresponds to a TDD cycle (numbered `01`–`12`), written RED before the feature exists and turned GREEN by implementation. These verify that `.well-known/` endpoints serve correct content, SPARQL queries return expected results, and TBox named graphs are loaded at startup.
+**Hurl tests** (`tests/hurl/phase1/`, `tests/hurl/phase2/`) — HTTP-level conformance tests for the fabric node. Each test file corresponds to a TDD cycle (numbered `01`–`38`), written RED before the feature exists and turned GREEN by implementation. These verify that `.well-known/` endpoints serve correct content, SPARQL queries return expected results, DID resolution follows the W3C DID Resolution HTTP API, LDN inbox implements the W3C LDN spec, and content integrity hashes match. The tests encode specific W3C spec requirements and can be converted to EARL conformance reports (D28).
 
 ```bash
 # Run all Phase 1 conformance tests
 cd tests && make test-hurl-p1
+
+# Run Phase 2 identity + trust tests
+cd tests && make test-hurl-p2
 ```
 
-**pytest** (`tests/pytest/`) — unit tests for agent tooling (`fabric_discovery`, `fabric_rdfs_routes`, `fabric_validate`, trajectory logging) and integration tests that exercise the full agent→gateway→Oxigraph pipeline.
+**pytest** (`tests/pytest/`) — unit tests for agent tooling (`fabric_discovery`, `fabric_rdfs_routes`, `fabric_validate`, DID resolution, content integrity) and integration tests that exercise the full agent→gateway→Oxigraph pipeline.
 
 ```bash
-# 130 unit tests currently passing
+# 127 unit tests currently passing
 pytest tests/ -v
 ```
 
@@ -433,7 +483,7 @@ tests/
 
 ## Key decisions
 
-Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–D26). The most relevant:
+Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–D28). The most relevant:
 
 | # | Decision | Why it matters |
 |---|---------|----------------|
@@ -447,6 +497,8 @@ Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–
 | D22 | Fabric ontology at `https://w3id.org/cogitarelink/fabric` | OWL 2 DL vocabulary for fabric concepts (nodes, roles, profiles) |
 | D25 | Linked Data Notifications for actor-to-actor messaging | W3C LDN replaces custom endpoints; every DID advertises an inbox |
 | D26 | Content integrity via relatedResource + digestMultibase | SHA-256 hashes in conformance VC bind artifacts to credential issuance time |
+| D27 | SHACL-gated vocabulary admission | TBox ontologies must pass metadata shapes before entering L2 cache; Five Stars criteria as SHACL |
+| D28 | Conformance evidence chain (EARL + PROV-O) | Test results as linked data; TDD git history → EARL → credential; verifiable loop from spec to agent |
 
 ## References
 
@@ -456,6 +508,9 @@ Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–
 - Zhang, A. L., Kraska, T., & Khattab, O. (2025). Recursive Language Models. arXiv:2512.24601v2. https://arxiv.org/abs/2512.24601
 - Ranaldi, F., Zugarini, A., Ranaldi, L., & Zanzotto, F. M. (2025). Protoknowledge shapes behaviour of LLMs in downstream tasks: Memorization and generalization with Knowledge Graphs. arXiv:2505.15501. https://arxiv.org/abs/2505.15501
 - Allemang, D. & Sequeda, J. (2024). Increasing the LLM Accuracy for Question Answering: Ontologies to the Rescue! In *Extended Semantic Web Conference* (LNCS, pp. 324–339). Springer. arXiv:2405.11706. https://arxiv.org/abs/2405.11706
+- Capadisli, S. (2017). Linked Specifications, Test Suites, and Implementation Reports. https://csarven.ca/linked-specifications-reports
+- W3C EARL 1.0 Schema (2017). Evaluation and Report Language. https://www.w3.org/TR/EARL10-Schema/
+- Superpowers: An agentic skills framework and software development methodology. https://github.com/obra/superpowers
 
 ## Identity
 
