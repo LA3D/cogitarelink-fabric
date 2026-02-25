@@ -119,17 +119,26 @@ The experiment runner (`experiments/fabric_navigation/run_experiment.py`) manage
 | **3a** No TBox paths (SIO) | Switch to SIO tasks, no TBox hints | 0.833 | SIO is *not* in pretraining; `sio-measured-value-range` fails without structural guidance |
 | **3b** TBox paths (SIO) | Add `/ontology/sio` path hints | 1.000 | **+0.167 score lift** — TBox paths recover the failing task |
 | **4a** Control | Phase 3b features, no RDFS tool | 1.000 | Baseline for tool comparison |
-| **4b** RDFS routes tool | Add `analyze_rdfs_routes()` callable tool | 1.000 | **100% tool adoption** (24/24 task-runs across 4 ensemble replications); tool called adaptively after initial SPARQL failure, not reflexively |
+| **4b** RDFS routes tool | Add `analyze_rdfs_routes()` callable tool | 1.000 | Tool adopted selectively: 2/6 tasks per run (schema introspection only); 8-run ensemble |
+| **5a** Cross-graph, no tool | Cross-graph joins (observations ↔ entities) | 1.000 | 4.0 iterations, 3.0 SPARQL queries, 0.4 recoveries per task |
+| **5b** Cross-graph, with tool | Same tasks + `analyze_rdfs_routes` available | 1.000 | Tool never invoked (0/5 tasks); implicit reasoning in chain of thought suffices |
+| **6a** Escape hatch closed, no tool | Entity lookup example removed + unbounded query guardrail | 1.000 | No effect — agent never relied on `?p ?o` scanning |
+| **6b** Escape hatch closed, with tool | Same + `analyze_rdfs_routes` available | 1.000 | Tool never invoked; 2 guardrail hits (attempted scans correctly blocked) |
 
 **Phase 3 is the central result**: for vocabularies outside pretraining, TBox path hints in the routing plan provide a measurable score lift. The structured metadata isn't just nice to have — it's necessary for correct query construction when the LLM can't fall back on memorized patterns.
 
-**Phase 4 adds a second modality**: the TBox isn't only useful as static text in the routing plan — it can also be wrapped as a callable sub-agent tool (`analyze_rdfs_routes`) that performs RDFS/OWL routing analysis on demand. The tool is adopted when advertised in the agent's initial context (`endpoint_sd`) and used adaptively — called after an initial SPARQL attempt returns empty, providing semantic grounding (property direction, correct graph) rather than the answer itself.
+**Phase 4 reveals selective tool adoption**: Detailed trace analysis across 8 ensemble runs corrected an initial claim of uniform tool usage. The `analyze_rdfs_routes` tool is called only for schema introspection tasks where no data exists to explore (e.g., `owl:inverseOf` lookup, `rdfs:range` queries). For data tasks where raw triples provide sufficient grounding, the agent never calls the tool. The tool shifts reasoning mode from exploratory (bottom-up: read data, infer schema) to confirmatory (top-down: tool provides hypothesis, SPARQL verifies) — it's a guardrail, not a new capability.
+
+**Phases 5–6 test structural resilience**: Phase 5 added cross-graph join tasks requiring the agent to navigate between `/graph/observations` and `/graph/entities`. Phase 6 closed the "entity lookup escape hatch" — the `SELECT ?p ?o WHERE { <iri> ?p ?o }` pattern that lets agents discover schema post-hoc by reading returned predicates. Neither change affected scores. The agent constructs targeted SPARQL queries directly from SHACL shapes, SPARQL examples, and pretraining knowledge, without falling back to blind triple scanning. This validates the D9 four-layer KR design: the self-description stack is load-bearing, and agents use it as intended.
+
+**The score ceiling**: All phases from 3b onward score 1.000. This is a limitation of the current benchmark — tasks are solvable once the right structural hints are present. The untested claim is that for genuinely unfamiliar vocabularies (outside pretraining entirely), the self-description alone would be insufficient and the RDFS routes tool would become essential. Testing this requires custom or obscure vocabularies, which is the right next experiment.
 
 ### Methodological notes
 
 - **Domain contamination audit**: The RDFS instructional patterns were originally copied with SOSA-specific examples. When run against SOSA endpoints, this leaked domain knowledge into the sub-agent prompt — a confound. All examples were replaced with fully abstract vocabulary (`:ClassX`, `:propA`). Clean reruns confirmed identical results, establishing that the tool works from ontology structure, not from domain-specific examples in the prompt.
 - **Prompt caching trap**: Initial ensemble replications at `temperature=None` produced identical traces — Anthropic's server-side prompt caching was returning cached responses. Fixed by running at `temperature=0.7` with `cache=False`. Varying costs ($0.45–$0.59) and iteration counts confirm independence.
-- **Endpoint SD gap**: The `obs-sio-measured-value` task revealed that the SHACL shape advertised `sosa:hasSimpleResult` as required, but the test data uses the SIO measurement chain. Agents succeeded via raw triple exploration (resilient) but this was an SD design issue, now fixed.
+- **Endpoint SD gap**: The `obs-sio-measured-value` task revealed that the SHACL shape advertised `sosa:hasSimpleResult` as required, but the test data uses the SIO measurement chain. Fixed in Phase 5 by adding `sio:has-attribute` to the ObservationShape + SIO-specific SPARQL examples + cross-graph agent instruction hints.
+- **Phase 4b correction**: Initial analysis claimed 6/6 tool adoption per run. Detailed trace analysis across 8 ensemble runs revealed the actual rate was 2/6 — selective to schema introspection tasks (`sio-attribute-inverse`: 7/8 runs, `sio-measured-value-range`: 8/8 runs) with zero calls on data tasks. The corrected finding strengthens the interpretation: the tool is adopted where it has unique value (schema-only tasks), not reflexively.
 
 ## Getting started
 
