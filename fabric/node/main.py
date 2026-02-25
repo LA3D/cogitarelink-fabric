@@ -15,13 +15,13 @@ try:
     from fabric.node.did_resolver import (
         classify_identifier, parse_did_log, build_resolution_result,
         build_error_result, build_deref_result, decode_webvh_domain,
-        sparql_escape, is_valid_uuid, uuid7,
+        sparql_escape, is_valid_uuid, validate_sparql_iri, uuid7,
     )
 except ModuleNotFoundError:
     from did_resolver import (
         classify_identifier, parse_did_log, build_resolution_result,
         build_error_result, build_deref_result, decode_webvh_domain,
-        sparql_escape, is_valid_uuid, uuid7,
+        sparql_escape, is_valid_uuid, validate_sparql_iri, uuid7,
     )
 try:
     from fabric.node.registry import (
@@ -381,6 +381,8 @@ async def fabric_admission(request: Request):
     remote_base = body.get("nodeBase", "").rstrip("/")
     if not remote_base:
         raise HTTPException(status_code=400, detail="nodeBase required")
+    if not validate_sparql_iri(remote_base):
+        raise HTTPException(status_code=400, detail="nodeBase contains invalid characters")
 
     # 1. Fetch remote conformance VC
     try:
@@ -434,8 +436,10 @@ async def fabric_admission(request: Request):
             detail=f"Co-signing failed: {cosign_resp.text}")
     cosigned_vc = cosign_resp.json()
 
-    # 6. Insert remote node into /graph/registry
+    # 6. Validate remote DID and insert into /graph/registry
     remote_did = remote_vc.get("issuer", "")
+    if remote_did and not validate_sparql_iri(remote_did):
+        raise HTTPException(status_code=400, detail="VC issuer contains invalid IRI characters")
     local_vc = SHARED_DIR / "conformance-vc.json"
     local_did = ""
     if local_vc.exists():
@@ -447,6 +451,8 @@ async def fabric_admission(request: Request):
     resp = await app.state.http.post(
         "/update", content=sparql.encode(),
         headers={"Content-Type": "application/sparql-update"})
+    if resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail="Failed to insert registry entry")
 
     return JSONResponse(status_code=201, content=cosigned_vc)
 
@@ -475,9 +481,11 @@ async def agent_register(request: Request):
         sparql = build_agent_insert(
             NODE_BASE, agent_did, agent_role,
             authorized_graphs, authorized_operations)
-        await app.state.http.post(
+        ox_resp = await app.state.http.post(
             "/update", content=sparql.encode(),
             headers={"Content-Type": "application/sparql-update"})
+        if ox_resp.status_code >= 400:
+            raise HTTPException(status_code=502, detail="Failed to insert agent entry")
 
     return JSONResponse(status_code=201, content=result)
 

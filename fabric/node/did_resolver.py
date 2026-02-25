@@ -12,9 +12,17 @@ import urllib.parse
 _UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.I)
 
+# IRI-safe: scheme + authority (allows both http://... and did:method:...)
+_SAFE_IRI_RE = re.compile(r'^[a-zA-Z][a-zA-Z0-9+\-.]*:[^\s<>"{}|\\^`]+$')
+
 
 def is_valid_uuid(s: str) -> bool:
     return bool(_UUID_RE.match(s))
+
+
+def validate_sparql_iri(s: str) -> bool:
+    """Check if a string is safe for use in a SPARQL IRI position (<...>)."""
+    return bool(_SAFE_IRI_RE.match(s))
 
 
 def sparql_escape(s: str) -> str:

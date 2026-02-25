@@ -4,6 +4,7 @@ import json
 from fabric.node.did_resolver import (
     classify_identifier,
     is_valid_uuid,
+    validate_sparql_iri,
     parse_did_log,
     build_resolution_result,
     build_deref_result,
@@ -271,3 +272,30 @@ def test_uuid7_monotonic():
     time.sleep(0.002)
     u2 = uuid7()
     assert u1 < u2
+
+
+# --- validate_sparql_iri ---
+
+def test_validate_sparql_iri_valid_http():
+    assert validate_sparql_iri("http://localhost:8080") is True
+
+def test_validate_sparql_iri_valid_https():
+    assert validate_sparql_iri("https://node.example.org/fabric") is True
+
+def test_validate_sparql_iri_valid_did():
+    assert validate_sparql_iri("did:webvh:Qme7:localhost%253A8080") is True
+
+def test_validate_sparql_iri_rejects_angle_brackets():
+    assert validate_sparql_iri("http://evil> . <http://evil") is False
+
+def test_validate_sparql_iri_rejects_spaces():
+    assert validate_sparql_iri("http://evil .example.org") is False
+
+def test_validate_sparql_iri_rejects_empty():
+    assert validate_sparql_iri("") is False
+
+def test_validate_sparql_iri_rejects_curly_braces():
+    assert validate_sparql_iri("http://evil{inject}") is False
+
+def test_validate_sparql_iri_rejects_backtick():
+    assert validate_sparql_iri("http://evil`cmd`") is False

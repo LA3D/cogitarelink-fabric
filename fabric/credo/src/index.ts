@@ -157,7 +157,8 @@ async function verifyProof(
   securedDoc: Record<string, unknown>,
 ): Promise<{ verified: boolean; verifiedDocument?: Record<string, unknown> }> {
   const { proof, ...unsecuredDoc } = securedDoc
-  const proofObj = proof as Record<string, string>
+  // Handle both single proof objects and proof arrays (D19 multi-proof)
+  const proofObj = (Array.isArray(proof) ? proof[0] : proof) as Record<string, string>
   const { proofValue, ...proofOptions } = proofObj
 
   const docHash = jcsHash(unsecuredDoc)
