@@ -5,6 +5,9 @@ imported by main.py (Docker) and unit tests (local).
 """
 from datetime import datetime, timezone
 
+from rdflib import Graph, Namespace
+from rdflib.namespace import DCTERMS
+
 try:
     from fabric.node.did_resolver import sparql_escape
 except ModuleNotFoundError:
@@ -81,8 +84,16 @@ WHERE {{
 
 
 def check_void_conformance(void_turtle: str) -> bool:
-    """Check if VoID declares dct:conformsTo fabric:CoreProfile (substring check)."""
-    return "cogitarelink/fabric#CoreProfile" in void_turtle
+    """Check if VoID declares dct:conformsTo fabric:CoreProfile via rdflib parsing."""
+    if not void_turtle or not void_turtle.strip():
+        return False
+    FABRIC = Namespace(FABRIC_NS)
+    try:
+        g = Graph()
+        g.parse(data=void_turtle, format="turtle")
+        return (None, DCTERMS.conformsTo, FABRIC.CoreProfile) in g
+    except Exception:
+        return False
 
 
 def build_agent_insert(

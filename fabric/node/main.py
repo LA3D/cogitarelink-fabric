@@ -122,10 +122,16 @@ async def entity_deref(entity_id: str, request: Request):
     )
 
     # Oxigraph returns 200 with only prefix declarations for empty CONSTRUCT.
-    # N-Triples has no prefixes, so empty = zero bytes. Turtle prefixes are short.
-    body = resp.content.strip()
-    if resp.status_code == 200 and (len(body) == 0 or entity_uri.encode() not in body):
-        raise HTTPException(status_code=404, detail=f"Entity not found: {entity_uri}")
+    # Parse with rdflib to reliably detect empty results (byte substring is fragile).
+    if resp.status_code == 200:
+        from rdflib import Graph as _Graph
+        _g = _Graph()
+        try:
+            _g.parse(data=resp.content, format=fmt)
+        except Exception:
+            _g = _Graph()  # parse failure → treat as empty
+        if len(_g) == 0:
+            raise HTTPException(status_code=404, detail=f"Entity not found: {entity_uri}")
 
     return Response(content=resp.content, status_code=resp.status_code, media_type=fmt)
 
@@ -189,10 +195,16 @@ async def resolve_identifier(identifier: str, request: Request):
             "/query", params={"query": query},
             headers={"Accept": "application/ld+json"},
         )
-        body = resp.content.strip()
-        if resp.status_code == 200 and (len(body) == 0 or entity_uri.encode() not in body):
-            err = build_error_result("notFound", f"Entity not found: {entity_uri}")
-            return JSONResponse(content=err, status_code=404)
+        if resp.status_code == 200:
+            from rdflib import Graph as _Graph
+            _g = _Graph()
+            try:
+                _g.parse(data=resp.content, format="json-ld")
+            except Exception:
+                _g = _Graph()
+            if len(_g) == 0:
+                err = build_error_result("notFound", f"Entity not found: {entity_uri}")
+                return JSONResponse(content=err, status_code=404)
         try:
             content = json.loads(resp.content)
         except json.JSONDecodeError:

@@ -122,22 +122,58 @@ class TestFabricNamespace:
 # --- Task 2.1/2.2/2.6: Admission helper tests ---
 
 class TestCheckVoidConformance:
-    """check_void_conformance validates CoreProfile in VoID."""
+    """check_void_conformance validates CoreProfile in VoID via rdflib parsing."""
+
+    _VOID_PREFIX = """\
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+@prefix fabric: <https://w3id.org/cogitarelink/fabric#> .
+"""
 
     def test_valid_void_with_core_profile(self):
-        void = 'dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;'
+        void = self._VOID_PREFIX + """
+<http://example.org/void> a void:Dataset ;
+    dct:conformsTo fabric:CoreProfile .
+"""
         assert check_void_conformance(void) is True
 
     def test_missing_profile(self):
-        void = 'dct:conformsTo <https://example.org/SomeOtherProfile> ;'
+        void = self._VOID_PREFIX + """
+<http://example.org/void> a void:Dataset ;
+    dct:conformsTo <https://example.org/SomeOtherProfile> .
+"""
         assert check_void_conformance(void) is False
 
     def test_empty_string(self):
         assert check_void_conformance("") is False
 
     def test_partial_namespace_no_match(self):
-        void = 'dct:conformsTo <https://w3id.org/cogitarelink/other#CoreProfile> ;'
+        void = self._VOID_PREFIX + """
+<http://example.org/void> a void:Dataset ;
+    dct:conformsTo <https://w3id.org/cogitarelink/other#CoreProfile> .
+"""
         assert check_void_conformance(void) is False
+
+    def test_rejects_substring_in_comment(self):
+        """Regression: old substring check matched comments."""
+        void = self._VOID_PREFIX + """
+# cogitarelink/fabric#CoreProfile mentioned in comment only
+<http://example.org/void> a void:Dataset ;
+    dct:conformsTo <https://example.org/SomeOtherProfile> .
+"""
+        assert check_void_conformance(void) is False
+
+    def test_rejects_substring_in_literal(self):
+        """Regression: old substring check matched string literals."""
+        void = self._VOID_PREFIX + """
+<http://example.org/void> a void:Dataset ;
+    dct:title "cogitarelink/fabric#CoreProfile is referenced" ;
+    dct:conformsTo <https://example.org/SomeOtherProfile> .
+"""
+        assert check_void_conformance(void) is False
+
+    def test_invalid_turtle_returns_false(self):
+        assert check_void_conformance("this is not valid turtle {{{}}}") is False
 
 
 # --- Task 3.1/3.2: Agent SPARQL builder tests ---
