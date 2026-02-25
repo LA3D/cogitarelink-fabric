@@ -35,11 +35,36 @@ The core architectural claim. Each fabric node exposes four layers of structured
 
 The agent reads L1 first (compact, orients), then drills into L2-L4 as needed. The `discover_endpoint()` function in `agents/fabric_discovery.py` loads all four layers into a `FabricEndpoint` object, which produces a `routing_plan` text that the RLM agent reads as its initial context.
 
-### Agent substrate
+### Agent substrate: RLM as context engineering
 
 Agents are [DSPy](https://github.com/stanfordnlp/dspy) RLM programs (Recursive Language Models). An RLM operates a Python REPL loop: the LLM writes code, executes it, reads the output, writes more code — iterating until it can produce an answer. Fabric tools (`sparql_query`, `analyze_rdfs_routes`) are injected into the REPL namespace so the agent can call them from generated code.
 
 The agent substrate is separate from the fabric infrastructure. Agents connect externally via HTTP; the fabric node does not host agents.
+
+**Why RLM and not RAG?** The core problem with knowledge graph navigation is that the relevant data far exceeds any context window. A SPARQL endpoint might hold millions of triples across dozens of named graphs. RAG's answer — embed everything, retrieve the top-k chunks — doesn't work here because the "relevant" triples depend on schema relationships the agent hasn't discovered yet. You can't embed your way to understanding that `sio:has-attribute` chains to `sio:has-value` via an intermediate `MeasuredValue` node; you have to read the ontology structure and follow it.
+
+RLM solves this by separating two spaces:
+
+- **Variable space** holds arbitrarily large artifacts. Full SPARQL result sets, parsed ontology graphs, and accumulated entity data live in Python variables across iterations. The agent can hold an entire TBox in a variable and query it locally without consuming context tokens.
+- **Token space** holds bounded observations. Each iteration, the agent sees only a size-capped view of what its code produced — enough to reason about what to do next, not enough to overwhelm the context window.
+
+This separation turns the agent into a context engineering system. Instead of stuffing everything into the prompt and hoping the LLM finds the needle, the agent actively constructs its own context: it writes code to fetch metadata, parses the response into variables, inspects the parts it needs, and builds progressively more targeted queries. Each REPL iteration narrows the search space rather than broadening the context.
+
+### Scatter-gather and agentic search
+
+A single fabric node is useful, but the architecture is designed for federation: multiple autonomous nodes, each self-describing, each queryable by the same agent using the same tools.
+
+Navigating a federation is iterative scatter-gather. The agent fans out queries to multiple endpoints in parallel, reduces the results through semantic judgment (ontology alignment, entity resolution, conflict handling), and decides what to query next based on what it learned. This operates at two levels:
+
+**TBox scatter-gather** (run once per fabric, cacheable): The agent queries each endpoint's `.well-known/` metadata — VoID descriptions, SHACL shapes, SPARQL examples. It assesses vocabulary quality, identifies shared and divergent terms, and builds a navigation map of what data exists where and how vocabularies relate. This phase is cheap (metadata is small) and produces the routing knowledge that makes data queries efficient.
+
+**ABox scatter-gather** (per question, iterative): Using the navigation map, the agent dispatches data queries to the right endpoints with the right vocabulary. Results come back, the agent resolves entities across sources, handles conflicts, identifies gaps, and iterates. The reduce step requires semantic judgment — recognizing that `up:encodedBy` and `gene:expresses` describe the same biological relationship across two endpoints — which is exactly what LLMs are good at.
+
+**How self-description reduces iterations.** Without self-describing metadata, an agent encountering an unfamiliar endpoint must explore by trial and error: guess at property names, issue broad queries, read the returned predicates, infer the schema post-hoc, and try again with better-informed queries. Our Phase 3 experiments measured this directly — against SIO (a vocabulary outside the LLM's pretraining), agents without TBox structural hints failed on schema reasoning tasks that required knowing property directions and range constraints.
+
+With self-description, the agent reads the endpoint's VoID to learn what named graphs and vocabularies exist, reads the SHACL shapes to learn what properties connect which classes, and reads the SPARQL examples to see working query patterns. Each of these steps narrows the search space *before the first data query is issued*. The agent doesn't have to guess what the endpoint contains; the endpoint tells it. Our Phase 3b result — a 0.167 score lift from adding TBox path hints — quantifies the difference between grounded and ungrounded query construction for unfamiliar vocabularies.
+
+This is also a response to the needle-in-a-haystack problem at a structural level. The traditional version of this problem asks whether an LLM can find a specific fact buried in a long context. The fabric version asks whether an agent can find the right triples across a federation of endpoints it has never seen before. Self-describing metadata converts this from a search problem (scan everything until you find it) into a navigation problem (follow the metadata to the right graph, the right shape, the right query pattern). Navigation scales; exhaustive search does not.
 
 ### Identity, credentials, and content integrity
 
