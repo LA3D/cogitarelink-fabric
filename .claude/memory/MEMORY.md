@@ -1,10 +1,10 @@
 # cogitarelink-fabric — Session Memory
 
-## Project State (as of 2026-02-25)
+## Project State (as of 2026-02-26)
 
 **Repo**: `~/dev/git/LA3D/agents/cogitarelink-fabric`
-**Branch**: `feature/bootstrap-admission` (worktree at `.worktrees/bootstrap-admission`)
-**Tests**: 182 unit + 41 HURL (15 phase1 + 26 phase2) — all passing
+**Branch**: main (all work merged)
+**Tests**: 205 unit + 42 HURL (15 phase1 + 27 phase2) — all passing
 
 ## Completed Work
 
@@ -17,6 +17,7 @@
 - **Phase 6 escape hatch closure** (commits `94f8b09`, `d7596dc`): three mechanisms — unbounded query guardrail, entity lookup stripping, noise predicates. Result: no effect — agent never used the escape hatch. Tool still 0/5 calls. Guardrail had false-positive bug (matching across semicolons + SELECT clause), fixed in `d7596dc`.
 - **Phase 2 bootstrap** (commit `f5a5327`): did:webvh + VC issuance via Credo 0.6.x sidecar; shared Docker volume
 - **Phase 2 DID integration** (commits `4eda91c`–`2422669`): W3C DID Resolution HTTP API, LDN inbox (POST/GET), enriched conformance VC, Link header discovery, DID resolver helper module, SPARQL injection prevention
+- **D29 External endpoint attestation** (commit `cb8a69a`): QLever PubChem/Wikidata/OSM as dcat:DataService in /graph/catalog with fabric:vouchedBy + spex:SparqlExample; POST Graph Store Protocol for append
 
 ## Key Architecture Patterns
 
@@ -152,4 +153,22 @@ docker compose up -d    # from ~/dev/git/LA3D/agents/cogitarelink-fabric
 
 **HURL patterns**: Use `header "Content-Type" contains "text/turtle"` (Oxigraph adds `; charset=utf-8`). Use `contains` not deprecated `includes`. Oxigraph Turtle uses full URIs — match `dcat#Dataset` not `dcat:Dataset`.
 
-**Test counts**: 15 phase1 HURL + 26 phase2 HURL + 182 unit tests (36 registry + 16 catalog + 14 integrity + 32 DID resolver + 84 existing)
+**Test counts**: 15 phase1 HURL + 27 phase2 HURL + 205 unit tests (36 registry + 16 catalog + 12 external endpoints + 14 integrity + 32 DID resolver + 84 existing + 11 integration)
+
+### D29 External Endpoint Attestation Patterns (2026-02-26)
+
+**Turtle template substitution**: `external-endpoints.ttl.template` uses `{base}` and `{node_did}` placeholders, substituted by `load_external_endpoints_ttl()`. Same pattern as `void_templates.py`.
+
+**POST vs PUT for Graph Store Protocol**: `PUT /store?graph=<uri>` replaces entire graph; `POST /store?graph=<uri>` appends to existing graph. External endpoints use POST (append to `/graph/catalog` alongside existing `dcat:Dataset` entries from VoID extraction).
+
+**Turtle @prefix invalid in SPARQL INSERT DATA**: `@prefix` is Turtle-only syntax; SPARQL uses `PREFIX` (no `@`, no trailing `.`). Never embed raw Turtle inside `INSERT DATA {}` blocks. Use Graph Store Protocol POST with `Content-Type: text/turtle` instead.
+
+**Catalog CONSTRUCT broadened**: `build_catalog_construct()` changed from `?ds a dcat:Dataset` filter to `?s ?p ?o` to return both Dataset and DataService entries from `/graph/catalog`.
+
+**fabric:vouchedBy**: New OWL ObjectProperty (fabric.ttl v0.2.0). Domain: dcat:DataService, Range: fabric:FabricNode. Attests that a fabric node vouches for an external SPARQL endpoint's trustworthiness.
+
+**New files**:
+- `fabric/node/external-endpoints.ttl.template`: Three QLever entries with example SPARQL queries
+- `fabric/node/external_endpoints.py`: Template loader (pure Python, same pattern as catalog.py/registry.py)
+- `tests/hurl/phase2/48-external-endpoints-catalog.hurl`: Integration test
+- `tests/pytest/unit/test_external_endpoints.py`: 12 unit tests including rdflib Turtle parsing validation
