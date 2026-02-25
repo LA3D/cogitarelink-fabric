@@ -37,18 +37,22 @@ The agent reads L1 first (compact, orients), then drills into L2-L4 as needed. T
 
 ### Agent substrate: RLM as context engineering
 
-Agents are [DSPy](https://github.com/stanfordnlp/dspy) RLM programs (Recursive Language Models). An RLM operates a Python REPL loop: the LLM writes code, executes it, reads the output, writes more code — iterating until it can produce an answer. Fabric tools (`sparql_query`, `analyze_rdfs_routes`) are injected into the REPL namespace so the agent can call them from generated code.
+Agents are [DSPy](https://github.com/stanfordnlp/dspy) RLM programs — Recursive Language Models (Zhang, Kraska, & Khattab, 2025). An RLM operates a Python REPL loop: the LLM writes code, executes it, reads the output, writes more code — iterating until it can produce an answer. Fabric tools (`sparql_query`, `analyze_rdfs_routes`) are injected into the REPL namespace so the agent can call them from generated code.
 
 The agent substrate is separate from the fabric infrastructure. Agents connect externally via HTTP; the fabric node does not host agents.
 
-**Why RLM and not RAG?** The core problem with knowledge graph navigation is that the relevant data far exceeds any context window. A SPARQL endpoint might hold millions of triples across dozens of named graphs. RAG's answer — embed everything, retrieve the top-k chunks — doesn't work here because the "relevant" triples depend on schema relationships the agent hasn't discovered yet. You can't embed your way to understanding that `sio:has-attribute` chains to `sio:has-value` via an intermediate `MeasuredValue` node; you have to read the ontology structure and follow it.
+**What RLM gets right.** Zhang et al. identify three flaws in prior long-context scaffolding approaches: (1) feeding the full user prompt directly into the LLM context window, inheriting its size limits; (2) generating output autoregressively, so output can't exceed the context window either; and (3) lacking symbolic recursion, so the model can only delegate a few verbalized sub-tasks rather than looping programmatically over input slices. RLM fixes all three with a single mechanism: the prompt is loaded as a variable in a persistent Python REPL, not placed in the LLM's context. The model writes code to inspect, slice, and transform the variable contents, and can recursively invoke itself on sub-problems via `llm_query()` calls. This enables processing inputs two orders of magnitude beyond the model's native context window (10M+ tokens), with median cost *lower* than direct ingestion because the model reads selectively rather than consuming everything.
+
+The key insight, in their words: "arbitrarily long user prompts should not be fed into the neural network directly but should instead be treated as part of the environment that the LLM is tasked to symbolically and recursively interact with."
+
+**Why this matters for knowledge graphs.** The core problem with knowledge graph navigation is that the relevant data far exceeds any context window. A SPARQL endpoint might hold millions of triples across dozens of named graphs. RAG's answer — embed everything, retrieve the top-k chunks — doesn't work here because the "relevant" triples depend on schema relationships the agent hasn't discovered yet. You can't embed your way to understanding that `sio:has-attribute` chains to `sio:has-value` via an intermediate `MeasuredValue` node; you have to read the ontology structure and follow it.
 
 RLM solves this by separating two spaces:
 
 - **Variable space** holds arbitrarily large artifacts. Full SPARQL result sets, parsed ontology graphs, and accumulated entity data live in Python variables across iterations. The agent can hold an entire TBox in a variable and query it locally without consuming context tokens.
 - **Token space** holds bounded observations. Each iteration, the agent sees only a size-capped view of what its code produced — enough to reason about what to do next, not enough to overwhelm the context window.
 
-This separation turns the agent into a context engineering system. Instead of stuffing everything into the prompt and hoping the LLM finds the needle, the agent actively constructs its own context: it writes code to fetch metadata, parses the response into variables, inspects the parts it needs, and builds progressively more targeted queries. Each REPL iteration narrows the search space rather than broadening the context.
+This separation turns the agent into a context engineering system. The agent doesn't receive a pre-built prompt with all relevant information stuffed in; it actively constructs its own context by writing code to fetch metadata, parsing the response into variables, inspecting the parts it needs, and building progressively more targeted queries. Each REPL iteration narrows the search space rather than broadening the context. In Zhang et al.'s terminology, the agent performs Ω(|P|) semantic work — processing proportional to the input size — while keeping the LLM's context window bounded to a constant size per iteration. For a federated knowledge fabric with multiple endpoints, each hosting different vocabularies and named graphs, this is the difference between scalable navigation and context window overflow.
 
 ### Scatter-gather and agentic search
 
@@ -315,6 +319,7 @@ Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–
 
 ## References
 
+- Zhang, A. L., Kraska, T., & Khattab, O. (2025). Recursive Language Models. arXiv:2512.24601v2. https://arxiv.org/abs/2512.24601
 - Ranaldi, F., Zugarini, A., Ranaldi, L., & Zanzotto, F. M. (2025). Protoknowledge shapes behaviour of LLMs in downstream tasks: Memorization and generalization with Knowledge Graphs. arXiv:2505.15501. https://arxiv.org/abs/2505.15501
 - Allemang, D. & Sequeda, J. (2024). Increasing the LLM Accuracy for Question Answering: Ontologies to the Rescue! In *Extended Semantic Web Conference* (LNCS, pp. 324–339). Springer. arXiv:2405.11706. https://arxiv.org/abs/2405.11706
 
