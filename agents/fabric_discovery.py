@@ -30,6 +30,15 @@ class ExampleSummary:
 
 
 @dataclass
+class ExternalService:
+    title: str
+    endpoint_url: str
+    description: str
+    vocabularies: list[str] = field(default_factory=list)
+    examples: list[dict] = field(default_factory=list)
+
+
+@dataclass
 class FabricEndpoint:
     base: str
     sparql_url: str
@@ -48,6 +57,7 @@ class FabricEndpoint:
     vocab_graph_map: dict[str, str] = field(default_factory=dict)
     vp_token: str | None = field(default=None, repr=False)
     agent_did: str | None = field(default=None, repr=False)
+    external_services: list[ExternalService] = field(default_factory=list)
 
     @property
     def routing_plan(self) -> str:
@@ -108,6 +118,22 @@ class FabricEndpoint:
             for sparql_line in e.sparql.strip().splitlines():
                 lines.append(f"    {sparql_line}")
 
+        if self.external_services:
+            lines.append("")
+            lines.append(f"External SPARQL Services ({len(self.external_services)}):")
+            lines.append("  Use query_external_sparql(endpoint_url, query) to query these.")
+            for svc in self.external_services:
+                lines.append(f"")
+                lines.append(f"  {svc.title}")
+                lines.append(f"    URL: {svc.endpoint_url}")
+                lines.append(f"    Description: {svc.description}")
+                if svc.vocabularies:
+                    lines.append(f"    Vocabularies: {', '.join(svc.vocabularies)}")
+                for ex in svc.examples:
+                    lines.append(f'    Example: "{ex["label"]}"')
+                    for sparql_line in ex["query"].strip().splitlines():
+                        lines.append(f"      {sparql_line}")
+
         return "\n".join(lines)
 
 
@@ -117,6 +143,7 @@ VOID = Namespace("http://rdfs.org/ns/void#")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SPEX = Namespace("https://purl.expasy.org/sparql-examples/ontology#")
 SDO = Namespace("https://schema.org/")
+DCAT = Namespace("http://www.w3.org/ns/dcat#")
 FABRIC = Namespace("https://w3id.org/cogitarelink/fabric#")
 
 # --- Helpers ---------------------------------------------------------------
@@ -252,6 +279,32 @@ def _parse_examples(ttl: str) -> list[ExampleSummary]:
             examples.append(ExampleSummary(label=label, comment=comment,
                                            sparql=sparql, target=target))
     return examples
+
+
+def _parse_catalog(ttl: str) -> list[ExternalService]:
+    """Extract dcat:DataService entries from catalog Turtle."""
+    g = Graph()
+    if not ttl.strip():
+        return []
+    g.parse(data=ttl, format="turtle")
+    services = []
+    for s in g.subjects(RDF.type, DCAT.DataService):
+        title = str(g.value(s, DCTERMS.title) or "")
+        url = str(g.value(s, DCAT.endpointURL) or "")
+        desc = str(g.value(s, DCTERMS.description) or "")
+        vocabs = [str(v) for v in g.objects(s, VOID.vocabulary)]
+        examples = []
+        for ex_node in g.objects(s, SPEX.SparqlExample):
+            label = str(g.value(ex_node, RDFS.label) or "")
+            sparql = str(g.value(ex_node, SPEX.query) or "")
+            if sparql:
+                examples.append({"label": label, "query": sparql})
+        if url:
+            services.append(ExternalService(
+                title=title, endpoint_url=url, description=desc,
+                vocabularies=vocabs, examples=examples,
+            ))
+    return services
 
 
 # --- TBox loading (L2) ----------------------------------------------------
