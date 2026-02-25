@@ -53,6 +53,8 @@ class FabricMetrics:
     used_sparql_example: bool             # SPARQL example pattern used as template
     named_graphs_queried: list[str]       # named graph IRIs that appeared in queries
     final_named_graph: str | None         # graph used in the successful query
+    external_query_attempts: int          # calls to query_external_sparql
+    external_endpoints_queried: list[str] # distinct external endpoint URLs targeted
 
 
 @dataclass
@@ -90,6 +92,7 @@ class AggregateStats:
     convergenceRate: float    # fraction of tasks where agent converged
     meanSparqlAttempts: float
     meanEmptyRecoveries: float
+    meanExternalQueries: float
     completedTasks: int
     failedTasks: int
 
@@ -136,6 +139,8 @@ def _extract_fabric_metrics(trajectory: list[dict[str, Any]]) -> FabricMetrics:
     used_example = False
     named_graphs: list[str] = []
     final_graph = None
+    external_attempts = 0
+    external_endpoints: list[str] = []
 
     for i, step in enumerate(trajectory):
         code = step.get('code', '')
@@ -161,6 +166,14 @@ def _extract_fabric_metrics(trajectory: list[dict[str, Any]]) -> FabricMetrics:
             if graphs:
                 final_graph = graphs[-1]
 
+        # Did agent call query_external_sparql?
+        if 'query_external_sparql' in code:
+            external_attempts += 1
+            import re as _re
+            url_match = _re.search(r'query_external_sparql\(\s*["\']([^"\']+)["\']', code)
+            if url_match and url_match.group(1) not in external_endpoints:
+                external_endpoints.append(url_match.group(1))
+
         # Did agent get empty results and need to recover?
         if ('"bindings":[]' in output or '"bindings": []' in output) and sparql_attempts > 0:
             empty_recoveries += 1
@@ -182,6 +195,8 @@ def _extract_fabric_metrics(trajectory: list[dict[str, Any]]) -> FabricMetrics:
         used_sparql_example=used_example,
         named_graphs_queried=named_graphs,
         final_named_graph=final_graph,
+        external_query_attempts=external_attempts,
+        external_endpoints_queried=external_endpoints,
     )
 
 
@@ -256,6 +271,7 @@ def compute_aggregate_stats(results: list[EvalResult]) -> AggregateStats:
         convergenceRate=sum(1 for r in completed if r.converged) / len(completed) if completed else 0.0,
         meanSparqlAttempts=statistics.mean([r.fabric.sparql_attempts for r in fabric_results]) if fabric_results else 0.0,
         meanEmptyRecoveries=statistics.mean([r.fabric.empty_result_recoveries for r in fabric_results]) if fabric_results else 0.0,
+        meanExternalQueries=statistics.mean([r.fabric.external_query_attempts for r in fabric_results]) if fabric_results else 0.0,
         completedTasks=len(completed),
         failedTasks=sum(1 for r in results if r.error is not None),
     )
