@@ -11,7 +11,7 @@
   "readme": "https://github.com/LA3D/cogitarelink-fabric/blob/main/README.md",
   "dateCreated": "2026-02-20",
   "dateModified": "2026-02-25",
-  "developmentStatus": "concept",
+  "developmentStatus": "wip",
   "programmingLanguage": [
     "Python",
     "TypeScript",

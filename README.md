@@ -1,7 +1,7 @@
 # cogitarelink-fabric
 
 [![CodeMeta](https://img.shields.io/badge/CodeMeta-3.1-blue.svg)](https://w3id.org/codemeta/3.1)
-[![Project Status: Concept](https://www.repostatus.org/badges/latest/concept.svg)](https://www.repostatus.org/#concept)
+[![Project Status: WIP](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 
 An agentic cyberinfrastructure testbed: a standards-based research knowledge fabric built on FAIR data principles, W3C semantic web standards, and decentralized identity — with experiments testing how LLM-based agents operate as actors within that infrastructure.
 
