@@ -35,6 +35,50 @@ The core architectural claim. Each fabric node exposes four layers of structured
 
 The agent reads L1 first (compact, orients), then drills into L2-L4 as needed. The `discover_endpoint()` function in `agents/fabric_discovery.py` loads all four layers into a `FabricEndpoint` object, which produces a `routing_plan` text that the RLM agent reads as its initial context.
 
+### Self-description as linked contracts
+
+The four layers aren't just stacked — they're linked. The same shape IRI threads through VoID, the Service Description, and the SHACL document, creating a chain of metadata that an agent (or a validator) can follow from any entry point.
+
+The chain works like this. The PROF profile (`fabric:CoreProfile` in `ontology/fabric-core-profile.ttl`) declares what a conforming node must provide, organized by role: `role:schema` for TBox ontologies, `role:constraints` for SHACL shapes, `role:example` for SPARQL query catalogs, `role:guidance` for agent navigation instructions. A node asserts `dct:conformsTo fabric:CoreProfile` in its VoID root dataset to claim conformance.
+
+Each named graph then declares its own governing shape. The VoID description for `/graph/observations` includes `dct:conformsTo fabric:ObservationShape`; the Service Description's `sd:namedGraph` entry for the same graph carries the same `dct:conformsTo` link. That IRI — `fabric:ObservationShape` — names the actual `sh:NodeShape` in the SHACL document, which declares `sh:targetClass sosa:Observation`, lists required and optional properties with cardinalities and datatypes, and includes `sh:agentInstruction` text with concrete query patterns. The SPARQL examples catalog completes the chain with working queries that demonstrate access patterns against that graph.
+
+```
+fabric:CoreProfile (PROF)
+  ├── role:schema      → SOSA, SIO, OWL-Time, PROV-O (TBox ontologies)
+  ├── role:constraints → fabric:ObservationShape, fabric:EntityShape (SHACL)
+  ├── role:example     → SPARQL examples catalog
+  └── role:guidance    → progressive disclosure instructions
+
+VoID root dataset
+  dct:conformsTo → fabric:CoreProfile
+  void:subset /graph/observations
+    dct:conformsTo → fabric:ObservationShape  ←──┐
+  void:subset /graph/entities                     │
+    dct:conformsTo → fabric:EntityShape           │
+                                                  │
+SD sd:namedGraph /graph/observations              │
+    dct:conformsTo → fabric:ObservationShape  ←───┤
+                                                  │
+SHACL shapes document                             │
+    fabric:ObservationShape  ←────────────────────┘
+      sh:targetClass sosa:Observation
+      sh:property sosa:resultTime (required, xsd:dateTime)
+      sh:property sosa:hasSimpleResult (optional)
+      sh:property sio:has-attribute (optional, class sio:MeasuredValue)
+      sh:agentInstruction "Observations use one of two result patterns..."
+```
+
+This linking creates two kinds of contracts:
+
+**Read contracts.** An agent discovering the endpoint reads VoID, sees that `/graph/observations` conforms to `fabric:ObservationShape`, looks up that shape in the SHACL document, and knows what properties to expect before issuing a single data query. The shape is a guaranteed description of what the graph contains — not a hint, but a constraint the data was validated against. The agent can construct targeted SPARQL queries directly from the shape's property declarations rather than exploring blind.
+
+**Write contracts.** When a curator agent writes new data, the same shapes serve as validation gates. D24 (shape-bound minting) enforces this: `commit_graph` runs SHACL validation against the governing shape before allowing data into the named graph. The `dct:conformsTo` link on the graph tells the validator which shape to apply. Data that doesn't conform doesn't get written. Trust gaps — missing credentials, ambiguous entity deduplication, shape version conflicts — surface as `fabric:PendingTask` notifications delivered to the responsible party's LDN inbox rather than silently accepted.
+
+The PROF profile ties the bundle together. A new node joining the fabric asserts conformance to `fabric:CoreProfile`, which means it commits to providing all four layers with their linking metadata. A bootstrap witness can verify this claim by checking that the `.well-known/` endpoints exist, the VoID subsets declare `dct:conformsTo`, and the referenced shapes are present in the SHACL document. The `FabricConformanceCredential` (D26) then binds these artifacts to cryptographic hashes, so any subsequent tampering is detectable.
+
+The result is metadata that's self-describing all the way down. An agent doesn't need to trust that a graph contains what it claims — it can verify the chain from profile to shape to data. And the same chain that enables agent navigation also enables automated validation, content integrity checking, and human-in-the-loop approval workflows.
+
 ### Agent substrate: RLM as context engineering
 
 Agents are [DSPy](https://github.com/stanfordnlp/dspy) RLM programs — Recursive Language Models (Zhang, Kraska, & Khattab, 2025). An RLM operates a Python REPL loop: the LLM writes code, executes it, reads the output, writes more code — iterating until it can produce an answer. Fabric tools (`sparql_query`, `analyze_rdfs_routes`) are injected into the REPL namespace so the agent can call them from generated code.
@@ -206,7 +250,7 @@ uv pip install -e ".[test]"
 pytest tests/ -v
 
 # Hurl HTTP conformance tests (requires running fabric stack)
-cd tests && make test-hurl-p1    # Phase 1: self-description + SPARQL
+cd tests && make test-hurl-p1    # Phase 1: self-description + SPARQL + content negotiation
 cd tests && make test-hurl-p2    # Phase 2: DID resolution, VCs, LDN, content integrity
 ```
 
@@ -264,7 +308,7 @@ cd tests && make test-hurl-p1
 **pytest** (`tests/pytest/`) — unit tests for agent tooling (`fabric_discovery`, `fabric_rdfs_routes`, `fabric_validate`, trajectory logging) and integration tests that exercise the full agent→gateway→Oxigraph pipeline.
 
 ```bash
-# 127 unit tests currently passing
+# 130 unit tests currently passing
 pytest tests/ -v
 ```
 
@@ -292,9 +336,9 @@ scripts/             CLI tools (sparql_query, shacl_validate)
 credentials/         Mock VCs (Phase 1)
 provenance/          SPDX SBOM + PROV-O activity records
 tests/
-  hurl/phase1/       HTTP conformance tests (13 Hurl files)
+  hurl/phase1/       HTTP conformance tests (15 Hurl files)
   hurl/phase2/       Identity + trust integration tests (18 Hurl files)
-  pytest/unit/       Agent tooling + identity unit tests (127 tests)
+  pytest/unit/       Agent tooling + identity unit tests (130 tests)
   pytest/integration/ Full-stack integration tests
 .claude/
   rules/             Decisions index, Python patterns, coding style
