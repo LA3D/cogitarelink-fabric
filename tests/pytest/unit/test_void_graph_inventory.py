@@ -3,6 +3,7 @@ from rdflib import Graph, Namespace, URIRef
 
 VOID = Namespace("http://rdfs.org/ns/void#")
 DCT = Namespace("http://purl.org/dc/terms/")
+SD = Namespace("http://www.w3.org/ns/sparql-service-description#")
 
 
 def test_void_declares_observations_graph():
@@ -42,3 +43,33 @@ def test_discovery_extracts_named_graphs():
     assert len(named_graphs) == 1
     assert named_graphs[0]["title"] == "Observations"
     assert named_graphs[0]["graph_uri"] == "http://x/graph/observations"
+
+
+def test_void_entities_subset_has_conformsTo():
+    from fabric.node.void_templates import VOID_TURTLE as _VOID_TURTLE
+    ttl = _VOID_TURTLE.format(base="http://localhost:8080")
+    g = Graph()
+    g.parse(data=ttl, format="turtle")
+    for subset in g.objects(predicate=VOID.subset):
+        endpoint = g.value(subset, VOID.sparqlGraphEndpoint)
+        if endpoint and "entities" in str(endpoint):
+            conforms = g.value(subset, DCT.conformsTo)
+            assert conforms is not None, "/graph/entities VoID subset must have dct:conformsTo"
+            assert "fabric" in str(conforms), "conformsTo should reference a fabric shape"
+            return
+    assert False, "VoID must declare /graph/entities as a void:subset"
+
+
+def test_void_metadata_graph_declared():
+    from fabric.node.void_templates import VOID_TURTLE as _VOID_TURTLE
+    ttl = _VOID_TURTLE.format(base="http://localhost:8080")
+    g = Graph()
+    g.parse(data=ttl, format="turtle")
+    metadata_found = False
+    for ng in g.objects(predicate=SD.namedGraph):
+        name = g.value(ng, SD.name)
+        if name and "metadata" in str(name):
+            metadata_found = True
+            title = g.value(ng, DCT.title)
+            assert title is not None, "/graph/metadata sd:namedGraph must have dct:title"
+    assert metadata_found, "SD must declare /graph/metadata as sd:namedGraph"

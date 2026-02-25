@@ -23,10 +23,14 @@ VOID_TURTLE = """\
         ] ;
         sd:namedGraph [
             sd:name <{base}/graph/entities> ;
+            dct:title "Entities" ;
+            dct:conformsTo <https://w3id.org/cogitarelink/fabric#EntityShape> ;
             dct:description "Sensor, platform, and observable-property descriptions (sosa:Sensor, sosa:Platform, sosa:ObservableProperty)." ;
         ] ;
         sd:namedGraph [
             sd:name <{base}/graph/metadata> ;
+            dct:title "Metadata" ;
+            dct:description "Node-level metadata, provenance records, and administrative triples." ;
         ] ;
     ] .
 
@@ -52,6 +56,7 @@ VOID_TURTLE = """\
         dct:title "Entities" ;
         dct:description "Sensor, platform, and observable-property descriptions." ;
         void:sparqlGraphEndpoint <{base}/graph/entities> ;
+        dct:conformsTo <https://w3id.org/cogitarelink/fabric#EntityShape> ;
     ] .
 
 # --- DCAT Dataset Description (D23) ---
@@ -113,7 +118,8 @@ VOID_JSONLD = """\
           "@type": "void:Dataset",
           "dct:title": "Entities",
           "dct:description": "Sensor, platform, and observable-property descriptions.",
-          "void:sparqlGraphEndpoint": {{ "@id": "{base}/graph/entities" }}
+          "void:sparqlGraphEndpoint": {{ "@id": "{base}/graph/entities" }},
+          "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#EntityShape" }}
         }}
       ]
     }},
