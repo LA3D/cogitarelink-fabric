@@ -73,3 +73,36 @@ def test_void_metadata_graph_declared():
             title = g.value(ng, DCT.title)
             assert title is not None, "/graph/metadata sd:namedGraph must have dct:title"
     assert metadata_found, "SD must declare /graph/metadata as sd:namedGraph"
+
+
+def test_discovery_extracts_per_graph_conformsTo():
+    from agents.fabric_discovery import _parse_void
+    ttl = """\
+@prefix void: <http://rdfs.org/ns/void#> .
+@prefix dct:  <http://purl.org/dc/terms/> .
+
+<http://x/.well-known/void>
+    a void:Dataset ;
+    void:sparqlEndpoint <http://x/sparql> ;
+    void:uriSpace "http://x/entity/" ;
+    dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;
+    void:subset [
+        a void:Dataset ;
+        dct:title "Observations" ;
+        void:sparqlGraphEndpoint <http://x/graph/observations> ;
+        dct:conformsTo <https://w3id.org/cogitarelink/fabric#ObservationShape> ;
+    ] ;
+    void:subset [
+        a void:Dataset ;
+        dct:title "Entities" ;
+        void:sparqlGraphEndpoint <http://x/graph/entities> ;
+        dct:conformsTo <https://w3id.org/cogitarelink/fabric#EntityShape> ;
+    ] .
+"""
+    sparql_url, vocabs, conforms, uri_space, named_graphs = _parse_void(ttl)
+    assert conforms == "https://w3id.org/cogitarelink/fabric#CoreProfile"
+    assert len(named_graphs) == 2
+    obs = next(ng for ng in named_graphs if "observations" in ng["graph_uri"])
+    ent = next(ng for ng in named_graphs if "entities" in ng["graph_uri"])
+    assert obs.get("conformsTo") == "https://w3id.org/cogitarelink/fabric#ObservationShape"
+    assert ent.get("conformsTo") == "https://w3id.org/cogitarelink/fabric#EntityShape"

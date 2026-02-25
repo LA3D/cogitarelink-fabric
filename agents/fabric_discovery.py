@@ -182,7 +182,11 @@ def _parse_void(ttl: str) -> tuple[str, list[str], str, str | None, list[dict]]:
             title = str(g.value(subset, DCTERMS.title) or "")
             graph_uri = str(g.value(subset, VOID.sparqlGraphEndpoint) or "")
             if graph_uri:
-                named_graphs.append({"title": title, "graph_uri": graph_uri})
+                entry = {"title": title, "graph_uri": graph_uri}
+                sub_conforms = g.value(subset, DCTERMS.conformsTo)
+                if sub_conforms:
+                    entry["conformsTo"] = str(sub_conforms)
+                named_graphs.append(entry)
     return sparql_url, vocabs, conforms, uri_space, named_graphs
 
 
