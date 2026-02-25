@@ -1,10 +1,10 @@
 # cogitarelink-fabric — Session Memory
 
-## Project State (as of 2026-02-24)
+## Project State (as of 2026-02-25)
 
 **Repo**: `~/dev/git/LA3D/agents/cogitarelink-fabric`
-**Branch**: main (all work merged)
-**Tests**: 113 passing (32 DID resolver unit + 81 existing) + 30 HURL integration (13 phase1 + 17 phase2)
+**Branch**: `feature/bootstrap-admission` (worktree at `.worktrees/bootstrap-admission`)
+**Tests**: 182 unit + 41 HURL (15 phase1 + 26 phase2) — all passing
 
 ## Completed Work
 
@@ -87,6 +87,10 @@ Previous claim of "6/6 tool usage" was wrong — it was 2/6 per run, selectively
 | `agents/__init__.py` | Public API exports |
 | `experiments/fabric_navigation/run_experiment.py` | Phase feature map, `kwarg_builder` with `_RDFS_TOOL_HINT` |
 | `experiments/fabric_navigation/dspy_eval_harness.py` | `FabricNavHarness`, `FabricMetrics`, trajectory logging |
+| `fabric/node/registry.py` | SPARQL builders for `/graph/registry` + `/graph/agents` (D12, D13, D14) |
+| `fabric/node/catalog.py` | rdflib-based VoID→DCAT extraction (D23) |
+| `fabric/node/integrity.py` | D26 content integrity — b58, SHA-256, `verify_related_resources` |
+| `fabric/node/bootstrap.py` | TBox loading + registry self-entry + catalog population |
 
 ## Experiment Phase Map
 
@@ -125,3 +129,27 @@ docker compose up -d    # from ~/dev/git/LA3D/agents/cogitarelink-fabric
 - `~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/2026-02-23-phase4-rdfs-routes-findings.md`
 - `~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/2026-02-24-phase5-cross-graph-findings.md`
 - `~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/2026-02-24-phase6-escape-hatch-findings.md`
+
+### D12/D13/D14/D23 Bootstrap Admission Patterns (2026-02-25)
+
+**New routes** (6 added to `fabric/node/main.py`):
+- `GET /fabric/registry` — CONSTRUCT from `/graph/registry`, content-negotiated
+- `POST /fabric/admission` — full admission flow with D26 verification + witness co-signing
+- `POST /agents/register` — proxy to Credo, INSERT into `/graph/agents`
+- `GET /agents` — CONSTRUCT from `/graph/agents`
+- `GET /agents/{agent_id}` — single agent CONSTRUCT
+- `GET /.well-known/catalog` — CONSTRUCT from `/graph/catalog`
+
+**Credo routes** (2 added to `fabric/credo/src/index.ts`):
+- `POST /credentials/cosign` — witness co-signing with `previousProof` chain
+- `POST /agents/register` — issues `AgentAuthorizationCredential`
+
+**Bootstrap sequencing**: `start.sh` runs uvicorn in background first, polls healthcheck, then runs `bootstrap.py`. Fixes circular dependency: Credo's `waitForGateway()` needs gateway up → gateway needs bootstrap → bootstrap needs Credo VC.
+
+**Self-admission deadlock**: Sync `httpx.get()` in `verify_related_resources` blocks event loop on self-request. Fix: `await asyncio.to_thread(verify_related_resources, remote_vc, fetcher)`.
+
+**rdflib VOID namespace**: `rdflib.namespace.VOID` is a ClosedNamespace lacking `sparqlGraphEndpoint`. Use `VOID = Namespace("http://rdfs.org/ns/void#")` (open) instead.
+
+**HURL patterns**: Use `header "Content-Type" contains "text/turtle"` (Oxigraph adds `; charset=utf-8`). Use `contains` not deprecated `includes`. Oxigraph Turtle uses full URIs — match `dcat#Dataset` not `dcat:Dataset`.
+
+**Test counts**: 15 phase1 HURL + 26 phase2 HURL + 182 unit tests (36 registry + 16 catalog + 14 integrity + 32 DID resolver + 84 existing)
