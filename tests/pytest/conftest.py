@@ -19,6 +19,7 @@ OXIGRAPH = os.environ.get("OXIGRAPH", "http://localhost:7878")
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: marks tests as slow")
+    config.addinivalue_line("markers", "integration: marks tests requiring Docker stack")
     config.addinivalue_line("markers", "llm: marks tests requiring LLM API key")
 
 
