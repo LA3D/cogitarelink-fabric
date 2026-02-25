@@ -1,19 +1,38 @@
 {
-  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
-  "@type": "SoftwareSourceCode",
+  "@context": "https://w3id.org/codemeta/3.1",
+  "type": "SoftwareSourceCode",
   "name": "cogitarelink-fabric",
-  "description": "Federated knowledge fabric prototype: RLM agents navigating self-describing SPARQL endpoints with DID/VC identity and nanopublication-compatible provenance.",
+  "description": "Agentic cyberinfrastructure testbed: a standards-based research knowledge fabric built on FAIR data principles, W3C semantic web standards, and decentralized identity — with experiments testing how LLM-based agents operate as actors within that infrastructure.",
   "version": "0.1.0",
-  "dateCreated": "2026-02-22",
-  "dateModified": "2026-02-22",
   "license": "https://spdx.org/licenses/Apache-2.0",
+  "codeRepository": "https://github.com/LA3D/cogitarelink-fabric",
   "url": "https://github.com/LA3D/cogitarelink-fabric",
-  "programmingLanguage": ["Python", "TypeScript"],
+  "issueTracker": "https://github.com/LA3D/cogitarelink-fabric/issues",
+  "readme": "https://github.com/LA3D/cogitarelink-fabric/blob/main/README.md",
+  "dateCreated": "2026-02-20",
+  "dateModified": "2026-02-25",
+  "developmentStatus": "concept",
+  "programmingLanguage": [
+    "Python",
+    "TypeScript",
+    "SPARQL"
+  ],
+  "runtimePlatform": [
+    "Python 3.11",
+    "Node.js 20"
+  ],
+  "operatingSystem": [
+    "Linux",
+    "macOS"
+  ],
+  "applicationCategory": "Semantic Web",
   "keywords": [
     "knowledge-fabric",
+    "cyberinfrastructure",
     "sparql",
     "rdf",
     "semantic-web",
+    "fair-data",
     "rlm",
     "recursive-language-models",
     "did",
@@ -22,38 +41,47 @@
     "sosa-ssn",
     "self-driving-laboratories",
     "nanopublications",
-    "agentic-memory"
+    "agentic-memory",
+    "linked-data-notifications"
   ],
-  "author": {
-    "@type": "Person",
-    "@id": "https://orcid.org/0000-0003-4091-6059",
-    "givenName": "Charles F.",
-    "familyName": "Vardeman II",
-    "affiliation": {
-      "@type": "Organization",
-      "@id": "https://ror.org/00mkhxb43",
+  "author": [
+    {
+      "id": "https://orcid.org/0000-0003-4091-6059",
+      "type": "Person",
+      "givenName": "Charles F.",
+      "familyName": "Vardeman II",
+      "affiliation": {
+        "type": "Organization",
+        "id": "https://ror.org/00mkhxb43",
+        "name": "University of Notre Dame, Center for Research Computing"
+      },
+      "email": "cvardema@nd.edu"
+    }
+  ],
+  "contributor": [
+    {
+      "type": "SoftwareAgent",
+      "name": "Claude Code (claude-opus-4-6)",
+      "url": "https://claude.ai/claude-code",
+      "description": "Development agent (fabric:DevelopmentAgentRole, D14/D17)"
+    }
+  ],
+  "funder": [
+    {
+      "type": "Organization",
+      "id": "https://ror.org/00mkhxb43",
       "name": "University of Notre Dame"
-    },
-    "email": "cvardema@nd.edu"
-  },
-  "contributor": {
-    "@type": "SoftwareAgent",
-    "name": "Claude Code (claude-sonnet-4-6)",
-    "url": "https://claude.ai/claude-code",
-    "description": "Development agent (fabric:DevelopmentAgentRole, D14/D17)"
-  },
+    }
+  ],
   "softwareRequirements": [
     "Python >= 3.11",
-    "pyoxigraph >= 0.5.5",
-    "pyshacl >= 0.26",
-    "fastapi >= 0.100",
+    "FastAPI >= 0.100",
     "httpx >= 0.25",
-    "dspy-ai >= 2.5",
+    "rdflib >= 7.0",
     "Node.js >= 20",
     "@credo-ts/core >= 0.6.0",
     "Docker >= 24",
     "Oxigraph >= 0.5.5"
   ],
-  "developmentStatus": "wip",
   "isPartOf": "https://github.com/LA3D"
 }
