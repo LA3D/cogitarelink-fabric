@@ -18,24 +18,22 @@
     fabric:vouchedBy <{node_did}> ;
     spex:SparqlExample [
         a spex:SparqlSelectExecutable ;
-        rdfs:label "Lookup compound by name fragment" ;
-        spex:query """PREFIX compound: <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/>
-PREFIX sio: <http://semanticscience.org/resource/>
-SELECT ?cid ?name ?formula WHERE {
-  ?cid a compound:Compound ;
-       rdfs:label ?name ;
-       sio:has-attribute [ a sio:MolecularFormula ; sio:has-value ?formula ] .
-  FILTER(CONTAINS(LCASE(?name), "potassium chloride"))
-} LIMIT 10"""
+        rdfs:label "Lookup molecular formula by CID" ;
+        spex:query """PREFIX sio: <http://semanticscience.org/resource/>
+SELECT ?formula WHERE {
+  <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/CID2244> sio:SIO_000008 ?attr .
+  ?attr a sio:CHEMINF_000042 ; sio:SIO_000300 ?formula .
+} LIMIT 5"""
     ] ;
     spex:SparqlExample [
         a spex:SparqlSelectExecutable ;
-        rdfs:label "Lookup CID by exact name" ;
-        spex:query """PREFIX compound: <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/>
-SELECT ?cid WHERE {
-  ?cid a compound:Compound ; rdfs:label ?name .
-  FILTER(LCASE(?name) = "potassium chloride")
-} LIMIT 5"""
+        rdfs:label "Get compound properties by CID" ;
+        spex:query """PREFIX sio: <http://semanticscience.org/resource/>
+PREFIX dct: <http://purl.org/dc/terms/>
+SELECT ?attrType ?val WHERE {
+  <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/CID2244> sio:SIO_000008 ?attr .
+  ?attr a ?attrType ; sio:SIO_000300 ?val .
+} LIMIT 20"""
     ] .
 
 <{base}/external/qlever-wikidata> a dcat:DataService ;
