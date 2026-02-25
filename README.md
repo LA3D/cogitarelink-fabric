@@ -20,7 +20,7 @@ Three-container fabric node per endpoint:
 
 - **FastAPI gateway** (`fabric/node/`) — `.well-known/` self-description endpoints, `/entity/` URI dereferencing, `/sparql` proxy with content negotiation
 - **Oxigraph** — SPARQL 1.2 triplestore with named graph storage (TBox ontologies, observation data, entity graphs)
-- **Credo-TS sidecar** — DID/VC identity layer (did:webvh + W3C VC 2.0) for future trust and provenance work
+- **Credo-TS sidecar** (`fabric/credo/`) — DID/VC identity layer: creates node DID at startup, self-issues a FabricConformanceCredential binding the node's self-description artifacts to cryptographic hashes, serves DID resolution and VC verification endpoints
 
 ### D9: Four-layer knowledge representation
 
@@ -40,6 +40,43 @@ The agent reads L1 first (compact, orients), then drills into L2-L4 as needed. T
 Agents are [DSPy](https://github.com/stanfordnlp/dspy) RLM programs (Recursive Language Models). An RLM operates a Python REPL loop: the LLM writes code, executes it, reads the output, writes more code — iterating until it can produce an answer. Fabric tools (`sparql_query`, `analyze_rdfs_routes`) are injected into the REPL namespace so the agent can call them from generated code.
 
 The agent substrate is separate from the fabric infrastructure. Agents connect externally via HTTP; the fabric node does not host agents.
+
+### Identity, credentials, and content integrity
+
+The fabric uses W3C and Decentralized Identity Foundation (DIF) standards for node identity and trust. Every standard referenced here has an existing specification, multiple interoperable implementations, and an active community. We chose to adopt them rather than design custom authentication or integrity mechanisms for the same reason we use SHACL rather than inventing a constraint language: the problems are already solved, the edge cases are already discovered, and agents that learn to work with one fabric node can transfer that knowledge to any conformant node.
+
+**Decentralized Identifiers (DIDs)** — Each fabric node has a [did:webvh](https://w3c-ccg.github.io/did-method-webvh/) identifier, a DID method that combines web discoverability with a cryptographically verifiable history log. The node's DID document advertises its verification keys and service endpoints (SPARQL, SHACL, VoID, LDN inbox). Agents resolve DIDs via the W3C DID Resolution HTTP API to discover what a node offers before interacting with it.
+
+Why DIDs and not API keys or OAuth? Because the trust relationship is peer-to-peer, not client-server. A fabric is a federation of autonomous nodes. No central authority issues tokens. Each node proves its identity through its own key material, and any node can verify any other node's claims by resolving its DID and checking signatures. This is the same trust model that the web itself uses (DNS + TLS), extended to machine-readable identity documents.
+
+**Verifiable Credentials (VCs)** — At bootstrap, each node self-issues a `FabricConformanceCredential` following the [W3C Verifiable Credentials Data Model 2.0](https://www.w3.org/TR/vc-data-model-2.0/). This credential attests that the node conforms to `fabric:CoreProfile` and includes a service directory pointing to the node's endpoints. The credential is signed with an [eddsa-jcs-2022](https://www.w3.org/TR/vc-di-eddsa/) Data Integrity proof — JSON Canonicalization Scheme (JCS) + Ed25519, no JSON-LD processing required.
+
+The VC structure matters because it separates the claim ("this node serves SOSA observation data at these endpoints") from the proof ("signed by the node's Ed25519 key at this timestamp"). Agents can verify the signature without trusting the transport layer. When bootstrap-attested credentials arrive (Phase 3), the same VC structure supports multi-proof chaining: the node signs first, then a bootstrap witness co-signs, creating a chain of attestation with no new machinery.
+
+**Content integrity** (D26) — The conformance credential includes a `relatedResource` array (VC Data Model 2.0 §5.3) binding each self-description artifact to its SHA-256 hash:
+
+```json
+"relatedResource": [
+  {
+    "id": "http://localhost:8080/.well-known/void",
+    "digestMultibase": "zBKaAuRCu9dMruLbstDUm4WPaRsGggUC8Ei3H47d7B9Sw",
+    "digestSRI": "sha256-mVbUgqHTiCiUO3T2jkbHjW2VqvTGrPoFinSPStFcknA=",
+    "mediaType": "text/turtle"
+  }
+]
+```
+
+This lets an agent verify that the VoID, SHACL shapes, and SPARQL examples it fetches haven't changed since the credential was issued. The `digestMultibase` format (multibase base58btc prefix `z` + raw SHA-256) follows the conventions used across the DID and VC ecosystem. The `digestSRI` format (Subresource Integrity) follows the W3C SRI specification for browser-compatible verification. Both are computed from the same hash; agents can use whichever format their toolchain supports.
+
+**Linked Data Notifications (LDN)** — Every DID (agent, human, node) advertises an [LDN inbox](https://www.w3.org/TR/ldn/) as a service endpoint. Nodes use `POST /inbox` to deliver JSON-LD notifications (trust gap alerts, catalog updates, delegation requests). The inbox is discoverable via a `Link` header on the DID document, following the LDN specification's discovery mechanism. This replaces custom webhook endpoints with a standard protocol that any LDN-aware client can use.
+
+**Why standards over custom protocols?** Three practical reasons:
+
+1. **Agent transferability.** An agent that learns to resolve a DID, verify a VC signature, and check a `digestMultibase` hash against one fabric node can do the same against any node — or any system outside this project that uses the same standards. Custom protocols create vendor lock-in for agents, not just humans.
+
+2. **Composability.** VC multi-proof chaining, LDN notification delivery, and DID-based service discovery all compose without glue code because they were designed to work together. Adding human-in-the-loop approval (D19) requires no new protocol — it's a second proof on the same credential, delivered via the same inbox.
+
+3. **Edge cases already handled.** DID resolution has defined error codes. VC validation has defined processing rules. Content integrity via `digestMultibase` has defined canonicalization paths (raw bytes now, RDFC-1.0 later). Custom protocols tend to discover these edge cases in production.
 
 ## Experimental results
 
@@ -103,7 +140,8 @@ uv pip install -e ".[test]"
 pytest tests/ -v
 
 # Hurl HTTP conformance tests (requires running fabric stack)
-cd tests && make test-hurl-p1
+cd tests && make test-hurl-p1    # Phase 1: self-description + SPARQL
+cd tests && make test-hurl-p2    # Phase 2: DID resolution, VCs, LDN, content integrity
 ```
 
 ### Run an experiment
@@ -142,7 +180,7 @@ CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1 claude --add-dir ~/Obsidian/obsid
 
 ### What Claude Code has access to
 
-- **CLAUDE.md** — project context, architecture decisions (D1–D22), key commands
+- **CLAUDE.md** — project context, architecture decisions (D1–D26), key commands
 - **`.claude/rules/`** — decisions index (always loaded), Python patterns, coding conventions
 - **`.claude/skills/`** — workflow skills (`/fabric-discover`, `/fabric-test`, `/fabric-status`)
 
@@ -160,14 +198,16 @@ cd tests && make test-hurl-p1
 **pytest** (`tests/pytest/`) — unit tests for agent tooling (`fabric_discovery`, `fabric_rdfs_routes`, `fabric_validate`, trajectory logging) and integration tests that exercise the full agent→gateway→Oxigraph pipeline.
 
 ```bash
-# 81 tests currently passing
+# 127 unit tests currently passing
 pytest tests/ -v
 ```
 
 ## Repo structure
 
 ```
-fabric/              Docker Compose + FastAPI gateway + node config
+fabric/
+  node/                FastAPI gateway + self-description + DID resolution
+  credo/               Credo-TS sidecar (DID/VC identity layer)
 agents/              DSPy/RLM agent implementations
   fabric_discovery.py   Four-layer endpoint discovery (D9)
   fabric_agent.py       FabricQuery signature + result types
@@ -186,8 +226,9 @@ scripts/             CLI tools (sparql_query, shacl_validate)
 credentials/         Mock VCs (Phase 1)
 provenance/          SPDX SBOM + PROV-O activity records
 tests/
-  hurl/phase1/       HTTP conformance tests (12 Hurl files)
-  pytest/unit/       Agent tooling unit tests
+  hurl/phase1/       HTTP conformance tests (13 Hurl files)
+  hurl/phase2/       Identity + trust integration tests (18 Hurl files)
+  pytest/unit/       Agent tooling + identity unit tests (127 tests)
   pytest/integration/ Full-stack integration tests
 .claude/
   rules/             Decisions index, Python patterns, coding style
@@ -195,15 +236,20 @@ tests/
 
 ## Key decisions
 
-Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–D22). The most relevant:
+Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–D26). The most relevant:
 
 | # | Decision | Why it matters |
 |---|---------|----------------|
+| D3 | Credo-TS + did:webvh for identity | Decentralized node identity with verifiable history; no central authority |
 | D4 | Oxigraph Server (SPARQL 1.2) | Named graph support for TBox ontologies + observation data separation |
+| D5 | did:webvh + digestMultibase content integrity | Cryptographic binding between node identity and artifact content |
 | D7 | PROF + VoID + SHACL + SPARQL examples at `.well-known/` | The self-description stack that agents actually read |
 | D9 | Four-layer KR: SD → TBox → shapes → examples | The core architectural claim — progressive disclosure of endpoint knowledge |
+| D12 | Bootstrap admission via FabricConformanceCredential | Self-issued VC attesting profile conformance + service directory |
 | D20 | SDL instrument station use case | Phase 1 motivating scenario: electrochemical observation data with SOSA + SIO |
 | D22 | Fabric ontology at `https://w3id.org/cogitarelink/fabric` | OWL 2 DL vocabulary for fabric concepts (nodes, roles, profiles) |
+| D25 | Linked Data Notifications for actor-to-actor messaging | W3C LDN replaces custom endpoints; every DID advertises an inbox |
+| D26 | Content integrity via relatedResource + digestMultibase | SHA-256 hashes in conformance VC bind artifacts to credential issuance time |
 
 ## Identity
 
