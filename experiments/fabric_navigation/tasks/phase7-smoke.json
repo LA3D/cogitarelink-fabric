@@ -1,0 +1,13 @@
+[
+  {
+    "id": "pubchem-molecular-formula",
+    "query": "What is the molecular formula of aspirin (PubChem CID 2244)?",
+    "context": "http://localhost:8080",
+    "expected": ["C9H8O4"],
+    "metadata": {
+      "description": "Smoke test: agent discovers PubChem endpoint from catalog, queries for aspirin formula.",
+      "task_type": "external",
+      "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/pubchem"
+    }
+  }
+]

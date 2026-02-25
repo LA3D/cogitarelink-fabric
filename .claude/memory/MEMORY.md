@@ -22,6 +22,7 @@
 - **D30 HTTPS migration** (commits `b91573e`–`d51638f`): Caddy TLS-terminating reverse proxy; NODE_BASE → `https://bootstrap.cogitarelink.ai`; tls internal CA; all 247 tests passing
 - **D13 VP-gated SPARQL** (commits `ee60d58`–`b204920`): Credo VP create/verify endpoints; FastAPI `verify_vp_bearer()` dependency on `/sparql` + `/sparql/update`; `FABRIC_AUTH_ENABLED` env var; `POST /test/create-vp` dev helper; `FabricEndpoint.vp_token` + tool-level auth; `register_and_authenticate()` helper; all HURL/pytest tests updated with VP Bearer tokens; experiment harness auth integration; code + security review fixes applied
 - **D10/D24 Write-side infrastructure** (commit `2a34cd2`): four `make_*_tool(ep)` factories in `agents/fabric_write.py`; `fabric:writable` VoID annotations; InstrumentShape + SensorEntityShape SHACL; `agent_did` on FabricEndpoint; PROV-O audit provenance; SPARQL injection prevention; phase7a experiment phase; 40 new tests
+- **Phase 7 catalog discovery experiments** (commits `738bf65`–`ae73d58`): catalog parsing + external query tool + experiment wiring; PubChem CHEMINF_000335 fix; Wikidata task redesigned to Notre Dame city; bootstrap test speedup (190s → 1.7s)
 
 ## Key Architecture Patterns
 
@@ -33,6 +34,10 @@
 - `_is_unbounded_scan()`: regex detector in `fabric_query.py` — catches `<iri> ?p ?o` and `?s ?p ?o` patterns
 - `_strip_entity_lookup()`: regex post-processor in `run_experiment.py` — removes "Entity lookup by IRI" example from SD
 - Phase 6 feature flags: `no-entity-lookup` (strips example), `no-unbounded-scan` (guardrail on sparql_query tool)
+- Phase 7 feature flags: `catalog-in-sd` (appends external services to routing plan), `external-query-tool` (adds `query_external_sparql` to REPL)
+- `_parse_catalog(catalog_ttl)`: rdflib extraction of `dcat:DataService` entries from catalog Turtle → `ExternalService` dataclass list
+- `make_external_query_tool(ep)`: factory in `fabric_query.py`; validates URL against `ep.external_services`; httpx POST with redirect following (QLever 308s); 4000-char truncation
+- `ExternalService` dataclass: `title`, `endpoint_url`, `description`, `vocabularies`, `examples: list[ExampleSummary]`
 - `setup_task_data` graph override fix: per-record `graph` key preserved, setup-level default only applies when absent
 - `teardown_task_data` multi-graph: reads `setup.extra_graphs` list, drops each in addition to primary
 
@@ -151,6 +156,8 @@ Previous claim of "6/6 tool usage" was wrong — it was 2/6 per run, selectively
 | phase5b | rdfs-routes, cross-graph | 1.000 | 4.0 iter, 3.0 SPARQL, 0.4 recoveries; 0/5 tool calls |
 | phase6a | no-rdfs-routes, escape hatch closed | 1.000 | 4.0 iter, 3.0 SPARQL, 0 guardrail hits, 0.2 recoveries |
 | phase6b | rdfs-routes, escape hatch closed | 1.000 | 4.0 iter, 3.0 SPARQL, 2 guardrail hits, 0/5 tool calls |
+| phase7a | no-catalog (control) | 1.000 | 6.8 iter, 5.5 SPARQL, 0 ext_q; agent uses llm_query fallback |
+| phase7b | catalog + external-query-tool | 1.000 | 5.3 iter, 2.0 SPARQL, 1.7 ext_q; 100% convergence; $0.56 |
 
 ## Docker Stack
 
@@ -172,14 +179,16 @@ cd tests && make test-all    # HURL (uses --cacert ../caddy-root.crt)
 
 - **When does the tool add value?** Only for schema introspection where no data exists to ground reasoning. For data tasks, raw triple exploration is equally effective. This may change with truly unfamiliar vocabularies outside pretraining.
 - **Is the tool a guardrail or a capability?** Evidence suggests guardrail (confirmatory mode) rather than capability (new reasoning). The agent does implicit RDFS reasoning regardless — the tool externalizes and verifies it.
-- **Pretraining saturation is the real variable**: Phases 1-6 all use vocabularies partially/fully in pretraining (SOSA, SSN, SIO, DCT). The untested claim: for genuinely unfamiliar vocabularies, the SD alone would be insufficient and the RDFS routes tool would become essential. This is the right next experiment but requires custom/obscure vocabulary.
+- **Pretraining saturation is the real variable**: Phases 1-7 all use vocabularies/facts partially/fully in pretraining. The untested claim: for genuinely unfamiliar vocabularies or obscure data, the SD alone would be insufficient and external tools would become essential. Phase 7 confirms the pattern extends to external endpoints — aspirin's formula, Notre Dame's location are common knowledge.
 - **D9 four-layer KR is validated**: SHACL shapes + SPARQL examples + agent hints + pretraining = sufficient for correct SPARQL construction against self-describing endpoints with known vocabularies.
+- **Catalog discovery changes agent behavior, not outcomes (for known facts)**: Phase 7b agent adopts external query tool on 4/6 tasks (10 total external calls), gets grounded SPARQL answers. Phase 7a agent achieves same scores via llm_query fallback. The behavioral difference is significant: 7b produces evidence-backed answers from actual data, 7a produces pretraining-recalled answers. For scientific applications, this distinction matters even when scores are identical.
 
 ## Findings Docs
 
 - `~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/2026-02-23-phase4-rdfs-routes-findings.md`
 - `~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/2026-02-24-phase5-cross-graph-findings.md`
 - `~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/2026-02-24-phase6-escape-hatch-findings.md`
+- Phase 7 findings: in results at `experiments/fabric_navigation/results/phase7{a,b}-*.json/`
 
 ### D12/D13/D14/D23 Bootstrap Admission Patterns (2026-02-25)
 
