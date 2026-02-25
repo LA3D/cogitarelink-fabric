@@ -4,8 +4,9 @@
 GET {{gateway}}/.well-known/catalog
 Accept: text/turtle
 HTTP 200
-Content-Type: text/turtle
 [Asserts]
-body contains "dcat:Dataset"
+header "Content-Type" contains "text/turtle"
+# Oxigraph may use full URIs or prefixed — match the namespace fragment
+body contains "dcat#Dataset"
 body contains "Observations"
 body contains "/sparql"

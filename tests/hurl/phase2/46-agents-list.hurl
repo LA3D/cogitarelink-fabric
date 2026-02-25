@@ -16,8 +16,8 @@ HTTP 201
 GET {{gateway}}/agents
 Accept: text/turtle
 HTTP 200
-Content-Type: text/turtle
 [Asserts]
+header "Content-Type" contains "text/turtle"
 body contains "RegisteredAgent"
 body contains "agentRole"
 body contains "DevelopmentAgentRole"

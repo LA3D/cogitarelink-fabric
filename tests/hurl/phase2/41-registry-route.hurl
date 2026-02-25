@@ -4,8 +4,8 @@
 GET {{gateway}}/fabric/registry
 Accept: text/turtle
 HTTP 200
-Content-Type: text/turtle
 [Asserts]
+header "Content-Type" contains "text/turtle"
 body contains "FabricNode"
 body contains "nodeDID"
 body contains "did:webvh:"

@@ -14,7 +14,7 @@ HTTP 201
 [Asserts]
 jsonpath "$.agentDid" exists
 jsonpath "$.credential" exists
-jsonpath "$.credential.type" includes "AgentAuthorizationCredential"
+jsonpath "$.credential.type" contains "AgentAuthorizationCredential"
 
 # Error case: invalid role returns 400
 POST {{gateway}}/agents/register

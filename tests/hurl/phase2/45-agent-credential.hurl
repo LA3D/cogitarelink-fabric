@@ -12,12 +12,12 @@ Content-Type: application/json
 ```
 HTTP 201
 [Asserts]
-jsonpath "$.credential.type" includes "VerifiableCredential"
-jsonpath "$.credential.type" includes "AgentAuthorizationCredential"
+jsonpath "$.credential.type" contains "VerifiableCredential"
+jsonpath "$.credential.type" contains "AgentAuthorizationCredential"
 jsonpath "$.credential.issuer" contains "did:webvh:"
 jsonpath "$.credential.credentialSubject.agentRole" == "fabric:QARole"
-jsonpath "$.credential.credentialSubject.authorizedGraphs" includes "/graph/observations"
-jsonpath "$.credential.credentialSubject.authorizedOperations" includes "read"
+jsonpath "$.credential.credentialSubject.authorizedGraphs" contains "/graph/observations"
+jsonpath "$.credential.credentialSubject.authorizedOperations" contains "read"
 jsonpath "$.credential.credentialSubject.homeNode" contains "did:webvh:"
 jsonpath "$.credential.proof.type" == "DataIntegrityProof"
 jsonpath "$.credential.proof.proofValue" startsWith "z"

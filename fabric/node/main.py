@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import pathlib
@@ -413,12 +414,13 @@ async def fabric_admission(request: Request):
             detail=f"VC proof verification failed: {verify_result.get('error', 'unknown')}")
 
     # 4. Verify D26 relatedResource hashes
+    # Run in thread pool — sync httpx would deadlock the event loop on self-admission
     def fetcher(url):
         import httpx as _httpx
-        r = _httpx.get(url)
+        r = _httpx.get(url, timeout=10)
         r.raise_for_status()
         return r.content
-    hash_results = verify_related_resources(remote_vc, fetcher=fetcher)
+    hash_results = await asyncio.to_thread(verify_related_resources, remote_vc, fetcher)
     mismatches = [r for r in hash_results if not r.get("match")]
     if mismatches:
         raise HTTPException(status_code=409,

@@ -8,8 +8,8 @@ Content-Type: application/json
 ```
 HTTP 201
 [Asserts]
-jsonpath "$.type" includes "VerifiableCredential"
-jsonpath "$.type" includes "FabricConformanceCredential"
+jsonpath "$.type" contains "VerifiableCredential"
+jsonpath "$.type" contains "FabricConformanceCredential"
 jsonpath "$.issuer" contains "did:webvh:"
 jsonpath "$.proof" count == 2
 jsonpath "$.proof[1].previousProof" exists
