@@ -11,12 +11,12 @@
     }
   },
   {
-    "id": "wikidata-potentiostat-manufacturer",
-    "query": "Who manufactures potentiostats? Use Wikidata to find instrument manufacturers.",
+    "id": "wikidata-notre-dame-city",
+    "query": "In which city is the University of Notre Dame located according to Wikidata?",
     "context": "http://localhost:8080",
-    "expected": ["Metrohm", "Gamry", "Bio-Logic"],
+    "expected": ["South Bend"],
     "metadata": {
-      "description": "Pure external query: agent must discover the Wikidata QLever endpoint from the fabric catalog and query for manufacturers of potentiostat instruments. Requires understanding wdt:P31 (instance of) and wdt:P176 (manufacturer) properties.",
+      "description": "Pure external query: agent must discover the Wikidata QLever endpoint from the fabric catalog and query for the city where the University of Notre Dame (Q178848) is located. Requires wdt:P131 (located in administrative territorial entity) property.",
       "task_type": "external",
       "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/wikidata"
     }
@@ -84,11 +84,12 @@
             "record_type": "sensor",
             "graph": "http://localhost:8080/graph/entities",
             "subject": "http://localhost:8080/entity/sensor-pgstat204",
-            "rdfs:label": "PGSTAT204 Potentiostat"
+            "rdfs:label": "PGSTAT204 Potentiostat",
+            "schema:manufacturer": "Metrohm Autolab"
           }
         ]
       },
-      "description": "Mixed local+external: observation references sensor via sosa:madeBySensor. Sensor entity in /graph/entities has label 'PGSTAT204 Potentiostat' but no manufacturer. Agent must identify the sensor model from the label, then query Wikidata QLever endpoint for the manufacturer of the PGSTAT204 / Autolab potentiostat (Metrohm).",
+      "description": "Mixed local+external (easy): observation references sensor via sosa:madeBySensor. Sensor entity in /graph/entities has label 'PGSTAT204 Potentiostat' and schema:manufacturer 'Metrohm Autolab'. The answer 'Metrohm' is available locally. Agent may optionally query Wikidata to verify or enrich manufacturer info, but local data suffices.",
       "task_type": "mixed",
       "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/wikidata"
     }

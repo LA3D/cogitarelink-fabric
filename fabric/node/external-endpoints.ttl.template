@@ -22,7 +22,7 @@
         spex:query """PREFIX sio: <http://semanticscience.org/resource/>
 SELECT ?formula WHERE {
   <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/CID2244> sio:SIO_000008 ?attr .
-  ?attr a sio:CHEMINF_000042 ; sio:SIO_000300 ?formula .
+  ?attr a sio:CHEMINF_000335 ; sio:SIO_000300 ?formula .
 } LIMIT 5"""
     ] ;
     spex:SparqlExample [
@@ -38,7 +38,7 @@ SELECT ?attrType ?val WHERE {
 
 <{base}/external/qlever-wikidata> a dcat:DataService ;
     dct:title "QLever Wikidata SPARQL Endpoint" ;
-    dct:description "Wikidata via QLever — instruments, manufacturers, sensors, devices, organizations. Use for instrument identity and provenance enrichment (D20 SDL use case)." ;
+    dct:description "Wikidata via QLever — universities, research institutions, cities, organizations. Use for institutional context and geographic enrichment (D20 SDL use case)." ;
     dcat:endpointURL <https://qlever.cs.uni-freiburg.de/api/wikidata> ;
     void:vocabulary <http://www.wikidata.org/ontology#> ,
                     <http://schema.org/> ,
@@ -46,25 +46,32 @@ SELECT ?attrType ?val WHERE {
     fabric:vouchedBy <{node_did}> ;
     spex:SparqlExample [
         a spex:SparqlSelectExecutable ;
-        rdfs:label "Find manufacturer of instrument by label" ;
+        rdfs:label "Lookup university location by name" ;
         spex:query """PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wd:  <http://www.wikidata.org/entity/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
-SELECT ?item ?itemLabel ?manufacturer ?manufacturerLabel WHERE {
-  ?item rdfs:label "potentiostat"@en ;
-        wdt:P31 wd:Q1183543 ;
-        wdt:P176 ?manufacturer .
-  ?manufacturer rdfs:label ?manufacturerLabel .
-  FILTER(LANG(?manufacturerLabel) = "en")
-} LIMIT 10"""
+PREFIX schema: <http://schema.org/>
+SELECT ?item ?label ?description ?cityLabel WHERE {
+  ?item rdfs:label ?label ;
+        schema:description ?description ;
+        wdt:P31 wd:Q3918 ;
+        wdt:P131 ?city .
+  ?city rdfs:label ?cityLabel .
+  FILTER(LANG(?label) = "en")
+  FILTER(LANG(?description) = "en")
+  FILTER(LANG(?cityLabel) = "en")
+  FILTER(CONTAINS(LCASE(?label), "notre dame"))
+} LIMIT 5"""
     ] ;
     spex:SparqlExample [
         a spex:SparqlSelectExecutable ;
-        rdfs:label "Lookup instrument by Wikidata QID" ;
+        rdfs:label "Lookup entity by Wikidata QID" ;
         spex:query """PREFIX wdt: <http://www.wikidata.org/prop/direct/>
 PREFIX wd:  <http://www.wikidata.org/entity/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX schema: <http://schema.org/>
 SELECT ?label ?description ?instanceOf WHERE {
-  wd:Q185738 rdfs:label ?label ;
+  wd:Q178848 rdfs:label ?label ;
              schema:description ?description ;
              wdt:P31 ?instanceOf .
   FILTER(LANG(?label) = "en")

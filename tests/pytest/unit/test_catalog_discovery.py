@@ -33,7 +33,7 @@ SAMPLE_CATALOG = '''\
         spex:query """PREFIX sio: <http://semanticscience.org/resource/>
 SELECT ?formula WHERE {
   <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/CID2244> sio:SIO_000008 ?attr .
-  ?attr a sio:CHEMINF_000042 ; sio:SIO_000300 ?formula .
+  ?attr a sio:CHEMINF_000335 ; sio:SIO_000300 ?formula .
 } LIMIT 5"""
     ] .
 
