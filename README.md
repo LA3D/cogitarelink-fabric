@@ -57,7 +57,35 @@ That's where W3C standards function as a governance layer for agent-built softwa
 
 The test suite is the enforcement mechanism. The 15 Phase 1 HURL tests don't just verify that the code works — they verify conformance to specific standards behaviors: that `/.well-known/void` returns valid VoID with `dct:conformsTo`, that entity dereferencing supports content negotiation across Turtle, JSON-LD, and N-Triples, that SHACL shapes are served with correct prefix declarations. The 18 Phase 2 tests verify DID resolution, VC signature verification, LDN inbox behavior, and content integrity hashes. A different team building a different fabric node in a different language could run the same HURL tests and know whether their implementation is compatible with ours. The tests are the interoperability specification made executable.
 
-The argument this repository makes by example: agentic software engineering tools will make research software cheap to build. The remaining hard problem is ensuring that what gets built remains interoperable — across institutions, across domains, across time. Standards provide the shared contracts. SHACL shapes provide the data governance. Tests provide the verification. And FAIR principles provide the institutional framework for deciding which standards to adopt, which shapes to require, and which tests to mandate. Without that governance layer, the ease of building becomes the ease of building silos.
+### Two kinds of agents, one governance problem
+
+This repository has two kinds of agents, and both face the same structural problem.
+
+**Construction agents** — software engineering agents like Claude Code — build the infrastructure. They write the FastAPI routes, the SHACL shapes, the SPARQL proxy, the DID resolution endpoints. They operate in a code repository, producing git commits.
+
+**Operational agents** — RLM programs like the IngestCurator and Q&A agents — operate within the infrastructure once built. They navigate SPARQL endpoints, write observation data, resolve entity identifiers. They operate in a knowledge fabric, producing triples.
+
+The insight is that both need the same kinds of governance. An operational agent writing triples to `/graph/observations` needs: a specification to conform to (SHACL shapes), validation before its writes are accepted (`commit_graph` gate), credentials identifying who authorized it (AgentAuthorizationCredential), and provenance recording what it did (PROV-O). A construction agent writing code to `fabric/node/main.py` needs the same things: a specification to conform to (W3C standards), validation before its implementation is accepted (test suite), identification of who it is and who authorized it (agent DID, SPDX SBOM), and provenance recording what it built (git commits with `[Agent: Claude]` prefix).
+
+Without governance, construction agents produce the same interoperability failure that ungoverned operational agents would produce: systems that work internally but can't talk to anything else. The difference is that the failure manifests at a different layer. An ungoverned operational agent writes malformed triples that violate SHACL shapes. An ungoverned construction agent writes a custom query API that violates the SPARQL protocol. Both produce artifacts that are internally consistent but externally incompatible.
+
+The governance mechanisms are structurally parallel:
+
+| Need | Operational agent | Construction agent |
+|---|---|---|
+| **Specification** | SHACL shapes declare required properties | W3C specs declare required protocol behavior |
+| **Validation** | `commit_graph` runs SHACL before accepting triples | Test suite runs HURL/pytest before accepting code |
+| **Identity** | Agent DID + AgentAuthorizationCredential | Agent DID + SPDX SBOM + `[Agent: Claude]` commits |
+| **Authorization** | Delegation VC from human researcher | Skills framework enforces brainstorming → plan → approval pipeline |
+| **Provenance** | PROV-O `prov:wasAssociatedWith` on every write | Git history + PROV-O activity records + EARL conformance reports |
+| **Process governance** | SHACL shapes constrain what data can enter | [Superpowers](https://github.com/obra/superpowers) skills constrain how code is written (TDD, code review, verification) |
+| **Trust gaps** | `fabric:PendingTask` surfaces to human inbox via LDN | Failing tests, code review findings surface to human developer |
+
+The last row is key. Both systems implement human-in-the-loop as a structural property, not an afterthought. The operational agent's trust gaps — missing credentials, ambiguous entity deduplication, shape version conflicts — surface to the responsible researcher's LDN inbox. The construction agent's trust gaps — design decisions, implementation tradeoffs, conformance claims — surface through the skills framework's hard gates: brainstorming requires design approval before code, TDD requires failing tests before implementation, code review requires passing spec compliance before merge. In both cases, the human remains in the responsibility chain not by monitoring every action, but by structuring the process so that the right decisions require human judgment and the routine execution can proceed autonomously.
+
+This symmetry is not accidental. Research cyberinfrastructure that is agentically constructed and agentically operated needs a unified governance model. The construction agent that builds a SPARQL endpoint to spec, tests it against W3C conformance suites, and records its work as EARL results linked to PROV-O provenance is doing the same thing — structurally — as the operational agent that writes observation triples to spec, validates them against SHACL shapes, and records its work as PROV-O activities linked to delegation credentials. The standards are different (W3C test suites vs. SHACL shapes), the artifacts are different (code vs. triples), but the governance pattern is the same: specification → validation → identity → provenance → human accountability.
+
+The argument this repository makes by example: agentic software engineering tools will make research software cheap to build. The remaining hard problem is ensuring that what gets built remains interoperable — across institutions, across domains, across time. Standards provide the shared contracts. SHACL shapes provide the data governance. Skills frameworks provide the process governance. Tests provide the verification. And FAIR principles provide the institutional framework for deciding which standards to adopt, which shapes to require, and which tests to mandate. Without that governance layer — for both the construction agents and the operational agents — the ease of building becomes the ease of building silos.
 
 ## Identifier rot and the persistence problem
 
