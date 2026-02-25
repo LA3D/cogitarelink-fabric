@@ -14,6 +14,20 @@ A **knowledge fabric** is a federation of self-describing SPARQL endpoints where
 
 Structured KR layers — VoID service descriptions, cached TBox ontologies, SHACL shapes with agent instructions, and SPARQL example catalogs — provide sufficient navigational scaffolding for RLM (Recursive Language Model) agents to query unfamiliar knowledge graphs correctly. The scaffolding should measurably outperform unstructured baselines, especially for vocabularies outside the LLM's pretraining distribution.
 
+## The cyberinfrastructure problem
+
+This prototype was built in roughly two weeks using [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and open-source building blocks — Oxigraph, FastAPI, Credo-TS, rdflib, DSPy. Two weeks for a federated knowledge fabric with DID/VC identity, SHACL-validated writes, content negotiation, LDN messaging, and a test suite of 163 tests across two layers. That pace is not unusual for agentic software engineering tools. The same tooling that lets an LLM agent navigate a SPARQL endpoint also lets it build one.
+
+This has a consequence for research software. The traditional barrier to building infrastructure — the months of developer time, the specialized expertise, the institutional procurement — is collapsing. Any research group with a clear specification and an agentic coding assistant can stand up a working system in days. The SaaS moat, where only well-funded teams could build and maintain complex software, erodes when the build cost approaches zero.
+
+The problem that replaces it is interoperability. If every lab, every project, every agent can spin up custom research software quickly, the result is a Cambrian explosion of incompatible systems. Each one works internally. None of them can talk to each other. The bottleneck shifts from "can we build it?" to "can anything exchange data with anything else?" This is the problem FAIR principles were designed to address, but FAIR alone is a set of aspirations — it doesn't specify wire formats, query protocols, or validation contracts.
+
+That's where W3C standards function as a governance layer for agent-built software. When Claude Code builds a SPARQL endpoint in this project, it doesn't invent a query API — it implements the SPARQL 1.2 protocol. When it publishes metadata, it uses VoID and PROF. When it constrains data, it writes SHACL shapes. When it identifies nodes, it creates DIDs and issues Verifiable Credentials. These aren't arbitrary choices; they're the interoperability contracts that let independently-built systems discover and use each other without bilateral integration work.
+
+The test suite is the enforcement mechanism. The 15 Phase 1 HURL tests don't just verify that the code works — they verify conformance to specific standards behaviors: that `/.well-known/void` returns valid VoID with `dct:conformsTo`, that entity dereferencing supports content negotiation across Turtle, JSON-LD, and N-Triples, that SHACL shapes are served with correct prefix declarations. The 18 Phase 2 tests verify DID resolution, VC signature verification, LDN inbox behavior, and content integrity hashes. A different team building a different fabric node in a different language could run the same HURL tests and know whether their implementation is compatible with ours. The tests are the interoperability specification made executable.
+
+The argument this repository makes by example: agentic software engineering tools will make research software cheap to build. The remaining hard problem is ensuring that what gets built remains interoperable — across institutions, across domains, across time. Standards provide the shared contracts. SHACL shapes provide the data governance. Tests provide the verification. And FAIR principles provide the institutional framework for deciding which standards to adopt, which shapes to require, and which tests to mandate. Without that governance layer, the ease of building becomes the ease of building silos.
+
 ## Architecture
 
 Three-container fabric node per endpoint:
