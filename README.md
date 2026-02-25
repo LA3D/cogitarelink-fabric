@@ -55,7 +55,7 @@ The problem that replaces it is interoperability. If every lab, every project, e
 
 That's where W3C standards function as a governance layer for agent-built software. When Claude Code builds a SPARQL endpoint in this project, it doesn't invent a query API — it implements the SPARQL 1.2 protocol. When it publishes metadata, it uses VoID and PROF. When it constrains data, it writes SHACL shapes. When it identifies nodes, it creates DIDs and issues Verifiable Credentials. These aren't arbitrary choices; they're the interoperability contracts that let independently-built systems discover and use each other without bilateral integration work.
 
-The test suite is the enforcement mechanism. The 15 Phase 1 HURL tests don't just verify that the code works — they verify conformance to specific standards behaviors: that `/.well-known/void` returns valid VoID with `dct:conformsTo`, that entity dereferencing supports content negotiation across Turtle, JSON-LD, and N-Triples, that SHACL shapes are served with correct prefix declarations. The 18 Phase 2 tests verify DID resolution, VC signature verification, LDN inbox behavior, and content integrity hashes. A different team building a different fabric node in a different language could run the same HURL tests and know whether their implementation is compatible with ours. The tests are the interoperability specification made executable.
+The test suite is the enforcement mechanism. The 15 Phase 1 HURL tests don't just verify that the code works — they verify conformance to specific standards behaviors: that `/.well-known/void` returns valid VoID with `dct:conformsTo`, that entity dereferencing supports content negotiation across Turtle, JSON-LD, and N-Triples, that SHACL shapes are served with correct prefix declarations. The 27 Phase 2 tests verify DID resolution, VC signature verification, LDN inbox behavior, content integrity hashes, node admission with witness co-signing, agent registration, self-catalog, and external endpoint attestation. A different team building a different fabric node in a different language could run the same HURL tests and know whether their implementation is compatible with ours. The tests are the interoperability specification made executable.
 
 ### Two kinds of agents, one governance problem
 
@@ -219,7 +219,7 @@ A single fabric node is useful, but the architecture is designed for federation:
 
 Navigating a federation is iterative scatter-gather. The agent fans out queries to multiple endpoints in parallel, reduces the results through semantic judgment (ontology alignment, entity resolution, conflict handling), and decides what to query next based on what it learned. This operates at two levels:
 
-**TBox scatter-gather** (run once per fabric, cacheable): The agent queries each endpoint's `.well-known/` metadata — VoID descriptions, SHACL shapes, SPARQL examples. It assesses vocabulary quality, identifies shared and divergent terms, and builds a navigation map of what data exists where and how vocabularies relate. This phase is cheap (metadata is small) and produces the routing knowledge that makes data queries efficient.
+**TBox scatter-gather** (run once per fabric, cacheable): The agent queries each endpoint's `.well-known/` metadata — VoID descriptions, SHACL shapes, SPARQL examples, and the DCAT catalog. It assesses vocabulary quality, identifies shared and divergent terms, and builds a navigation map of what data exists where and how vocabularies relate. The catalog (D23/D29) now includes both local named graphs and external SPARQL endpoints that the node vouches for — QLever's PubChem, Wikidata, and OpenStreetMap endpoints are registered as `dcat:DataService` entries with `fabric:vouchedBy`, vocabulary declarations, and example SPARQL queries. This means an agent can discover both fabric-internal and fabric-external data sources through the same `/.well-known/catalog` interface. This phase is cheap (metadata is small) and produces the routing knowledge that makes data queries efficient.
 
 **ABox scatter-gather** (per question, iterative): Using the navigation map, the agent dispatches data queries to the right endpoints with the right vocabulary. Results come back, the agent resolves entities across sources, handles conflicts, identifies gaps, and iterates. The reduce step requires semantic judgment — recognizing that `up:encodedBy` and `gene:expresses` describe the same biological relationship across two endpoints — which is exactly what LLMs are good at.
 
@@ -460,7 +460,7 @@ The vault is not documentation written after the fact. It is the active planning
 
 Infrastructure is built test-first using two testing layers:
 
-**Hurl tests** (`tests/hurl/phase1/`, `tests/hurl/phase2/`) — HTTP-level conformance tests for the fabric node. Each test file corresponds to a TDD cycle (numbered `01`–`38`), written RED before the feature exists and turned GREEN by implementation. These verify that `.well-known/` endpoints serve correct content, SPARQL queries return expected results, DID resolution follows the W3C DID Resolution HTTP API, LDN inbox implements the W3C LDN spec, and content integrity hashes match. The tests encode specific W3C spec requirements and can be converted to EARL conformance reports (D28).
+**Hurl tests** (`tests/hurl/phase1/`, `tests/hurl/phase2/`) — HTTP-level conformance tests for the fabric node. Each test file corresponds to a TDD cycle (numbered `01`–`48`), written RED before the feature exists and turned GREEN by implementation. These verify that `.well-known/` endpoints serve correct content, SPARQL queries return expected results, DID resolution follows the W3C DID Resolution HTTP API, LDN inbox implements the W3C LDN spec, content integrity hashes match, node admission and agent registration work correctly, and the DCAT catalog includes both local datasets and vouched external endpoints. The tests encode specific W3C spec requirements and can be converted to EARL conformance reports (D28).
 
 ```bash
 # Run all Phase 1 conformance tests
@@ -473,7 +473,7 @@ cd tests && make test-hurl-p2
 **pytest** (`tests/pytest/`) — unit tests for agent tooling (`fabric_discovery`, `fabric_rdfs_routes`, `fabric_validate`, DID resolution, content integrity) and integration tests that exercise the full agent→gateway→Oxigraph pipeline.
 
 ```bash
-# 127 unit tests currently passing
+# 205 unit tests currently passing
 pytest tests/ -v
 ```
 
@@ -502,16 +502,16 @@ credentials/         Mock VCs (Phase 1)
 provenance/          SPDX SBOM + PROV-O activity records
 tests/
   hurl/phase1/       HTTP conformance tests (15 Hurl files)
-  hurl/phase2/       Identity + trust integration tests (18 Hurl files)
-  pytest/unit/       Agent tooling + identity unit tests (130 tests)
-  pytest/integration/ Full-stack integration tests
+  hurl/phase2/       Identity + trust integration tests (27 Hurl files)
+  pytest/unit/       Agent tooling + identity unit tests (188 tests)
+  pytest/integration/ Full-stack integration tests (17 tests)
 .claude/
   rules/             Decisions index, Python patterns, coding style
 ```
 
 ## Key decisions
 
-Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–D28). The most relevant:
+Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–D29). The most relevant:
 
 | # | Decision | Why it matters |
 |---|---------|----------------|
@@ -527,6 +527,7 @@ Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–
 | D26 | Content integrity via relatedResource + digestMultibase | SHA-256 hashes in conformance VC bind artifacts to credential issuance time |
 | D27 | SHACL-gated vocabulary admission | TBox ontologies must pass metadata shapes before entering L2 cache; Five Stars criteria as SHACL |
 | D28 | Conformance evidence chain (EARL + PROV-O) | Test results as linked data; TDD git history → EARL → credential; verifiable loop from spec to agent |
+| D29 | External endpoint attestation via catalog | Fabric nodes vouch for non-fabric SPARQL endpoints (QLever PubChem/Wikidata/OSM) as `dcat:DataService` in catalog; agents discover external data sources through same `/.well-known/catalog` as local graphs |
 
 ## References
 
