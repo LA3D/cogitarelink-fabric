@@ -32,5 +32,7 @@ D24: Shape-bound minting — PID minting atomic with SHACL validation; PROF prof
 
 D25: Linked Data Notifications — W3C LDN as actor-to-actor notification protocol; every DID (agent, human, node) advertises ldp:inbox service endpoint; upgrades D24 trust gap delivery from write-to-local-graph (/graph/pending) to push-to-credential-holder via DID resolution; FastAPI /inbox route (POST receive JSON-LD → /graph/inbox; GET list → ldp:contains); replaces D23 custom catalog-update endpoint with standard LDN; Solid Notifications Protocol deferred to Phase 3 for resource-change subscriptions
 
+D26: Content integrity for self-description artifacts — relatedResource + digestMultibase (VC Data Model 2.0 §5.3) in FabricConformanceCredential binds VoID/SHACL/examples to credential with SHA-256 hashes; two-tier trust: bootstrap-attested (strong, multi-proof at admission) vs self-attested (weaker, node self-signs on artifact update); raw byte hashing initially, RDFC-1.0 canonicalization deferred; TrustyURI (D18) is separate integrity mechanism — incompatible canonicalization but complementary
+
 Full log: ~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Prototype-Decisions.md
 Use case: ~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Use-Case-SDL-Instrument.md
