@@ -22,6 +22,7 @@ services:
     environment:
       OXIGRAPH_URL: http://oxigraph:7878
       NODE_BASE: http://localhost:8080
+      CREDO_URL: http://credo-sidecar:3000
       SHARED_DIR: /shared
     volumes:
       - ./shapes:/app/shapes:ro

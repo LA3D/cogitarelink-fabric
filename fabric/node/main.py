@@ -22,9 +22,26 @@ except ModuleNotFoundError:
         build_error_result, build_deref_result, decode_webvh_domain,
         sparql_escape, is_valid_uuid, uuid7,
     )
+try:
+    from fabric.node.registry import (
+        build_registry_construct, build_registry_insert,
+        build_agents_list_construct, build_agent_construct, build_agent_insert,
+        check_void_conformance, VALID_AGENT_ROLES, FABRIC_NS,
+    )
+except ModuleNotFoundError:
+    from registry import (
+        build_registry_construct, build_registry_insert,
+        build_agents_list_construct, build_agent_construct, build_agent_insert,
+        check_void_conformance, VALID_AGENT_ROLES, FABRIC_NS,
+    )
+try:
+    from fabric.node.integrity import verify_related_resources
+except ModuleNotFoundError:
+    from integrity import verify_related_resources
 
 OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
+CREDO_URL = os.environ.get("CREDO_URL", "http://localhost:3000")
 SHAPES_DIR = pathlib.Path(os.environ.get("SHAPES_DIR", "/app/shapes"))
 SPARQL_DIR = pathlib.Path(os.environ.get("SPARQL_DIR", "/app/sparql"))
 ONTOLOGY_DIR = pathlib.Path(os.environ.get("ONTOLOGY_DIR", "/app/ontology"))
@@ -43,7 +60,11 @@ _HOP_BY_HOP = {"transfer-encoding", "connection", "keep-alive"}
 @asynccontextmanager
 async def lifespan(app):
     app.state.http = httpx.AsyncClient(base_url=OXIGRAPH_URL)
+    app.state.http_credo = httpx.AsyncClient(base_url=CREDO_URL)
+    app.state.http_external = httpx.AsyncClient()
     yield
+    await app.state.http_external.aclose()
+    await app.state.http_credo.aclose()
     await app.state.http.aclose()
 
 
@@ -316,6 +337,162 @@ async def ldn_inbox_get(notification_id: str):
         raise HTTPException(status_code=404, detail="Notification not found")
     content_str = bindings[0]["content"]["value"]
     return JSONResponse(content=json.loads(content_str), media_type="application/ld+json")
+
+
+# --- Phase 2: Registry + Admission + Agents (D12, D13, D14) ---
+
+async def _sparql_construct(query: str, accept: str) -> Response:
+    """Run a CONSTRUCT query and return content-negotiated response."""
+    if "application/ld+json" in accept:
+        fmt = "application/ld+json"
+    else:
+        fmt = "text/turtle"
+    resp = await app.state.http.get(
+        "/query", params={"query": query}, headers={"Accept": fmt},
+    )
+    return Response(content=resp.content, status_code=resp.status_code, media_type=fmt)
+
+
+@app.get("/fabric/registry")
+async def fabric_registry(request: Request):
+    """D12: List all registered fabric nodes."""
+    accept = request.headers.get("accept", "text/turtle")
+    query = build_registry_construct(NODE_BASE)
+    return await _sparql_construct(query, accept)
+
+
+@app.post("/fabric/admission")
+async def fabric_admission(request: Request):
+    """D12: Admit a node to the fabric with witness co-signing."""
+    body = await request.json()
+    remote_base = body.get("nodeBase", "").rstrip("/")
+    if not remote_base:
+        raise HTTPException(status_code=400, detail="nodeBase required")
+
+    # 1. Fetch remote conformance VC
+    try:
+        vc_resp = await app.state.http_external.get(
+            f"{remote_base}/.well-known/conformance-vc.json")
+        vc_resp.raise_for_status()
+        remote_vc = vc_resp.json()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Cannot fetch conformance VC: {e}")
+
+    # 2. Fetch remote VoID and check conformance
+    try:
+        void_resp = await app.state.http_external.get(
+            f"{remote_base}/.well-known/void",
+            headers={"Accept": "text/turtle"})
+        void_resp.raise_for_status()
+        void_turtle = void_resp.text
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Cannot fetch VoID: {e}")
+
+    if not check_void_conformance(void_turtle):
+        raise HTTPException(status_code=422,
+            detail="VoID missing dct:conformsTo fabric:CoreProfile")
+
+    # 3. Verify VC proof via Credo
+    verify_resp = await app.state.http_credo.post(
+        "/credentials/verify", json=remote_vc)
+    verify_result = verify_resp.json()
+    if not verify_result.get("verified"):
+        raise HTTPException(status_code=403,
+            detail=f"VC proof verification failed: {verify_result.get('error', 'unknown')}")
+
+    # 4. Verify D26 relatedResource hashes
+    def fetcher(url):
+        import httpx as _httpx
+        r = _httpx.get(url)
+        r.raise_for_status()
+        return r.content
+    hash_results = verify_related_resources(remote_vc, fetcher=fetcher)
+    mismatches = [r for r in hash_results if not r.get("match")]
+    if mismatches:
+        raise HTTPException(status_code=409,
+            detail=f"D26 hash mismatch: {[m['url'] for m in mismatches]}")
+
+    # 5. Co-sign VC via Credo
+    cosign_resp = await app.state.http_credo.post(
+        "/credentials/cosign", json=remote_vc)
+    if cosign_resp.status_code >= 400:
+        raise HTTPException(status_code=502,
+            detail=f"Co-signing failed: {cosign_resp.text}")
+    cosigned_vc = cosign_resp.json()
+
+    # 6. Insert remote node into /graph/registry
+    remote_did = remote_vc.get("issuer", "")
+    local_vc = SHARED_DIR / "conformance-vc.json"
+    local_did = ""
+    if local_vc.exists():
+        try:
+            local_did = json.loads(local_vc.read_text()).get("issuer", "")
+        except Exception:
+            pass
+    sparql = build_registry_insert(remote_base, remote_did, registered_by=local_did or None)
+    resp = await app.state.http.post(
+        "/update", content=sparql.encode(),
+        headers={"Content-Type": "application/sparql-update"})
+
+    return JSONResponse(status_code=201, content=cosigned_vc)
+
+
+@app.post("/agents/register")
+async def agent_register(request: Request):
+    """D13/D14: Register an agent and issue AgentAuthorizationCredential."""
+    body = await request.json()
+    agent_role = body.get("agentRole", "")
+    authorized_graphs = body.get("authorizedGraphs", [])
+    authorized_operations = body.get("authorizedOperations", [])
+
+    if agent_role not in VALID_AGENT_ROLES:
+        raise HTTPException(status_code=400,
+            detail=f"Invalid agentRole: {agent_role}. Must be one of {sorted(VALID_AGENT_ROLES)}")
+
+    # Proxy to Credo sidecar
+    credo_resp = await app.state.http_credo.post("/agents/register", json=body)
+    if credo_resp.status_code >= 400:
+        raise HTTPException(status_code=credo_resp.status_code, detail=credo_resp.text)
+    result = credo_resp.json()
+
+    # Insert agent into /graph/agents
+    agent_did = result.get("agentDid", "")
+    if agent_did:
+        sparql = build_agent_insert(
+            NODE_BASE, agent_did, agent_role,
+            authorized_graphs, authorized_operations)
+        await app.state.http.post(
+            "/update", content=sparql.encode(),
+            headers={"Content-Type": "application/sparql-update"})
+
+    return JSONResponse(status_code=201, content=result)
+
+
+@app.get("/agents")
+async def agents_list(request: Request):
+    """D13: List all registered agents."""
+    accept = request.headers.get("accept", "text/turtle")
+    query = build_agents_list_construct(NODE_BASE)
+    return await _sparql_construct(query, accept)
+
+
+@app.get("/agents/{agent_id}")
+async def agent_get(agent_id: str, request: Request):
+    """D13: Get a single agent by ID."""
+    if not is_valid_uuid(agent_id):
+        raise HTTPException(status_code=400, detail="Invalid agent ID")
+    # Reconstruct agent DID from the ID segment
+    local_vc = SHARED_DIR / "conformance-vc.json"
+    node_did = ""
+    if local_vc.exists():
+        try:
+            node_did = json.loads(local_vc.read_text()).get("issuer", "")
+        except Exception:
+            pass
+    agent_did = f"{node_did}:agents:{agent_id}" if node_did else f"{NODE_BASE}/agents/{agent_id}"
+    accept = request.headers.get("accept", "text/turtle")
+    query = build_agent_construct(NODE_BASE, agent_did)
+    return await _sparql_construct(query, accept)
 
 
 async def _proxy(request: Request, upstream_path: str) -> Response:
