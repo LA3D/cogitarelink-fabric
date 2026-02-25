@@ -105,3 +105,42 @@ def make_fabric_query_tool(
         except Exception as e:
             return f"SPARQL error: {e}"
     return sparql_query
+
+
+def make_external_query_tool(
+    ep: FabricEndpoint,
+    max_chars: int = 10_000,
+) -> Callable:
+    """Return a query_external_sparql(endpoint_url, query) function for catalog-listed endpoints.
+
+    Only allows URLs that appear in ep.external_services (safety gate).
+    Follows redirects (QLever returns 308). Same error-surfacing pattern as sparql_query.
+    """
+    allowed = {svc.endpoint_url for svc in ep.external_services}
+
+    def query_external_sparql(endpoint_url: str, query: str) -> str:
+        """Execute SPARQL against an external endpoint listed in the fabric catalog.
+        Returns JSON results. Only catalog-listed endpoint URLs are allowed."""
+        if endpoint_url not in allowed:
+            return (
+                f"Error: endpoint {endpoint_url} not in catalog. "
+                f"Allowed endpoints: {', '.join(sorted(allowed)) or 'none'}"
+            )
+        try:
+            r = httpx.post(
+                endpoint_url,
+                data={"query": query},
+                headers={"Accept": "application/sparql-results+json"},
+                timeout=30.0,
+                follow_redirects=True,
+            )
+            r.raise_for_status()
+            txt = r.text
+            if len(txt) > max_chars:
+                return txt[:max_chars] + f"\n... truncated ({len(txt)} total chars)."
+            return txt
+        except httpx.HTTPStatusError as e:
+            return f"External SPARQL error (HTTP {e.response.status_code}): {e.response.text[:500]}"
+        except Exception as e:
+            return f"External SPARQL error: {e}"
+    return query_external_sparql
