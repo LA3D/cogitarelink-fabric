@@ -422,9 +422,18 @@ fabric:Published
     dct:created       "2026-02-22"^^xsd:date .
 
 
+fabric:vouchedBy
+    a owl:ObjectProperty ;
+    rdfs:label        "vouched by"@en ;
+    skos:definition   "A fabric node that attests an external SPARQL endpoint is trustworthy and provides its service description. Used on dcat:DataService entries in /graph/catalog (D29)."@en ;
+    rdfs:domain       dcat:DataService ;
+    rdfs:range        fabric:FabricNode ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-02-26"^^xsd:date .
+
 # ============================================================
 # END OF VOCABULARY
 # Five-star status: ★★★★ (★★★★★ pending external vocabulary adoption + LOV registration)
-# Version: 0.1.0  |  Date: 2026-02-22
+# Version: 0.2.0  |  Date: 2026-02-26
 # Source: https://github.com/LA3D/cogitarelink-fabric/ontology/fabric.ttl
 # ============================================================

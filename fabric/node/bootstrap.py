@@ -16,6 +16,10 @@ try:
 except ModuleNotFoundError:
     from catalog import extract_dcat_from_void, build_catalog_insert
 try:
+    from fabric.node.external_endpoints import load_external_endpoints_ttl
+except ModuleNotFoundError:
+    from external_endpoints import load_external_endpoints_ttl
+try:
     from fabric.node.void_templates import VOID_TURTLE
 except ModuleNotFoundError:
     from void_templates import VOID_TURTLE
@@ -113,6 +117,39 @@ def populate_catalog(node_did: str) -> None:
     print(f"  Catalog ({len(datasets)} datasets): HTTP {status}", flush=True)
 
 
+def post_graph(graph_uri: str, ttl: str, retries: int = 2) -> None:
+    """POST Turtle to Oxigraph Graph Store (appends to existing graph)."""
+    encoded = urllib.parse.quote(graph_uri, safe="")
+    url = f"{OXIGRAPH_URL}/store?graph={encoded}"
+    for attempt in range(retries + 1):
+        try:
+            req = urllib.request.Request(
+                url, data=ttl.encode(), method="POST",
+                headers={"Content-Type": "text/turtle"},
+            )
+            with urllib.request.urlopen(req) as r:
+                print(f"  POST <{graph_uri}>: HTTP {r.status}", flush=True)
+            return
+        except urllib.error.URLError as e:
+            if attempt < retries:
+                print(f"  Retry {attempt + 1}/{retries}: {e}", flush=True)
+                time.sleep(1)
+            else:
+                raise
+
+
+def populate_external_endpoints(node_did: str) -> None:
+    """Load vouched external SPARQL endpoints into /graph/catalog (D29)."""
+    print("Loading external endpoint attestations into /graph/catalog...", flush=True)
+    try:
+        ttl = load_external_endpoints_ttl(NODE_BASE, node_did)
+        catalog_graph = f"{NODE_BASE}/graph/catalog"
+        post_graph(catalog_graph, ttl)
+        print(f"  External endpoints (QLever Wikidata/PubChem/OSM): loaded", flush=True)
+    except Exception as e:
+        print(f"  WARNING: external endpoints load failed ({e}), continuing...", flush=True)
+
+
 def main() -> None:
     print(f"Bootstrap: OXIGRAPH={OXIGRAPH_URL}, NODE_BASE={NODE_BASE}", flush=True)
 
@@ -126,6 +163,7 @@ def main() -> None:
         if node_did:
             register_self(node_did)
             populate_catalog(node_did)
+            populate_external_endpoints(node_did)
         else:
             print("WARNING: conformance VC has no issuer — skipping registry/catalog", flush=True)
     else:

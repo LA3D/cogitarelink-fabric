@@ -89,15 +89,15 @@ INSERT DATA {{
 
 
 def build_catalog_construct(node_base: str) -> str:
-    """SPARQL CONSTRUCT returning all entries in /graph/catalog."""
+    """SPARQL CONSTRUCT returning all entries in /graph/catalog (Dataset + DataService)."""
     return f"""\
 PREFIX dcat: <http://www.w3.org/ns/dcat#>
 PREFIX dct:  <http://purl.org/dc/terms/>
 PREFIX void: <http://rdfs.org/ns/void#>
 PREFIX xsd:  <http://www.w3.org/2001/XMLSchema#>
-CONSTRUCT {{ ?ds ?p ?o }}
+CONSTRUCT {{ ?s ?p ?o }}
 WHERE {{
   GRAPH <{node_base}/graph/catalog> {{
-    ?ds a dcat:Dataset ; ?p ?o .
+    ?s ?p ?o .
   }}
 }}"""

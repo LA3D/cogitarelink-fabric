@@ -1,0 +1,104 @@
+@prefix dct:    <http://purl.org/dc/terms/> .
+@prefix dcat:   <http://www.w3.org/ns/dcat#> .
+@prefix void:   <http://rdfs.org/ns/void#> .
+@prefix fabric: <https://w3id.org/cogitarelink/fabric#> .
+@prefix spex:   <https://purl.expasy.org/sparql-examples/ontology#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+# D29: External SPARQL endpoint attestation — vouched by this fabric node.
+# Loaded by bootstrap.py after self-catalog step; entries added to /graph/catalog.
+
+<{base}/external/qlever-pubchem> a dcat:DataService ;
+    dct:title "QLever PubChem SPARQL Endpoint" ;
+    dct:description "PubChem RDF via QLever — chemical compounds, CIDs, molecular properties, InChI/SMILES, bioassays. Use for reagent/analyte enrichment in SDL observation data (D20)." ;
+    dcat:endpointURL <https://qlever.cs.uni-freiburg.de/api/pubchem> ;
+    void:vocabulary <http://rdf.ncbi.nlm.nih.gov/pubchem/vocabulary> ,
+                    <http://semanticscience.org/resource/> ;
+    fabric:vouchedBy <{node_did}> ;
+    spex:SparqlExample [
+        a spex:SparqlSelectExecutable ;
+        rdfs:label "Lookup compound by name fragment" ;
+        spex:query """PREFIX compound: <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/>
+PREFIX sio: <http://semanticscience.org/resource/>
+SELECT ?cid ?name ?formula WHERE {
+  ?cid a compound:Compound ;
+       rdfs:label ?name ;
+       sio:has-attribute [ a sio:MolecularFormula ; sio:has-value ?formula ] .
+  FILTER(CONTAINS(LCASE(?name), "potassium chloride"))
+} LIMIT 10"""
+    ] ;
+    spex:SparqlExample [
+        a spex:SparqlSelectExecutable ;
+        rdfs:label "Lookup CID by exact name" ;
+        spex:query """PREFIX compound: <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/>
+SELECT ?cid WHERE {
+  ?cid a compound:Compound ; rdfs:label ?name .
+  FILTER(LCASE(?name) = "potassium chloride")
+} LIMIT 5"""
+    ] .
+
+<{base}/external/qlever-wikidata> a dcat:DataService ;
+    dct:title "QLever Wikidata SPARQL Endpoint" ;
+    dct:description "Wikidata via QLever — instruments, manufacturers, sensors, devices, organizations. Use for instrument identity and provenance enrichment (D20 SDL use case)." ;
+    dcat:endpointURL <https://qlever.cs.uni-freiburg.de/api/wikidata> ;
+    void:vocabulary <http://www.wikidata.org/ontology#> ,
+                    <http://schema.org/> ,
+                    <http://www.wikidata.org/prop/direct/> ;
+    fabric:vouchedBy <{node_did}> ;
+    spex:SparqlExample [
+        a spex:SparqlSelectExecutable ;
+        rdfs:label "Find manufacturer of instrument by label" ;
+        spex:query """PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wd:  <http://www.wikidata.org/entity/>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?item ?itemLabel ?manufacturer ?manufacturerLabel WHERE {
+  ?item rdfs:label "potentiostat"@en ;
+        wdt:P31 wd:Q1183543 ;
+        wdt:P176 ?manufacturer .
+  ?manufacturer rdfs:label ?manufacturerLabel .
+  FILTER(LANG(?manufacturerLabel) = "en")
+} LIMIT 10"""
+    ] ;
+    spex:SparqlExample [
+        a spex:SparqlSelectExecutable ;
+        rdfs:label "Lookup instrument by Wikidata QID" ;
+        spex:query """PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+PREFIX wd:  <http://www.wikidata.org/entity/>
+SELECT ?label ?description ?instanceOf WHERE {
+  wd:Q185738 rdfs:label ?label ;
+             schema:description ?description ;
+             wdt:P31 ?instanceOf .
+  FILTER(LANG(?label) = "en")
+  FILTER(LANG(?description) = "en")
+} LIMIT 5"""
+    ] .
+
+<{base}/external/qlever-osm> a dcat:DataService ;
+    dct:title "QLever OpenStreetMap SPARQL Endpoint" ;
+    dct:description "OpenStreetMap via QLever — geographic features, research facilities, laboratories, institutions. Use for geographic context of observation locations (D20 SDL use case)." ;
+    dcat:endpointURL <https://qlever.cs.uni-freiburg.de/api/osm-planet> ;
+    void:vocabulary <https://www.openstreetmap.org/wiki/Key:> ;
+    fabric:vouchedBy <{node_did}> ;
+    spex:SparqlExample [
+        a spex:SparqlSelectExecutable ;
+        rdfs:label "Find research facilities near coordinates" ;
+        spex:query """PREFIX geo: <http://www.opengis.net/ont/geosparql#>
+PREFIX osmkey: <https://www.openstreetmap.org/wiki/Key:>
+PREFIX osmrel: <https://osm2rdf.cs.uni-freiburg.de/rdf/relation#>
+SELECT ?place ?name ?amenity WHERE {
+  ?place osmkey:amenity ?amenity ;
+         osmkey:name ?name .
+  FILTER(?amenity IN ("laboratory", "research_institute", "university"))
+} LIMIT 10"""
+    ] ;
+    spex:SparqlExample [
+        a spex:SparqlSelectExecutable ;
+        rdfs:label "Lookup facility by name substring" ;
+        spex:query """PREFIX osmkey: <https://www.openstreetmap.org/wiki/Key:>
+SELECT ?place ?name ?type WHERE {
+  ?place osmkey:name ?name .
+  OPTIONAL { ?place osmkey:amenity ?type }
+  FILTER(CONTAINS(LCASE(?name), "notre dame"))
+} LIMIT 10"""
+    ] .

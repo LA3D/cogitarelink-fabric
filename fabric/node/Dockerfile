@@ -5,7 +5,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py bootstrap.py start.sh void_templates.py did_resolver.py integrity.py registry.py catalog.py ./
+COPY main.py bootstrap.py start.sh void_templates.py did_resolver.py integrity.py registry.py catalog.py external_endpoints.py ./
+COPY external-endpoints.ttl.template ./
 RUN chmod +x start.sh
 
 EXPOSE 8080
