@@ -34,5 +34,7 @@ D25: Linked Data Notifications — W3C LDN as actor-to-actor notification protoc
 
 D26: Content integrity for self-description artifacts — relatedResource + digestMultibase (VC Data Model 2.0 §5.3) in FabricConformanceCredential binds VoID/SHACL/examples to credential with SHA-256 hashes; two-tier trust: bootstrap-attested (strong, multi-proof at admission) vs self-attested (weaker, node self-signs on artifact update); raw byte hashing initially, RDFC-1.0 canonicalization deferred; TrustyURI (D18) is separate integrity mechanism — incompatible canonicalization but complementary
 
+D27: SHACL-gated vocabulary admission — TBox ontologies at L2 must pass VocabularyMetadataShape before admission to /ontology/* named graphs; tiered conformance: VocabularyMinimalShape (all cached ontologies — dct:title, dct:license, term label coverage) + VocabularyFullShape (fabric-authored — Five Stars: voaf:reliesOn, voaf:classNumber, vann:preferredNamespaceUri); enforced at bootstrap loading + runtime curator writes + node admission (D12); PROF profiles declare fabric:vocabularyTier per ontology; same governance pattern as D24 (shape-bound minting) applied upward to vocabularies; connects Janowicz et al. 2014 + Cox et al. 2021 to enforceable SHACL shapes
+
 Full log: ~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Prototype-Decisions.md
 Use case: ~/Obsidian/obsidian/01 - Projects/Knowledge Fabric Prototyping/KF-Use-Case-SDL-Instrument.md
