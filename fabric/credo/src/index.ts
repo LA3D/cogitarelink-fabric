@@ -37,6 +37,7 @@ import { canonicalize } from 'json-canonicalize'
 const PORT = parseInt(process.env.PORT ?? '3000', 10)
 const NODE_DOMAIN = process.env.NODE_DOMAIN ?? 'localhost:8080'
 const NODE_BASE = process.env.NODE_BASE ?? 'http://localhost:8080'
+const GATEWAY_INTERNAL = process.env.GATEWAY_INTERNAL ?? NODE_BASE
 const SHARED_DIR = process.env.SHARED_DIR ?? '/shared'
 
 const config: InitConfig = {
@@ -188,6 +189,41 @@ function ensureSharedDir() {
   if (!fs.existsSync(SHARED_DIR)) fs.mkdirSync(SHARED_DIR, { recursive: true })
 }
 
+async function waitForGateway(maxWaitMs = 30000): Promise<void> {
+  const start = Date.now()
+  let delay = 500
+  while (Date.now() - start < maxWaitMs) {
+    try {
+      const resp = await fetch(`${GATEWAY_INTERNAL}/.well-known/void`)
+      if (resp.ok) {
+        console.log('Gateway ready')
+        return
+      }
+    } catch { /* gateway not up yet */ }
+    await new Promise(r => setTimeout(r, delay))
+    delay = Math.min(delay * 2, 4000)
+  }
+  throw new Error(`Gateway not ready after ${maxWaitMs}ms`)
+}
+
+async function computeDigestMultibase(externalUrl: string): Promise<{
+  id: string
+  digestMultibase: string
+  digestSRI: string
+  mediaType: string
+}> {
+  // Fetch via internal Docker network, but record external URL as id
+  const internalUrl = externalUrl.replace(NODE_BASE, GATEWAY_INTERNAL)
+  const resp = await fetch(internalUrl)
+  if (!resp.ok) throw new Error(`Failed to fetch ${internalUrl}: ${resp.status}`)
+  const body = new Uint8Array(await resp.arrayBuffer())
+  const mediaType = resp.headers.get('content-type')?.split(';')[0]?.trim() ?? 'application/octet-stream'
+  const hash = Hasher.hash(body, 'sha-256')
+  const digestMultibase = base58btcEncode(hash)
+  const digestSRI = 'sha256-' + Buffer.from(hash).toString('base64')
+  return { id: externalUrl, digestMultibase, digestSRI, mediaType }
+}
+
 function encodeDomain(domain: string): string {
   return domain.replace(':', '%3A')
 }
@@ -218,6 +254,7 @@ function getVerificationMethodId(didDoc: any): string {
 async function issueVC(
   type: string[],
   subject: Record<string, unknown>,
+  relatedResource?: Array<{ id: string; digestMultibase: string; digestSRI: string; mediaType: string }>,
 ): Promise<Record<string, unknown>> {
   if (!nodeDid) throw new Error('Node DID not initialized')
 
@@ -230,6 +267,9 @@ async function issueVC(
     issuer: nodeDid,
     validFrom: new Date().toISOString(),
     credentialSubject: { ...subject },
+  }
+  if (relatedResource?.length) {
+    credential.relatedResource = relatedResource
   }
 
   const proof = await createProof(credential, {
@@ -350,7 +390,17 @@ async function bootstrap() {
 
   await writeDIDLog(nodeDid)
 
-  // 2. Self-issue FabricConformanceCredential (D12)
+  // 2. Wait for gateway and hash self-description artifacts (D26)
+  await waitForGateway()
+  const artifacts = [
+    `${NODE_BASE}/.well-known/void`,
+    `${NODE_BASE}/.well-known/shacl`,
+    `${NODE_BASE}/.well-known/sparql-examples`,
+  ]
+  const relatedResource = await Promise.all(artifacts.map(computeDigestMultibase))
+  console.log(`Hashed ${relatedResource.length} artifacts for relatedResource`)
+
+  // 3. Self-issue FabricConformanceCredential (D12, D26)
   const vc = await issueVC(
     ['FabricConformanceCredential'],
     {
@@ -364,6 +414,7 @@ async function bootstrap() {
       ldnInbox: `${NODE_BASE}/inbox`,
       attestedAt: new Date().toISOString(),
     },
+    relatedResource,
   )
 
   ensureSharedDir()

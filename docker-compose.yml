@@ -42,12 +42,15 @@ services:
       WALLET_KEY: "fabric-dev-key-change-in-production"
       NODE_DOMAIN: "localhost:8080"
       NODE_BASE: "http://localhost:8080"
+      GATEWAY_INTERNAL: "http://fabric-node:8080"
       SHARED_DIR: /shared
     volumes:
       - did-data:/shared
     depends_on:
       oxigraph:
         condition: service_healthy
+      fabric-node:
+        condition: service_started
 
 volumes:
   oxigraph-data:
