@@ -34,9 +34,15 @@ from experiments.fabric_navigation.dspy_eval_harness import (
     compute_aggregate_stats, substring_match_scorer, write_trajectory_jsonl,
 )
 
-from agents.fabric_discovery import discover_endpoint, register_and_authenticate
+<<<<<<< HEAD
+from agents.fabric_discovery import discover_endpoint, register_and_authenticate, _parse_catalog
+||||||| parent of 738bf65 ([Agent: Claude] feat: wire Phase 7 catalog discovery into experiment runner)
+from agents.fabric_discovery import discover_endpoint
+=======
+from agents.fabric_discovery import discover_endpoint, _parse_catalog
+>>>>>>> 738bf65 ([Agent: Claude] feat: wire Phase 7 catalog discovery into experiment runner)
 from agents.fabric_agent import FabricQuery
-from agents.fabric_query import make_fabric_query_tool
+from agents.fabric_query import make_fabric_query_tool, make_external_query_tool
 from agents.fabric_rdfs_routes import make_rdfs_routes_tool
 from agents.fabric_write import (
     make_discover_write_targets_tool,
@@ -141,6 +147,19 @@ PHASE_FEATURES = {
         "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
         "tbox-graph-paths", "rdfs-routes",
         "no-entity-lookup", "no-unbounded-scan",
+    ],
+    "phase7a-no-catalog": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths",
+    ],
+    "phase7b-catalog": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths",
+        "catalog-in-sd", "external-query-tool",
     ],
     "phase7a-write-baseline": [
         "void-sd", "void-urispace", "void-graph-inventory",
@@ -352,12 +371,25 @@ def main() -> None:
 
     ep = discover_endpoint(GATEWAY, vp_token=vp_token)
 
+    # Fetch catalog for phase7 — parse external services
+    if 'catalog-in-sd' in PHASE_FEATURES[args.phase]:
+        try:
+            cat_r = httpx.get(f"{GATEWAY}/.well-known/catalog",
+                              headers={"Accept": "text/turtle"}, timeout=10.0)
+            cat_r.raise_for_status()
+            ep.external_services = _parse_catalog(cat_r.text)
+            log.info("Catalog: %d external services", len(ep.external_services))
+        except Exception as exc:
+            log.warning("Catalog fetch failed: %s", exc)
+
     def rlm_factory() -> dspy.RLM:
         features = PHASE_FEATURES[args.phase]
         reject_unbounded = 'no-unbounded-scan' in features
         tools = [make_fabric_query_tool(ep, reject_unbounded=reject_unbounded)]
         if "rdfs-routes" in features:
             tools.append(make_rdfs_routes_tool(ep))
+        if "external-query-tool" in features:
+            tools.append(make_external_query_tool(ep))
         if "write-tools" in features:
             tools.extend([
                 make_discover_write_targets_tool(ep),
@@ -404,6 +436,22 @@ def main() -> None:
         "      print(routes)  # Shows: observes domain=Sensor, observedProperty domain=Observation\n"
     )
 
+    _EXTERNAL_TOOL_HINT = (
+        "\n\nEXTERNAL QUERY TOOL (call from REPL code):\n"
+        "  query_external_sparql(endpoint_url: str, query: str) -> str\n"
+        "    Queries an external SPARQL endpoint listed in the catalog above.\n"
+        "    Only catalog-listed endpoint URLs are allowed.\n"
+        "    Returns JSON SPARQL results. Follows HTTP redirects.\n"
+        "\n"
+        "    Example:\n"
+        "      result = query_external_sparql(\n"
+        "          'https://qlever.cs.uni-freiburg.de/api/pubchem',\n"
+        "          'PREFIX sio: <http://semanticscience.org/resource/>\\n'\n"
+        "          'SELECT ?val WHERE { <http://rdf.ncbi.nlm.nih.gov/pubchem/compound/CID2244> sio:SIO_000008 ?a . ?a sio:SIO_000300 ?val } LIMIT 5'\n"
+        "      )\n"
+        "      print(result)\n"
+    )
+
     _WRITE_TOOL_HINT = (
         "\n\nWRITE TOOLS (call from REPL code):\n"
         "  discover_write_targets() -> str\n"
@@ -433,6 +481,8 @@ def main() -> None:
             sd = _strip_entity_lookup(sd)
         if 'rdfs-routes' in features:
             sd = sd + _RDFS_TOOL_HINT
+        if 'external-query-tool' in features:
+            sd = sd + _EXTERNAL_TOOL_HINT
         if 'write-tools' in features:
             sd = sd + _WRITE_TOOL_HINT
         return {'endpoint_sd': sd, 'query': task.query}
