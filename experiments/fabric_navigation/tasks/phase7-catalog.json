@@ -1,0 +1,128 @@
+[
+  {
+    "id": "pubchem-molecular-formula",
+    "query": "What is the molecular formula of aspirin (PubChem CID 2244)?",
+    "context": "http://localhost:8080",
+    "expected": ["C9H8O4"],
+    "metadata": {
+      "description": "Pure external query: agent must discover the PubChem QLever endpoint from the fabric catalog and construct a SERVICE query to retrieve the molecular formula for CID 2244. No local data needed.",
+      "task_type": "external",
+      "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/pubchem"
+    }
+  },
+  {
+    "id": "wikidata-potentiostat-manufacturer",
+    "query": "Who manufactures potentiostats? Use Wikidata to find instrument manufacturers.",
+    "context": "http://localhost:8080",
+    "expected": ["Metrohm", "Gamry", "Bio-Logic"],
+    "metadata": {
+      "description": "Pure external query: agent must discover the Wikidata QLever endpoint from the fabric catalog and query for manufacturers of potentiostat instruments. Requires understanding wdt:P31 (instance of) and wdt:P176 (manufacturer) properties.",
+      "task_type": "external",
+      "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/wikidata"
+    }
+  },
+  {
+    "id": "osm-notre-dame-location",
+    "query": "Find the University of Notre Dame in OpenStreetMap data.",
+    "context": "http://localhost:8080",
+    "expected": ["Notre Dame"],
+    "metadata": {
+      "description": "Pure external query: agent must discover the OSM QLever endpoint from the fabric catalog and query for the University of Notre Dame using osm-meta:name or ogc:sfContains patterns. Tests geographic entity discovery.",
+      "task_type": "external",
+      "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/osm-planet"
+    }
+  },
+  {
+    "id": "obs-compound-formula",
+    "query": "What is the molecular formula of the compound measured in observation obs-p7-001?",
+    "context": "http://localhost:8080",
+    "expected": ["C9H8O4"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/obs-p7-001",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-cv-p7-1",
+            "sosa:hasSimpleResult": "0.452",
+            "sosa:resultTime": "2026-02-26T10:00:00Z",
+            "sio:is-about": "http://localhost:8080/entity/compound-aspirin"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/compound-aspirin",
+            "rdfs:label": "Aspirin (CID 2244)"
+          }
+        ]
+      },
+      "description": "Mixed local+external: observation in /graph/observations references compound entity via sio:is-about. Compound entity in /graph/entities has label 'Aspirin (CID 2244)' but no formula. Agent must extract CID from label, then query PubChem QLever endpoint for molecular formula.",
+      "task_type": "mixed",
+      "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/pubchem"
+    }
+  },
+  {
+    "id": "obs-sensor-manufacturer",
+    "query": "Who manufactured the sensor used in observation obs-p7-002?",
+    "context": "http://localhost:8080",
+    "expected": ["Metrohm"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/obs-p7-002",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-pgstat204",
+            "sosa:hasSimpleResult": "1.23",
+            "sosa:resultTime": "2026-02-26T11:00:00Z"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-pgstat204",
+            "rdfs:label": "PGSTAT204 Potentiostat"
+          }
+        ]
+      },
+      "description": "Mixed local+external: observation references sensor via sosa:madeBySensor. Sensor entity in /graph/entities has label 'PGSTAT204 Potentiostat' but no manufacturer. Agent must identify the sensor model from the label, then query Wikidata QLever endpoint for the manufacturer of the PGSTAT204 / Autolab potentiostat (Metrohm).",
+      "task_type": "mixed",
+      "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/wikidata"
+    }
+  },
+  {
+    "id": "obs-lab-location",
+    "query": "Where is the laboratory that hosts the sensor from observation obs-p7-003?",
+    "context": "http://localhost:8080",
+    "expected": ["Notre Dame"],
+    "metadata": {
+      "setup": {
+        "type": "sparql_insert",
+        "graph": "http://localhost:8080/graph/observations",
+        "extra_graphs": ["http://localhost:8080/graph/entities"],
+        "data": [
+          {
+            "subject": "http://localhost:8080/entity/obs-p7-003",
+            "sosa:madeBySensor": "http://localhost:8080/entity/sensor-eis-p7-3",
+            "sosa:hasSimpleResult": "245.8",
+            "sosa:resultTime": "2026-02-26T12:00:00Z"
+          },
+          {
+            "record_type": "sensor",
+            "graph": "http://localhost:8080/graph/entities",
+            "subject": "http://localhost:8080/entity/sensor-eis-p7-3",
+            "rdfs:label": "EIS Spectrometer P7-3",
+            "sosa:isHostedBy": "http://localhost:8080/entity/platform-nd-echem-lab",
+            "sosa:isHostedBy-label": "Notre Dame Electrochemistry Lab"
+          }
+        ]
+      },
+      "description": "Mixed local+external (easy): observation references sensor, sensor has sosa:isHostedBy platform with label 'Notre Dame Electrochemistry Lab'. The answer 'Notre Dame' is available locally from the platform label. Agent may optionally enrich with OSM geographic data, but local data suffices for the expected answer.",
+      "task_type": "mixed",
+      "target_endpoint": "https://qlever.cs.uni-freiburg.de/api/osm-planet"
+    }
+  }
+]
