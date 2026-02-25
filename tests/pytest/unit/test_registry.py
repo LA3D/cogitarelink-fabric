@@ -6,6 +6,10 @@ from fabric.node.registry import (
     build_registry_insert,
     build_registry_construct,
     build_registry_entry_construct,
+    build_agent_insert,
+    build_agents_list_construct,
+    build_agent_construct,
+    check_void_conformance,
     VALID_AGENT_ROLES,
     FABRIC_NS,
 )
@@ -113,3 +117,112 @@ class TestFabricNamespace:
 
     def test_namespace_value(self):
         assert FABRIC_NS == "https://w3id.org/cogitarelink/fabric#"
+
+
+# --- Task 2.1/2.2/2.6: Admission helper tests ---
+
+class TestCheckVoidConformance:
+    """check_void_conformance validates CoreProfile in VoID."""
+
+    def test_valid_void_with_core_profile(self):
+        void = 'dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;'
+        assert check_void_conformance(void) is True
+
+    def test_missing_profile(self):
+        void = 'dct:conformsTo <https://example.org/SomeOtherProfile> ;'
+        assert check_void_conformance(void) is False
+
+    def test_empty_string(self):
+        assert check_void_conformance("") is False
+
+    def test_partial_namespace_no_match(self):
+        void = 'dct:conformsTo <https://w3id.org/cogitarelink/other#CoreProfile> ;'
+        assert check_void_conformance(void) is False
+
+
+# --- Task 3.1/3.2: Agent SPARQL builder tests ---
+
+class TestBuildAgentInsert:
+    """build_agent_insert generates valid SPARQL INSERT DATA for agents."""
+
+    def test_contains_registered_agent_type(self):
+        sparql = build_agent_insert(
+            "http://localhost:8080", "did:webvh:abc:localhost%3A8080:agents:test-uuid",
+            "IngestCuratorRole", ["/graph/observations"], ["read", "write"])
+        assert "fabric:RegisteredAgent" in sparql
+
+    def test_contains_agent_did(self):
+        agent_did = "did:webvh:abc:localhost%3A8080:agents:test-uuid"
+        sparql = build_agent_insert(
+            "http://localhost:8080", agent_did,
+            "IngestCuratorRole", ["/graph/observations"], ["read"])
+        assert agent_did in sparql
+
+    def test_contains_role(self):
+        sparql = build_agent_insert(
+            "http://localhost:8080", "did:webvh:abc:agents:test",
+            "LinkingCuratorRole", ["/graph/crosswalks"], ["read"])
+        assert "fabric:LinkingCuratorRole" in sparql
+
+    def test_contains_authorized_graphs(self):
+        sparql = build_agent_insert(
+            "http://localhost:8080", "did:webvh:abc:agents:test",
+            "IngestCuratorRole", ["/graph/observations", "/graph/entities"], ["write"])
+        assert "/graph/observations" in sparql
+        assert "/graph/entities" in sparql
+
+    def test_contains_authorized_operations(self):
+        sparql = build_agent_insert(
+            "http://localhost:8080", "did:webvh:abc:agents:test",
+            "QARole", ["/graph/observations"], ["read", "write"])
+        assert '"read"' in sparql
+        assert '"write"' in sparql
+
+    def test_contains_graph_agents(self):
+        sparql = build_agent_insert(
+            "http://localhost:8080", "did:webvh:abc:agents:test",
+            "MaintenanceRole", [], [])
+        assert "/graph/agents" in sparql
+
+    def test_invalid_role_raises(self):
+        with pytest.raises(ValueError, match="Invalid agent role"):
+            build_agent_insert(
+                "http://localhost:8080", "did:webvh:abc:agents:test",
+                "BogusRole", [], [])
+
+    def test_contains_home_node(self):
+        sparql = build_agent_insert(
+            "http://localhost:8080", "did:webvh:abc:agents:test",
+            "SecurityMonitorRole", [], [])
+        assert "http://localhost:8080" in sparql
+        assert "homeNode" in sparql
+
+    def test_contains_datetime(self):
+        sparql = build_agent_insert(
+            "http://localhost:8080", "did:webvh:abc:agents:test",
+            "IntegrityAuditorRole", [], [])
+        assert "xsd:dateTime" in sparql
+
+
+class TestBuildAgentsListConstruct:
+    """build_agents_list_construct generates SPARQL CONSTRUCT for all agents."""
+
+    def test_returns_construct(self):
+        sparql = build_agents_list_construct("http://localhost:8080")
+        assert "CONSTRUCT" in sparql
+
+    def test_queries_graph_agents(self):
+        sparql = build_agents_list_construct("http://localhost:8080")
+        assert "/graph/agents" in sparql
+
+
+class TestBuildAgentConstruct:
+    """build_agent_construct generates SPARQL CONSTRUCT for a single agent."""
+
+    def test_returns_construct(self):
+        sparql = build_agent_construct("http://localhost:8080", "did:webvh:abc:agents:test")
+        assert "CONSTRUCT" in sparql
+
+    def test_filters_by_did(self):
+        sparql = build_agent_construct("http://localhost:8080", "did:webvh:abc:agents:test")
+        assert "did:webvh:abc:agents:test" in sparql

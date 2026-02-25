@@ -11,6 +11,14 @@ try:
     from fabric.node.registry import build_registry_insert
 except ModuleNotFoundError:
     from registry import build_registry_insert
+try:
+    from fabric.node.catalog import extract_dcat_from_void, build_catalog_insert
+except ModuleNotFoundError:
+    from catalog import extract_dcat_from_void, build_catalog_insert
+try:
+    from fabric.node.void_templates import VOID_TURTLE
+except ModuleNotFoundError:
+    from void_templates import VOID_TURTLE
 
 OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
@@ -92,22 +100,36 @@ def register_self(node_did: str) -> None:
     print(f"  Registry self-entry: HTTP {status}", flush=True)
 
 
+def populate_catalog(node_did: str) -> None:
+    """Extract DCAT from VoID template and insert into /graph/catalog (D23)."""
+    print("Populating /graph/catalog from VoID...", flush=True)
+    void_turtle = VOID_TURTLE.format(base=NODE_BASE)
+    datasets = extract_dcat_from_void(void_turtle, NODE_BASE)
+    if not datasets:
+        print("  WARNING: no datasets extracted from VoID", flush=True)
+        return
+    sparql = build_catalog_insert(NODE_BASE, node_did, datasets)
+    status = sparql_update(sparql)
+    print(f"  Catalog ({len(datasets)} datasets): HTTP {status}", flush=True)
+
+
 def main() -> None:
     print(f"Bootstrap: OXIGRAPH={OXIGRAPH_URL}, NODE_BASE={NODE_BASE}", flush=True)
 
     # 1. Load TBox ontologies
     load_tbox_ontologies()
 
-    # 2. Wait for Credo conformance VC and register self
+    # 2. Wait for Credo conformance VC, register self, populate catalog
     vc = wait_for_conformance_vc()
     if vc:
         node_did = vc.get("issuer", "")
         if node_did:
             register_self(node_did)
+            populate_catalog(node_did)
         else:
-            print("WARNING: conformance VC has no issuer — skipping registry", flush=True)
+            print("WARNING: conformance VC has no issuer — skipping registry/catalog", flush=True)
     else:
-        print("WARNING: conformance VC not available — skipping registry", flush=True)
+        print("WARNING: conformance VC not available — skipping registry/catalog", flush=True)
 
     print("Bootstrap complete.", flush=True)
 

@@ -368,6 +368,109 @@ app.post('/credentials/verify', async (req, res) => {
   }
 })
 
+app.post('/credentials/cosign', async (req, res) => {
+  // D12/D19: Co-sign a VC with witness proof (previousProof chaining)
+  try {
+    const vcJson = req.body
+    if (!vcJson || !vcJson.proof) {
+      return res.status(400).json({ error: 'signed VC with proof required' })
+    }
+    if (!nodeDid) {
+      return res.status(503).json({ error: 'Node DID not yet initialized' })
+    }
+
+    // 1. Verify original proof
+    const verifyResult = await verifyProof(vcJson)
+    if (!verifyResult.verified) {
+      return res.status(403).json({ error: 'Original proof verification failed' })
+    }
+
+    // 2. Ensure original proof has an id for previousProof reference
+    const { proof: originalProof, ...unsecuredDoc } = vcJson
+    const proofObj = { ...originalProof }
+    if (!proofObj.id) {
+      proofObj.id = `urn:uuid:${crypto.randomUUID()}`
+    }
+
+    // 3. Sign with bootstrap node's key
+    const didDoc = await agent.dids.resolveDidDocument(nodeDid)
+    const vmId = getVerificationMethodId(didDoc)
+
+    const witnessProof = await createProof(unsecuredDoc, {
+      type: 'DataIntegrityProof',
+      cryptosuite: 'eddsa-jcs-2022',
+      verificationMethod: vmId,
+      proofPurpose: 'assertionMethod',
+      previousProof: proofObj.id,
+    })
+
+    // 4. Return VC with dual-proof array
+    return res.status(201).json({
+      ...unsecuredDoc,
+      proof: [proofObj, witnessProof],
+    })
+  } catch (err) {
+    console.error('Co-signing error:', err)
+    return res.status(500).json({ error: String(err) })
+  }
+})
+
+// D14 valid agent roles
+const VALID_ROLES = new Set([
+  'IngestCuratorRole', 'LinkingCuratorRole', 'QARole',
+  'MaintenanceRole', 'SecurityMonitorRole',
+  'IntegrityAuditorRole', 'DevelopmentAgentRole',
+])
+
+app.post('/agents/register', async (req, res) => {
+  // D13/D14: Register an agent and issue AgentAuthorizationCredential
+  try {
+    const { agentRole, authorizedGraphs, authorizedOperations } = req.body
+    if (!agentRole || !VALID_ROLES.has(agentRole)) {
+      return res.status(400).json({
+        error: `Invalid agentRole: ${agentRole}. Must be one of ${[...VALID_ROLES].sort().join(', ')}`,
+      })
+    }
+    if (!nodeDid) {
+      return res.status(503).json({ error: 'Node DID not yet initialized' })
+    }
+
+    // Generate agent ID
+    const agentUuid = crypto.randomUUID()
+    const agentDid = `${nodeDid}:agents:${agentUuid}`
+
+    // Issue AgentAuthorizationCredential
+    const credential = await issueVC(
+      ['AgentAuthorizationCredential'],
+      {
+        id: agentDid,
+        agentRole: `fabric:${agentRole}`,
+        authorizedGraphs: authorizedGraphs ?? [],
+        authorizedOperations: authorizedOperations ?? [],
+        homeNode: nodeDid,
+      },
+    )
+
+    // Write to shared volume for persistence
+    const agentDir = path.join(SHARED_DIR, 'agents', agentUuid)
+    fs.mkdirSync(agentDir, { recursive: true })
+    fs.writeFileSync(
+      path.join(agentDir, 'credential.json'),
+      JSON.stringify(credential, null, 2),
+    )
+    fs.writeFileSync(
+      path.join(agentDir, 'metadata.json'),
+      JSON.stringify({ agentDid, agentRole, authorizedGraphs, authorizedOperations, createdAt: new Date().toISOString() }, null, 2),
+    )
+
+    console.log(`Agent registered: ${agentDid} (role: ${agentRole})`)
+    return res.status(201).json({ agentDid, credential })
+  } catch (err) {
+    console.error('Agent registration error:', err)
+    return res.status(500).json({ error: String(err) })
+  }
+})
+
 // --------------- startup bootstrap ---------------
 
 async function bootstrap() {

@@ -38,6 +38,10 @@ try:
     from fabric.node.integrity import verify_related_resources
 except ModuleNotFoundError:
     from integrity import verify_related_resources
+try:
+    from fabric.node.catalog import build_catalog_construct
+except ModuleNotFoundError:
+    from catalog import build_catalog_construct
 
 OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
@@ -143,6 +147,14 @@ async def well_known_sparql_examples():
         raise HTTPException(status_code=404, detail="SPARQL examples not found")
     content = examples_file.read_text().replace("{base}", NODE_BASE)
     return PlainTextResponse(content=content, media_type="text/turtle")
+
+
+@app.get("/.well-known/catalog")
+async def well_known_catalog(request: Request):
+    """D23 Stage 1: Self-catalog — DCAT datasets extracted from VoID."""
+    accept = request.headers.get("accept", "text/turtle")
+    query = build_catalog_construct(NODE_BASE)
+    return await _sparql_construct(query, accept)
 
 
 # --- Phase 2: W3C DID Resolution HTTP API (D3, D5, D25) ---
