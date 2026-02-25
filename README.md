@@ -1,10 +1,18 @@
 # cogitarelink-fabric
 
-A research prototype testing whether semantic web self-description standards give LLM-based agents enough structure to navigate unfamiliar knowledge graphs correctly — without hand-tuned prompts or domain-specific training.
+An agentic cyberinfrastructure testbed: a standards-based research knowledge fabric built on FAIR data principles, W3C semantic web standards, and decentralized identity — with experiments testing how LLM-based agents operate as actors within that infrastructure.
 
-## The idea
+## What this is
 
-The semantic web was designed for machine-readable self-description: endpoints that declare their vocabularies (VoID), constrain their data shapes (SHACL), and provide query templates (SPARQL examples). The machines that could actually use this were never built — until now. LLM-based agents can read structured metadata, reason about ontology relationships, and write SPARQL queries iteratively in a REPL loop. This project tests whether the original self-description stack, taken seriously, gives these agents a usable navigation substrate.
+This repository is two things at once.
+
+**A cyberinfrastructure prototype.** A federated knowledge fabric where each node is a self-describing SPARQL endpoint with DID/VC identity, SHACL-validated writes, content negotiation, and standards-based messaging. The infrastructure is built entirely on W3C standards and FAIR data principles — not because standards are virtuous, but because they're the only thing that makes independently-built research software interoperable. The fabric implements VoID and PROF for self-description, SHACL for data governance, SPARQL 1.2 for query, `did:webvh` for node and agent identity, Verifiable Credentials for trust, and Linked Data Notifications for messaging. Each of these choices has a corresponding test suite that verifies conformance, not just functionality.
+
+**An agent research platform.** The same self-description infrastructure that makes nodes interoperable also makes them navigable by LLM-based agents. The semantic web was designed for machine-readable self-description — endpoints that declare their vocabularies, constrain their data shapes, and provide query templates. The machines that could actually use this were never built, until now. LLM-based agents can read structured metadata, reason about ontology relationships, and write SPARQL queries iteratively in a REPL loop. This project tests whether the original self-description stack, taken seriously, gives these agents a usable navigation substrate — and whether the identity and credential infrastructure gives them accountable autonomy.
+
+These two concerns reinforce each other. The cyberinfrastructure needs agents that can discover and use it without hand-tuned integration. The agents need infrastructure that describes itself well enough to be navigated without domain-specific training. FAIR principles provide the design philosophy; W3C standards provide the wire formats; the experiments measure whether it actually works.
+
+### Key concepts
 
 A **knowledge fabric** is a federation of self-describing SPARQL endpoints where each node publishes enough structured metadata that an agent encountering it for the first time can discover what data exists, how it's organized, and how to query it — progressively, without bulk retrieval. The agent doesn't need to know the endpoint in advance; the endpoint tells the agent what it needs to know, layer by layer.
 
@@ -12,7 +20,11 @@ A **knowledge fabric** is a federation of self-describing SPARQL endpoints where
 
 ## The hypothesis
 
-Structured KR layers — VoID service descriptions, cached TBox ontologies, SHACL shapes with agent instructions, and SPARQL example catalogs — provide sufficient navigational scaffolding for RLM (Recursive Language Model) agents to query unfamiliar knowledge graphs correctly. The scaffolding should measurably outperform unstructured baselines, especially for vocabularies outside the LLM's pretraining distribution.
+The project tests two related claims.
+
+**Infrastructure claim.** W3C standards (VoID, SHACL, PROF, SPARQL, DIDs, VCs) combined with FAIR data principles provide a sufficient and interoperable foundation for federated research cyberinfrastructure — one where nodes built independently by different teams can discover and trust each other without bilateral integration.
+
+**Agent claim.** Structured KR layers — VoID service descriptions, cached TBox ontologies, SHACL shapes with agent instructions, and SPARQL example catalogs — provide sufficient navigational scaffolding for RLM (Recursive Language Model) agents to query unfamiliar knowledge graphs correctly. The scaffolding should measurably outperform unstructured baselines, especially for vocabularies outside the LLM's pretraining distribution.
 
 ## The cyberinfrastructure problem
 
