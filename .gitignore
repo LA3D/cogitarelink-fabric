@@ -37,6 +37,7 @@ oxigraph-data/
 *.pem
 *.key
 *.p12
+caddy-root.crt
 .env
 .env.*
 !.env.example
