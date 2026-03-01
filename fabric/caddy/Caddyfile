@@ -1,0 +1,4 @@
+bootstrap.cogitarelink.ai {
+    tls internal
+    reverse_proxy fabric-node:8080
+}
