@@ -9,8 +9,8 @@ Content-Type: application/x-www-form-urlencoded
 update=PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 INSERT DATA {
-  GRAPH <http://localhost:8080/graph/entities> {
-    <http://localhost:8080/entity/deref-test-001>
+  GRAPH <{{gateway}}/graph/entities> {
+    <{{gateway}}/entity/deref-test-001>
         a sosa:Observation ;
         sosa:hasSimpleResult "1.23"^^xsd:decimal .
   }

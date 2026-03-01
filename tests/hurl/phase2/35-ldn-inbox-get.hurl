@@ -14,7 +14,7 @@ HTTP 201
 notif_id: header "Location"
 
 # Extract just the UUID from the Location URL and fetch it
-# Location is like http://localhost:8080/inbox/{uuid}
+# Location is like {{gateway}}/inbox/{uuid}
 GET {{notif_id}}
 HTTP 200
 [Asserts]

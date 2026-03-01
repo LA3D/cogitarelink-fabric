@@ -6,7 +6,7 @@ POST {{gateway}}/sparql/update
 Content-Type: application/x-www-form-urlencoded
 
 ```
-update=DROP SILENT GRAPH <http://localhost:8080/graph/observations>
+update=DROP SILENT GRAPH <{{gateway}}/graph/observations>
 ```
 
 HTTP 204
@@ -19,8 +19,8 @@ Content-Type: application/x-www-form-urlencoded
 update=PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 INSERT DATA {
-  GRAPH <http://localhost:8080/graph/observations> {
-    <http://localhost:8080/entity/test-obs-001>
+  GRAPH <{{gateway}}/graph/observations> {
+    <{{gateway}}/entity/test-obs-001>
         a sosa:Observation ;
         sosa:hasSimpleResult "0.42"^^xsd:decimal ;
         sosa:resultTime "2026-02-22T00:00:00Z"^^xsd:dateTime .
@@ -34,7 +34,7 @@ HTTP 204
 POST {{gateway}}/sparql
 Accept: application/sparql-results+json
 [FormParams]
-query: PREFIX sosa: <http://www.w3.org/ns/sosa/> SELECT (COUNT(*) AS ?n) FROM <http://localhost:8080/graph/observations> WHERE { ?obs a sosa:Observation }
+query: PREFIX sosa: <http://www.w3.org/ns/sosa/> SELECT (COUNT(*) AS ?n) FROM <{{gateway}}/graph/observations> WHERE { ?obs a sosa:Observation }
 
 HTTP 200
 [Asserts]

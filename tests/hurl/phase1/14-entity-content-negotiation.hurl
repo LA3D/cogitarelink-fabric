@@ -9,8 +9,8 @@ Content-Type: application/x-www-form-urlencoded
 update=PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 INSERT DATA {
-  GRAPH <http://localhost:8080/graph/entities> {
-    <http://localhost:8080/entity/conneg-test-001>
+  GRAPH <{{gateway}}/graph/entities> {
+    <{{gateway}}/entity/conneg-test-001>
         a sosa:Sensor ;
         sosa:observes <http://dbpedia.org/resource/Electric_potential> .
   }

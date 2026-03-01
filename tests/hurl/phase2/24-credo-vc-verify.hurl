@@ -2,7 +2,7 @@
 # Verify the self-issued conformance VC from the gateway.
 
 # Step 1: Fetch the conformance VC from FastAPI
-GET http://localhost:8080/.well-known/conformance-vc.json
+GET {{gateway}}/.well-known/conformance-vc.json
 
 HTTP 200
 [Captures]
