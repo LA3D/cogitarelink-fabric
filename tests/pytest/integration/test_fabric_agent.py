@@ -3,12 +3,13 @@
 Run with: ~/uvws/.venv/bin/python -m pytest tests/pytest/integration/test_fabric_agent.py -v -m llm
 Requires: ANTHROPIC_API_KEY set, Docker stack running.
 """
+import os
 import pytest
 import httpx
 from agents.fabric_discovery import discover_endpoint
 from agents.fabric_agent import run_fabric_query
 
-GATEWAY = "http://localhost:8080"
+GATEWAY = os.environ.get("FABRIC_GATEWAY", "https://bootstrap.cogitarelink.ai")
 
 
 def _insert_test_observation(temp: float, sensor: str) -> None:

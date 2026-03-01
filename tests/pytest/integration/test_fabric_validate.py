@@ -1,9 +1,10 @@
 """Integration test: SHACL validation against live fabric endpoint (Docker stack)."""
+import os
 import httpx
 from agents.fabric_discovery import discover_endpoint
 from agents.fabric_validate import validate_result
 
-GATEWAY = "http://localhost:8080"
+GATEWAY = os.environ.get("FABRIC_GATEWAY", "https://bootstrap.cogitarelink.ai")
 
 
 def test_validate_live_observation():

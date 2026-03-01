@@ -1,16 +1,17 @@
 """Tier 1 integration tests: fabric endpoint discovery (Docker stack only)."""
+import os
 import pytest
 import httpx
 from agents.fabric_discovery import ShapeSummary, ExampleSummary, FabricEndpoint
 
-GATEWAY = "http://localhost:8080"
+GATEWAY = os.environ.get("FABRIC_GATEWAY", "https://bootstrap.cogitarelink.ai")
 
 
 def test_fabric_endpoint_routing_plan_contains_basics():
     """FabricEndpoint.routing_plan renders endpoint, vocabs, shapes, examples."""
     ep = FabricEndpoint(
-        base="http://localhost:8080",
-        sparql_url="http://localhost:8080/sparql",
+        base=GATEWAY,
+        sparql_url=f"{GATEWAY}/sparql",
         void_ttl="",
         profile_ttl="",
         shapes_ttl="",
@@ -30,12 +31,12 @@ def test_fabric_endpoint_routing_plan_contains_basics():
                 label="List recent observations",
                 comment="Returns observations ordered by time.",
                 sparql="SELECT ?obs WHERE { ?obs a sosa:Observation }",
-                target="http://localhost:8080/sparql",
+                target=f"{GATEWAY}/sparql",
             )
         ],
     )
     plan = ep.routing_plan
-    assert "http://localhost:8080" in plan
+    assert GATEWAY in plan
     assert "sosa" in plan.lower()
     assert "ObservationShape" in plan
     assert "List recent observations" in plan
@@ -110,8 +111,8 @@ def test_discover_loads_tbox():
 def test_discover_tbox_backward_compat():
     """FabricEndpoint without tbox_graph still works (default None)."""
     ep = FabricEndpoint(
-        base="http://localhost:8080",
-        sparql_url="http://localhost:8080/sparql",
+        base=GATEWAY,
+        sparql_url=f"{GATEWAY}/sparql",
         void_ttl="", profile_ttl="", shapes_ttl="", examples_ttl="",
     )
     assert ep.tbox_graph is None

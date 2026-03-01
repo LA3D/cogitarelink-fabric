@@ -1,9 +1,10 @@
 """Tier 2 integration tests: fabric SPARQL query tool (Docker stack only)."""
 import json
+import os
 from agents.fabric_discovery import discover_endpoint
 from agents.fabric_query import make_fabric_query_tool
 
-GATEWAY = "http://localhost:8080"
+GATEWAY = os.environ.get("FABRIC_GATEWAY", "https://bootstrap.cogitarelink.ai")
 
 
 def test_sparql_query_tool_returns_json():
@@ -23,7 +24,7 @@ def test_sparql_query_with_sosa():
     result = query_fn(
         "PREFIX sosa: <http://www.w3.org/ns/sosa/> "
         "PREFIX owl: <http://www.w3.org/2002/07/owl#> "
-        "ASK { GRAPH <http://localhost:8080/ontology/sosa> { sosa:Observation a owl:Class } }"
+        f"ASK {{ GRAPH <{GATEWAY}/ontology/sosa> {{ sosa:Observation a owl:Class }} }}"
     )
     assert "true" in result.lower()
 
