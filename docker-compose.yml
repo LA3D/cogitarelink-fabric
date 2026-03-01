@@ -7,7 +7,6 @@ services:
       - oxigraph-data:/data
     command: serve --location /data --bind 0.0.0.0:7878
     healthcheck:
-      # Distroless image — use oxigraph binary directly (LMDB supports concurrent readers)
       test: ["CMD", "/usr/local/bin/oxigraph", "query", "--location", "/data",
              "--query", "SELECT * WHERE {} LIMIT 1", "--results-format", "tsv"]
       interval: 5s
@@ -21,7 +20,7 @@ services:
       - "8080:8080"
     environment:
       OXIGRAPH_URL: http://oxigraph:7878
-      NODE_BASE: http://localhost:8080
+      NODE_BASE: https://bootstrap.cogitarelink.ai
       CREDO_URL: http://credo-sidecar:3000
       SHARED_DIR: /shared
     volumes:
@@ -35,14 +34,14 @@ services:
 
   credo-sidecar:
     build: ./fabric/credo
-    platform: linux/amd64      # Apple Silicon Rosetta (D8)
+    platform: linux/amd64
     ports:
       - "3000:3000"
     environment:
       PORT: "3000"
       WALLET_KEY: "fabric-dev-key-change-in-production"
-      NODE_DOMAIN: "localhost:8080"
-      NODE_BASE: "http://localhost:8080"
+      NODE_DOMAIN: "bootstrap.cogitarelink.ai"
+      NODE_BASE: "https://bootstrap.cogitarelink.ai"
       GATEWAY_INTERNAL: "http://fabric-node:8080"
       SHARED_DIR: /shared
     volumes:
@@ -53,6 +52,20 @@ services:
       fabric-node:
         condition: service_started
 
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./fabric/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - fabric-node
+
 volumes:
   oxigraph-data:
   did-data:
+  caddy-data:
+  caddy-config:
