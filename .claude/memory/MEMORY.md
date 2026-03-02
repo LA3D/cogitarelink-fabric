@@ -1,10 +1,11 @@
 # cogitarelink-fabric — Session Memory
 
-## Project State (as of 2026-02-26)
+## Project State (as of 2026-03-01)
 
 **Repo**: `~/dev/git/LA3D/agents/cogitarelink-fabric`
 **Branch**: main (all work merged)
 **Tests**: 205 unit + 42 HURL (15 phase1 + 27 phase2) — all passing
+**Endpoint**: `https://bootstrap.cogitarelink.ai` (Caddy TLS, D30 complete)
 
 ## Completed Work
 
@@ -18,6 +19,7 @@
 - **Phase 2 bootstrap** (commit `f5a5327`): did:webvh + VC issuance via Credo 0.6.x sidecar; shared Docker volume
 - **Phase 2 DID integration** (commits `4eda91c`–`2422669`): W3C DID Resolution HTTP API, LDN inbox (POST/GET), enriched conformance VC, Link header discovery, DID resolver helper module, SPARQL injection prevention
 - **D29 External endpoint attestation** (commit `cb8a69a`): QLever PubChem/Wikidata/OSM as dcat:DataService in /graph/catalog with fabric:vouchedBy + spex:SparqlExample; POST Graph Store Protocol for append
+- **D30 HTTPS migration** (commits `b91573e`–`d51638f`): Caddy TLS-terminating reverse proxy; NODE_BASE → `https://bootstrap.cogitarelink.ai`; tls internal CA; all 247 tests passing
 
 ## Key Architecture Patterns
 
@@ -114,8 +116,16 @@ Previous claim of "6/6 tool usage" was wrong — it was 2/6 per run, selectively
 
 ```bash
 docker compose up -d    # from ~/dev/git/LA3D/agents/cogitarelink-fabric
-# fabric-node: FastAPI :8080, Oxigraph :7878
-# endpoint: http://localhost:8080
+# fabric-node: FastAPI :8080 (internal), Oxigraph :7878
+# caddy: :80/:443 → fabric-node:8080
+# endpoint: https://bootstrap.cogitarelink.ai (D30)
+# /etc/hosts: 127.0.0.1 bootstrap.cogitarelink.ai (required on dev machine)
+```
+
+Run tests with:
+```bash
+SSL_CERT_FILE=/tmp/cogitarelink-ca-bundle.pem FABRIC_GATEWAY=https://bootstrap.cogitarelink.ai ~/uvws/.venv/bin/python -m pytest tests/ -v
+cd tests && make test-all    # HURL (uses --cacert ../caddy-root.crt)
 ```
 
 ## Open Questions
@@ -154,6 +164,27 @@ docker compose up -d    # from ~/dev/git/LA3D/agents/cogitarelink-fabric
 **HURL patterns**: Use `header "Content-Type" contains "text/turtle"` (Oxigraph adds `; charset=utf-8`). Use `contains` not deprecated `includes`. Oxigraph Turtle uses full URIs — match `dcat#Dataset` not `dcat:Dataset`.
 
 **Test counts**: 15 phase1 HURL + 27 phase2 HURL + 205 unit tests (36 registry + 16 catalog + 12 external endpoints + 14 integrity + 32 DID resolver + 84 existing + 11 integration)
+
+### D30 Caddy HTTPS Migration Patterns (2026-03-01)
+
+**Key files**:
+- `fabric/caddy/Caddyfile`: `bootstrap.cogitarelink.ai { tls internal; reverse_proxy fabric-node:8080 }`
+- `caddy-root.crt` (repo root, gitignored): Caddy's internal CA cert — export with `docker compose exec caddy caddy trust` or via volume
+- `fabric/node/start.sh`: builds `/tmp/cogitarelink-ca-bundle.pem` = Caddy CA + `/etc/ssl/cert.pem` for container HTTPS self-calls
+
+**NODE_BASE change requires volume reset**: DID is minted at first boot with the domain baked in. Changing `NODE_BASE` in `docker-compose.yml` requires `docker compose down -v` to wipe `did-data` volume and re-mint.
+
+**Docker DNS for container self-calls**: `caddy` service needs `networks.default.aliases: [bootstrap.cogitarelink.ai]` so the fabric-node container can resolve the hostname to Caddy (not loopback). Without this, self-admission HTTP calls fail.
+
+**pytest CA bundle**: `SSL_CERT_FILE=./caddy-root.crt` replaces the entire system CA bundle — Anthropic API calls via httpx then fail. Fix: create `/tmp/cogitarelink-ca-bundle.pem` = `cat caddy-root.crt /etc/ssl/cert.pem`. The Makefile does this automatically.
+
+**HURL**: add `--cacert $(CA_CERT)` in `tests/Makefile`; CA_CERT := `../caddy-root.crt`
+
+**macOS trust**: `sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain caddy-root.crt`
+
+**Domain convention**: `bootstrap.cogitarelink.ai` (prototype bootstrap node); future: `{unit}.{org}.cogitarelink.ai` (e.g. `crc.nd.cogitarelink.ai`)
+
+**Production path**: Same Caddyfile without `tls internal` → automatic Let's Encrypt. No Caddyfile changes needed for production.
 
 ### D29 External Endpoint Attestation Patterns (2026-02-26)
 
