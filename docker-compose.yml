@@ -28,6 +28,8 @@ services:
       - ./ontology:/app/ontology:ro
       - ./sparql:/app/sparql:ro
       - did-data:/shared:ro
+      # Mount Caddy's CA cert so the node can trust internal HTTPS (e.g., self-admission)
+      - caddy-data:/caddy-ca:ro
     depends_on:
       oxigraph:
         condition: service_healthy
@@ -63,6 +65,11 @@ services:
       - caddy-config:/config
     depends_on:
       - fabric-node
+    networks:
+      default:
+        aliases:
+          # Allow other containers to reach Caddy by the public hostname
+          - bootstrap.cogitarelink.ai
 
 volumes:
   oxigraph-data:
