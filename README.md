@@ -246,7 +246,7 @@ The VC structure matters because it separates the claim ("this node serves SOSA 
 ```json
 "relatedResource": [
   {
-    "id": "http://localhost:8080/.well-known/void",
+    "id": "https://bootstrap.cogitarelink.ai/.well-known/void",
     "digestMultibase": "zBKaAuRCu9dMruLbstDUm4WPaRsGggUC8Ei3H47d7B9Sw",
     "digestSRI": "sha256-mVbUgqHTiCiUO3T2jkbHjW2VqvTGrPoFinSPStFcknA=",
     "mediaType": "text/turtle"
@@ -347,8 +347,8 @@ docker compose up -d
 # Verify all three containers are healthy
 docker compose ps
 
-# Inspect the self-description
-curl -s http://localhost:8080/.well-known/void | head -20
+# Inspect the self-description (requires caddy-root.crt — see below)
+curl -s --cacert caddy-root.crt https://bootstrap.cogitarelink.ai/.well-known/void | head -20
 ```
 
 ### Install Python dependencies
@@ -362,7 +362,10 @@ uv pip install -e ".[test]"
 
 ```bash
 # Unit + integration tests (no Docker required for unit tests)
-pytest tests/ -v
+# SSL_CERT_FILE points to a combined bundle (Caddy CA + system certs) — tests/Makefile creates this automatically
+SSL_CERT_FILE=/tmp/cogitarelink-ca-bundle.pem \
+  FABRIC_GATEWAY=https://bootstrap.cogitarelink.ai \
+  pytest tests/ -v
 
 # Hurl HTTP conformance tests (requires running fabric stack)
 cd tests && make test-hurl-p1    # Phase 1: self-description + SPARQL + content negotiation
@@ -473,8 +476,8 @@ cd tests && make test-hurl-p2
 **pytest** (`tests/pytest/`) — unit tests for agent tooling (`fabric_discovery`, `fabric_rdfs_routes`, `fabric_validate`, DID resolution, content integrity) and integration tests that exercise the full agent→gateway→Oxigraph pipeline.
 
 ```bash
-# 205 unit tests currently passing
-pytest tests/ -v
+# 247 tests currently passing (205 pytest + 42 HURL)
+SSL_CERT_FILE=/tmp/cogitarelink-ca-bundle.pem pytest tests/ -v
 ```
 
 ## Repo structure
@@ -511,7 +514,7 @@ tests/
 
 ## Key decisions
 
-Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–D29). The most relevant:
+Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–D30). The most relevant:
 
 | # | Decision | Why it matters |
 |---|---------|----------------|
@@ -528,6 +531,7 @@ Architectural decisions are tracked in `.claude/rules/decisions-index.md` (D1–
 | D27 | SHACL-gated vocabulary admission | TBox ontologies must pass metadata shapes before entering L2 cache; Five Stars criteria as SHACL |
 | D28 | Conformance evidence chain (EARL + PROV-O) | Test results as linked data; TDD git history → EARL → credential; verifiable loop from spec to agent |
 | D29 | External endpoint attestation via catalog | Fabric nodes vouch for non-fabric SPARQL endpoints (QLever PubChem/Wikidata/OSM) as `dcat:DataService` in catalog; agents discover external data sources through same `/.well-known/catalog` as local graphs |
+| D30 | HTTPS-first URI strategy (Caddy + `bootstrap.cogitarelink.ai`) | Caddy as TLS-terminating reverse proxy restores the full did:webvh trust chain: DNS → TLS → DID document → VC; `tls internal` for dev, automatic Let's Encrypt for production |
 
 ## References
 
