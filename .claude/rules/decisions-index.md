@@ -14,7 +14,7 @@ D9: Four-layer KR — SD+VoID (L1) → TBox cache ontologies+standard shapes (L2
 D10: Curator write tools — discover_write_targets, write_triples, validate_graph, commit_graph
 D11: UUIDv7 PID minting + entity URI https://{node}/entity/{uuid7}; SSSOM crosswalks at /graph/crosswalks (entity PID dedup across sources) — distinct from D21
 D12: Bootstrap node admission — did:webvh (node DID) + did:key (witness) + FabricConformanceCredential; /graph/registry self-entry
-D13: did:webvh agent identity + AgentAuthorizationCredential; agent DID separate from node DID
+D13: did:webvh agent identity + AgentAuthorizationCredential; agent DID separate from node DID; VP-as-Bearer enforcement designed (Phase 2: role-only via verify_vp_bearer FastAPI dependency; Phase 3: tiered graph/operation checks + credential-scoped SDs)
 D14: Agent role taxonomy — IngestCurator, LinkingCurator, Q&A, Maintenance, SecurityMonitor, IntegrityAuditor, DevelopmentAgent (Claude Code)
 D15: Human-agent credential composition — three-way intersection; Solid WAC/ACP; ZCAP-LD (Community Group only — use FabricDelegationCredential VC as safe fallback)
 D16: Phoenix + OTEL + SPDX 3.0 + PROV-O observability stack; DSPy openinference instrumentation
