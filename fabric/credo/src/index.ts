@@ -511,6 +511,60 @@ app.post('/presentations/create', async (req, res) => {
   }
 })
 
+app.post('/presentations/verify', async (req, res) => {
+  // D13: Verify a Verifiable Presentation — VP proof + embedded VC proofs + expiry
+  try {
+    const vpJson = req.body
+    if (!vpJson || !vpJson.proof) {
+      return res.status(400).json({ error: 'signed VP with proof required' })
+    }
+
+    // 1. Check validUntil expiry
+    if (vpJson.validUntil) {
+      const expiry = new Date(vpJson.validUntil)
+      if (expiry.getTime() < Date.now()) {
+        return res.json({ verified: false, error: 'VP expired' })
+      }
+    }
+
+    // 2. Verify the VP envelope proof
+    const vpResult = await verifyProof(vpJson)
+    if (!vpResult.verified) {
+      return res.json({ verified: false, error: 'VP proof verification failed' })
+    }
+
+    // 3. Verify each embedded VC proof
+    const credentials = Array.isArray(vpJson.verifiableCredential)
+      ? vpJson.verifiableCredential
+      : vpJson.verifiableCredential ? [vpJson.verifiableCredential] : []
+
+    for (let i = 0; i < credentials.length; i++) {
+      const vc = credentials[i]
+      if (vc && vc.proof) {
+        const vcResult = await verifyProof(vc)
+        if (!vcResult.verified) {
+          return res.json({ verified: false, error: `Embedded VC[${i}] proof verification failed` })
+        }
+      }
+    }
+
+    // 4. Extract credentialSubject from first embedded VC
+    const firstVC = credentials[0]
+    const credentialSubject = firstVC?.credentialSubject ?? null
+
+    return res.json({
+      verified: true,
+      credentialSubject,
+      holder: vpJson.holder,
+      validUntil: vpJson.validUntil,
+    })
+  } catch (err) {
+    // Same pattern as /credentials/verify — return 200 with verified: false
+    console.error('VP verification error:', err)
+    return res.json({ verified: false, error: String(err) })
+  }
+})
+
 // --------------- startup bootstrap ---------------
 
 async function bootstrap() {
