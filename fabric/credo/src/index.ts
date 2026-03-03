@@ -472,6 +472,45 @@ app.post('/agents/register', async (req, res) => {
   }
 })
 
+app.post('/presentations/create', async (req, res) => {
+  // D13: Create a Verifiable Presentation wrapping a VC with validUntil
+  try {
+    const { credential, holderDid, validMinutes } = req.body
+    if (!credential || !holderDid) {
+      return res.status(400).json({ error: 'credential and holderDid required' })
+    }
+    if (!nodeDid) {
+      return res.status(503).json({ error: 'Node DID not yet initialized' })
+    }
+
+    const minutes = typeof validMinutes === 'number' && validMinutes > 0 ? validMinutes : 5
+    const validUntil = new Date(Date.now() + minutes * 60 * 1000).toISOString()
+
+    const presentation: Record<string, unknown> = {
+      '@context': ['https://www.w3.org/ns/credentials/v2'],
+      type: ['VerifiablePresentation'],
+      holder: holderDid,
+      verifiableCredential: [credential],
+      validUntil,
+    }
+
+    const didDoc = await agent.dids.resolveDidDocument(nodeDid)
+    const vmId = getVerificationMethodId(didDoc)
+
+    const proof = await createProof(presentation, {
+      type: 'DataIntegrityProof',
+      cryptosuite: 'eddsa-jcs-2022',
+      verificationMethod: vmId,
+      proofPurpose: 'authentication',
+    })
+
+    return res.status(201).json({ ...presentation, proof })
+  } catch (err) {
+    console.error('VP creation error:', err)
+    return res.status(500).json({ error: String(err) })
+  }
+})
+
 // --------------- startup bootstrap ---------------
 
 async function bootstrap() {
