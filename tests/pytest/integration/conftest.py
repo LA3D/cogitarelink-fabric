@@ -19,15 +19,17 @@ def vp_token():
     """Obtain a VP Bearer token for auth-gated SPARQL endpoints."""
     if os.environ.get("FABRIC_AUTH_ENABLED", "true").lower() != "true":
         return None
+    ssl_cert = os.environ.get("SSL_CERT_FILE", True)
     r = httpx.post(
         f"{GATEWAY}/test/create-vp",
         json={
             "agentRole": "DevelopmentAgentRole",
             "authorizedGraphs": ["*"],
             "authorizedOperations": ["read", "write"],
+            "validMinutes": 60,
         },
         timeout=15.0,
-        verify=False,
+        verify=ssl_cert,
     )
     r.raise_for_status()
     return r.json()["token"]

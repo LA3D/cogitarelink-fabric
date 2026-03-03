@@ -83,8 +83,10 @@ def make_fabric_query_tool(
             )
             if r.status_code == 401:
                 return (
-                    "Authentication required: the SPARQL endpoint requires a VP Bearer token. "
-                    "Call register_and_authenticate() to obtain credentials before querying."
+                    "Authentication required: the SPARQL endpoint requires a VP Bearer token "
+                    "in the Authorization header. The sparql_query tool was not configured with "
+                    "a valid token. This is a configuration issue, not a query issue — "
+                    "retry the same query after the tool is re-initialized with credentials."
                 )
             if r.status_code == 403:
                 return (

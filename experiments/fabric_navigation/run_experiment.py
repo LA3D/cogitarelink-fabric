@@ -43,7 +43,6 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s: %(messag
 log = logging.getLogger(__name__)
 
 GATEWAY = "http://localhost:8080"
-VP_TOKEN: str | None = None  # set in main() after authentication
 
 # --- Fabric phase → active features mapping --------------------------------
 
@@ -260,14 +259,14 @@ def _build_insert(obs: dict) -> str:
     )
 
 
-def _sparql_update_headers() -> dict[str, str]:
+def _sparql_update_headers(vp_token: str | None = None) -> dict[str, str]:
     h = {"Content-Type": "application/x-www-form-urlencoded"}
-    if VP_TOKEN:
-        h["Authorization"] = f"Bearer {VP_TOKEN}"
+    if vp_token:
+        h["Authorization"] = f"Bearer {vp_token}"
     return h
 
 
-def setup_task_data(task: EvalTask) -> None:
+def setup_task_data(task: EvalTask, vp_token: str | None = None) -> None:
     setup = task.metadata.get('setup', {})
     if setup.get('type') != 'sparql_insert':
         return
@@ -279,11 +278,11 @@ def setup_task_data(task: EvalTask) -> None:
         httpx.post(
             f"{GATEWAY}/sparql/update",
             data={"update": q},
-            headers=_sparql_update_headers(),
+            headers=_sparql_update_headers(vp_token),
         ).raise_for_status()
 
 
-def teardown_task_data(task: EvalTask) -> None:
+def teardown_task_data(task: EvalTask, vp_token: str | None = None) -> None:
     setup = task.metadata.get('setup', {})
     if setup.get('type') != 'sparql_insert':
         return
@@ -293,7 +292,7 @@ def teardown_task_data(task: EvalTask) -> None:
         httpx.post(
             f"{GATEWAY}/sparql/update",
             data={"update": f"DROP SILENT GRAPH <{graph}>"},
-            headers=_sparql_update_headers(),
+            headers=_sparql_update_headers(vp_token),
         )
 
 
@@ -327,18 +326,17 @@ def main() -> None:
     # Authenticate before discovery — SPARQL endpoint is VP-gated (D13)
     vp_token = None
     if os.environ.get("FABRIC_AUTH_ENABLED", "true").lower() == "true":
+        from agents.fabric_discovery import _ssl_verify
         r = httpx.post(
             f"{GATEWAY}/test/create-vp",
             json={"agentRole": "DevelopmentAgentRole",
                   "authorizedGraphs": ["*"],
                   "authorizedOperations": ["read", "write"]},
-            timeout=15.0, verify=False,
+            timeout=15.0, verify=_ssl_verify(),
         )
         r.raise_for_status()
         vp_token = r.json()["token"]
         log.info("Authenticated: VP token obtained")
-        global VP_TOKEN
-        VP_TOKEN = vp_token
 
     ep = discover_endpoint(GATEWAY, vp_token=vp_token)
 
@@ -412,7 +410,7 @@ def main() -> None:
     for task in tasks:
         log.info("Task: %s", task.id)
         try:
-            setup_task_data(task)
+            setup_task_data(task, vp_token=vp_token)
             result = harness.run_task(task)
             results.append(result)
             write_trajectory_jsonl(
@@ -424,7 +422,7 @@ def main() -> None:
                 timestamp=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
             )
         finally:
-            teardown_task_data(task)
+            teardown_task_data(task, vp_token=vp_token)
 
     aggregate = compute_aggregate_stats(results)
     br = BenchmarkResult(

@@ -305,6 +305,12 @@ def _load_tbox(sparql_url: str, graph_uris: list[str],
 
 # --- Public API ------------------------------------------------------------
 
+def _ssl_verify():
+    """Return SSL verification setting: cert path from SSL_CERT_FILE, or True (system default)."""
+    import os
+    return os.environ.get("SSL_CERT_FILE", True)
+
+
 def register_and_authenticate(
     ep: FabricEndpoint,
     role: str = "DevelopmentAgentRole",
@@ -314,6 +320,7 @@ def register_and_authenticate(
     """Register agent and obtain VP Bearer token via /test/create-vp helper.
 
     Sets ep.vp_token in-place and returns ep for chaining.
+    Uses SSL_CERT_FILE env var for CA verification (set to Caddy CA bundle in dev).
     """
     r = httpx.post(
         f"{ep.base}/test/create-vp",
@@ -323,7 +330,7 @@ def register_and_authenticate(
             "authorizedOperations": operations or ["read", "write"],
         },
         timeout=15.0,
-        verify=False,  # internal CA in dev
+        verify=_ssl_verify(),
     )
     r.raise_for_status()
     ep.vp_token = r.json()["token"]

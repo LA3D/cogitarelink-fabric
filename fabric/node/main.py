@@ -549,6 +549,7 @@ async def test_create_vp(request: Request):
     role = body.get("agentRole", "DevelopmentAgentRole")
     graphs = body.get("authorizedGraphs", [])
     ops = body.get("authorizedOperations", ["read"])
+    valid_minutes = min(body.get("validMinutes", 5), 120)  # cap at 2 hours
 
     # 1. Register agent via Credo
     reg_resp = await app.state.http_credo.post("/agents/register", json={
@@ -564,7 +565,7 @@ async def test_create_vp(request: Request):
     vp_resp = await app.state.http_credo.post("/presentations/create", json={
         "credential": reg_data["credential"],
         "holderDid": reg_data["agentDid"],
-        "validMinutes": 5,
+        "validMinutes": valid_minutes,
     })
     if vp_resp.status_code >= 400:
         raise HTTPException(status_code=502, detail=f"VP creation failed: {vp_resp.text}")

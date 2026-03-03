@@ -8,15 +8,9 @@ import pytest
 import httpx
 from agents.fabric_discovery import discover_endpoint
 from agents.fabric_agent import run_fabric_query
+from tests.pytest.integration.conftest import _auth_headers
 
 GATEWAY = os.environ.get("FABRIC_GATEWAY", "https://bootstrap.cogitarelink.ai")
-
-
-def _auth_headers(vp_token, extra=None):
-    h = extra or {}
-    if vp_token:
-        h["Authorization"] = f"Bearer {vp_token}"
-    return h
 
 
 def _insert_test_observation(temp: float, sensor: str, vp_token=None) -> None:
