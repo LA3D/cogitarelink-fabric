@@ -5,7 +5,7 @@ import pathlib
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import httpx
-from fastapi import FastAPI, Request, Response, HTTPException
+from fastapi import Depends, FastAPI, Request, Response, HTTPException
 from fastapi.responses import JSONResponse, PlainTextResponse
 try:
     from fabric.node.void_templates import VOID_TURTLE as _VOID_TURTLE, VOID_JSONLD as _VOID_JSONLD
@@ -43,6 +43,10 @@ try:
     from fabric.node.catalog import build_catalog_construct
 except ModuleNotFoundError:
     from catalog import build_catalog_construct
+try:
+    from fabric.node.vp_auth import decode_bearer_token, extract_agent_context, AgentContext
+except ModuleNotFoundError:
+    from vp_auth import decode_bearer_token, extract_agent_context, AgentContext
 
 OXIGRAPH_URL = os.environ.get("OXIGRAPH_URL", "http://localhost:7878")
 NODE_BASE = os.environ.get("NODE_BASE", "http://localhost:8080")
@@ -53,6 +57,7 @@ ONTOLOGY_DIR = pathlib.Path(os.environ.get("ONTOLOGY_DIR", "/app/ontology"))
 SHARED_DIR = pathlib.Path(os.environ.get("SHARED_DIR", "/shared"))
 # Phase 1: unauthenticated — gated by VC-based access control in Phase 2 (D13, D19)
 SPARQL_UPDATE_ENABLED = os.environ.get("SPARQL_UPDATE_ENABLED", "true").lower() == "true"
+FABRIC_AUTH_ENABLED = os.environ.get("FABRIC_AUTH_ENABLED", "true").lower() == "true"
 
 # LDN inbox Link header (D25)
 _LDN_LINK = f'<{NODE_BASE}/inbox>; rel="http://www.w3.org/ns/ldp#inbox"'
@@ -529,6 +534,51 @@ async def agent_get(agent_id: str, request: Request):
     return await _sparql_construct(query, accept)
 
 
+async def verify_vp_bearer(request: Request) -> AgentContext | None:
+    """FastAPI dependency: verify VP Bearer token on SPARQL routes.
+
+    Returns AgentContext on success. Raises HTTPException on failure.
+    When FABRIC_AUTH_ENABLED=false, returns None (no auth required).
+    """
+    if not FABRIC_AUTH_ENABLED:
+        return None
+
+    auth = request.headers.get("authorization", "")
+    vp = decode_bearer_token(auth)
+    if vp is None:
+        raise HTTPException(
+            status_code=401,
+            detail="VP Bearer token required",
+            headers={"WWW-Authenticate": 'Bearer realm="cogitarelink-fabric"'},
+        )
+
+    # Verify VP proof via Credo
+    try:
+        resp = await request.app.state.http_credo.post(
+            "/presentations/verify", json=vp,
+        )
+        result = resp.json()
+        if not result.get("verified"):
+            raise HTTPException(
+                status_code=403,
+                detail=f"VP verification failed: {result.get('error', 'unknown')}",
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Credo verification error: {e}")
+
+    # Extract and validate agent context
+    ctx = extract_agent_context(vp)
+    if ctx is None:
+        raise HTTPException(
+            status_code=403,
+            detail="VP expired or invalid agentRole",
+        )
+
+    return ctx
+
+
 async def _proxy(request: Request, upstream_path: str) -> Response:
     body = await request.body()
     headers = {
@@ -550,14 +600,18 @@ async def _proxy(request: Request, upstream_path: str) -> Response:
 
 
 @app.post("/sparql")
-async def sparql_query_proxy(request: Request):
+async def sparql_query_proxy(
+    request: Request,
+    agent: AgentContext | None = Depends(verify_vp_bearer),
+):
     return await _proxy(request, "query")
 
 
 @app.post("/sparql/update")
-async def sparql_update_proxy(request: Request):
-    # Phase 1: unauthenticated write access for local development.
-    # Phase 2 gates this behind AgentAuthorizationCredential (D13, D19).
+async def sparql_update_proxy(
+    request: Request,
+    agent: AgentContext | None = Depends(verify_vp_bearer),
+):
     if not SPARQL_UPDATE_ENABLED:
         raise HTTPException(status_code=403, detail="SPARQL Update disabled")
     return await _proxy(request, "update")
