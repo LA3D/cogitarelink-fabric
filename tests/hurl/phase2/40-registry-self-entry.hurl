@@ -1,10 +1,19 @@
 # Phase 2 — D12: Registry self-entry after bootstrap
 # Verify /graph/registry contains self-entry with correct DID + endpoints
 
+# Auth setup: get VP token
+POST {{gateway}}/test/create-vp
+Content-Type: application/json
+{"agentRole":"DevelopmentAgentRole","authorizedGraphs":["*"],"authorizedOperations":["read"]}
+HTTP 201
+[Captures]
+vp_token: jsonpath "$.token"
+
 # Query registry graph for FabricNode entries
 POST {{gateway}}/sparql
 Content-Type: application/sparql-query
 Accept: application/sparql-results+json
+Authorization: Bearer {{vp_token}}
 ```
 PREFIX fabric: <https://w3id.org/cogitarelink/fabric#>
 SELECT ?node ?did ?void ?sparql ?inbox WHERE {

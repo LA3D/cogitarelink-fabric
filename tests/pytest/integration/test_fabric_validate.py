@@ -2,13 +2,20 @@
 import os
 import httpx
 from agents.fabric_discovery import discover_endpoint
-from agents.fabric_validate import validate_result
 
 GATEWAY = os.environ.get("FABRIC_GATEWAY", "https://bootstrap.cogitarelink.ai")
 
 
-def test_validate_live_observation():
+def _auth_headers(vp_token, extra=None):
+    h = extra or {}
+    if vp_token:
+        h["Authorization"] = f"Bearer {vp_token}"
+    return h
+
+
+def test_validate_live_observation(vp_token):
     """Insert observation, CONSTRUCT it back, validate against endpoint shapes."""
+    from agents.fabric_validate import validate_result
     sparql_insert = f"""
     PREFIX sosa: <http://www.w3.org/ns/sosa/>
     PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
@@ -24,7 +31,7 @@ def test_validate_live_observation():
         httpx.post(
             f"{GATEWAY}/sparql/update",
             data={"update": sparql_insert},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            headers=_auth_headers(vp_token, {"Content-Type": "application/x-www-form-urlencoded"}),
         ).raise_for_status()
 
         # CONSTRUCT the observation back as Turtle
@@ -38,17 +45,17 @@ def test_validate_live_observation():
         r = httpx.post(
             f"{GATEWAY}/sparql",
             data={"query": construct},
-            headers={"Accept": "text/turtle"},
+            headers=_auth_headers(vp_token, {"Accept": "text/turtle"}),
         )
         r.raise_for_status()
         data_ttl = r.text
 
-        ep = discover_endpoint(GATEWAY)
+        ep = discover_endpoint(GATEWAY, vp_token=vp_token)
         result = validate_result(data_ttl, ep.shapes_ttl, tbox_graph=ep.tbox_graph)
         assert result.conforms is True
     finally:
         httpx.post(
             f"{GATEWAY}/sparql/update",
             data={"update": f"DROP SILENT GRAPH <{GATEWAY}/graph/observations>"},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            headers=_auth_headers(vp_token, {"Content-Type": "application/x-www-form-urlencoded"}),
         )

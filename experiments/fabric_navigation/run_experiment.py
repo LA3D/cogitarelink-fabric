@@ -21,6 +21,8 @@ import sys
 import time
 from pathlib import Path
 
+import os
+
 import dspy
 import httpx
 
@@ -32,7 +34,7 @@ from experiments.fabric_navigation.dspy_eval_harness import (
     compute_aggregate_stats, substring_match_scorer, write_trajectory_jsonl,
 )
 
-from agents.fabric_discovery import discover_endpoint
+from agents.fabric_discovery import discover_endpoint, register_and_authenticate
 from agents.fabric_agent import FabricQuery
 from agents.fabric_query import make_fabric_query_tool
 from agents.fabric_rdfs_routes import make_rdfs_routes_tool
@@ -41,6 +43,7 @@ logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s: %(messag
 log = logging.getLogger(__name__)
 
 GATEWAY = "http://localhost:8080"
+VP_TOKEN: str | None = None  # set in main() after authentication
 
 # --- Fabric phase → active features mapping --------------------------------
 
@@ -257,6 +260,13 @@ def _build_insert(obs: dict) -> str:
     )
 
 
+def _sparql_update_headers() -> dict[str, str]:
+    h = {"Content-Type": "application/x-www-form-urlencoded"}
+    if VP_TOKEN:
+        h["Authorization"] = f"Bearer {VP_TOKEN}"
+    return h
+
+
 def setup_task_data(task: EvalTask) -> None:
     setup = task.metadata.get('setup', {})
     if setup.get('type') != 'sparql_insert':
@@ -269,7 +279,7 @@ def setup_task_data(task: EvalTask) -> None:
         httpx.post(
             f"{GATEWAY}/sparql/update",
             data={"update": q},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            headers=_sparql_update_headers(),
         ).raise_for_status()
 
 
@@ -283,7 +293,7 @@ def teardown_task_data(task: EvalTask) -> None:
         httpx.post(
             f"{GATEWAY}/sparql/update",
             data={"update": f"DROP SILENT GRAPH <{graph}>"},
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            headers=_sparql_update_headers(),
         )
 
 
@@ -313,7 +323,24 @@ def main() -> None:
     if args.no_cache:
         lm_kwargs['cache'] = False
     dspy.configure(lm=dspy.LM(args.model, **lm_kwargs))
-    ep = discover_endpoint(GATEWAY)
+
+    # Authenticate before discovery — SPARQL endpoint is VP-gated (D13)
+    vp_token = None
+    if os.environ.get("FABRIC_AUTH_ENABLED", "true").lower() == "true":
+        r = httpx.post(
+            f"{GATEWAY}/test/create-vp",
+            json={"agentRole": "DevelopmentAgentRole",
+                  "authorizedGraphs": ["*"],
+                  "authorizedOperations": ["read", "write"]},
+            timeout=15.0, verify=False,
+        )
+        r.raise_for_status()
+        vp_token = r.json()["token"]
+        log.info("Authenticated: VP token obtained")
+        global VP_TOKEN
+        VP_TOKEN = vp_token
+
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
 
     def rlm_factory() -> dspy.RLM:
         features = PHASE_FEATURES[args.phase]

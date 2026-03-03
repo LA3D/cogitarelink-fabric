@@ -1,9 +1,18 @@
 # Phase 1 — Entity dereference content negotiation (FAIR A1)
 # /entity/{id} should serve Turtle (default), JSON-LD, and N-Triples.
 
+# Auth setup: get VP token
+POST {{gateway}}/test/create-vp
+Content-Type: application/json
+{"agentRole":"DevelopmentAgentRole","authorizedGraphs":["*"],"authorizedOperations":["read","write"]}
+HTTP 201
+[Captures]
+vp_token: jsonpath "$.token"
+
 # Step 1: Ensure test entity exists
 POST {{gateway}}/sparql/update
 Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer {{vp_token}}
 
 ```
 update=PREFIX sosa: <http://www.w3.org/ns/sosa/>

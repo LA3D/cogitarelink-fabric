@@ -7,9 +7,9 @@ from agents.fabric_query import make_fabric_query_tool
 GATEWAY = os.environ.get("FABRIC_GATEWAY", "https://bootstrap.cogitarelink.ai")
 
 
-def test_sparql_query_tool_returns_json():
+def test_sparql_query_tool_returns_json(vp_token):
     """Tool executes SPARQL and returns JSON results."""
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     query_fn = make_fabric_query_tool(ep)
     result = query_fn("SELECT * WHERE {} LIMIT 1")
     parsed = json.loads(result)
@@ -17,9 +17,9 @@ def test_sparql_query_tool_returns_json():
     assert "bindings" in parsed["results"]
 
 
-def test_sparql_query_with_sosa():
+def test_sparql_query_with_sosa(vp_token):
     """Tool can query SOSA vocabulary from TBox graph."""
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     query_fn = make_fabric_query_tool(ep)
     result = query_fn(
         "PREFIX sosa: <http://www.w3.org/ns/sosa/> "
@@ -29,17 +29,17 @@ def test_sparql_query_with_sosa():
     assert "true" in result.lower()
 
 
-def test_sparql_error_surfaced_as_string():
+def test_sparql_error_surfaced_as_string(vp_token):
     """Malformed SPARQL returns error string, not exception."""
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     query_fn = make_fabric_query_tool(ep)
     result = query_fn("NOT VALID SPARQL")
     assert "error" in result.lower()
 
 
-def test_sparql_result_bounded():
+def test_sparql_result_bounded(vp_token):
     """Results exceeding max_chars are truncated."""
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     query_fn = make_fabric_query_tool(ep, max_chars=50)
     result = query_fn("SELECT * WHERE {} LIMIT 1")
     assert len(result) <= 200  # truncated + suffix message

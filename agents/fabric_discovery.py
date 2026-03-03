@@ -46,6 +46,7 @@ class FabricEndpoint:
     examples: list[ExampleSummary] = field(default_factory=list)
     tbox_graph: Graph | None = field(default=None, repr=False)
     vocab_graph_map: dict[str, str] = field(default_factory=dict)
+    vp_token: str | None = field(default=None, repr=False)
 
     @property
     def routing_plan(self) -> str:
@@ -250,7 +251,15 @@ def _parse_examples(ttl: str) -> list[ExampleSummary]:
 
 # --- TBox loading (L2) ----------------------------------------------------
 
-def _resolve_vocab_graphs(sparql_url: str, vocabs: list[str]) -> dict[str, str]:
+def _auth_headers(accept: str, vp_token: str | None = None) -> dict[str, str]:
+    h = {"Accept": accept}
+    if vp_token:
+        h["Authorization"] = f"Bearer {vp_token}"
+    return h
+
+
+def _resolve_vocab_graphs(sparql_url: str, vocabs: list[str],
+                          vp_token: str | None = None) -> dict[str, str]:
     """Find named graphs containing triples whose subjects start with each vocabulary IRI.
 
     Returns: dict mapping vocabulary namespace -> graph URI.
@@ -263,7 +272,7 @@ def _resolve_vocab_graphs(sparql_url: str, vocabs: list[str]) -> dict[str, str]:
         q = f'SELECT DISTINCT ?g WHERE {{ GRAPH ?g {{ ?s ?p ?o . FILTER(STRSTARTS(STR(?s), "{vocab}")) }} }}'
         r = httpx.post(
             sparql_url, data={"query": q},
-            headers={"Accept": "application/sparql-results+json"},
+            headers=_auth_headers("application/sparql-results+json", vp_token),
             timeout=10.0,
         )
         r.raise_for_status()
@@ -274,7 +283,8 @@ def _resolve_vocab_graphs(sparql_url: str, vocabs: list[str]) -> dict[str, str]:
     return mapping
 
 
-def _load_tbox(sparql_url: str, graph_uris: list[str]) -> Graph:
+def _load_tbox(sparql_url: str, graph_uris: list[str],
+               vp_token: str | None = None) -> Graph:
     """CONSTRUCT all triples from discovered TBox named graphs into one rdflib.Graph."""
     g = Graph()
     for uri in graph_uris:
@@ -284,7 +294,7 @@ def _load_tbox(sparql_url: str, graph_uris: list[str]) -> Graph:
         q = f"CONSTRUCT {{ ?s ?p ?o }} WHERE {{ GRAPH <{uri}> {{ ?s ?p ?o }} }}"
         r = httpx.post(
             sparql_url, data={"query": q},
-            headers={"Accept": "text/turtle"},
+            headers=_auth_headers("text/turtle", vp_token),
             timeout=30.0,
         )
         r.raise_for_status()
@@ -295,8 +305,37 @@ def _load_tbox(sparql_url: str, graph_uris: list[str]) -> Graph:
 
 # --- Public API ------------------------------------------------------------
 
-def discover_endpoint(url: str) -> FabricEndpoint:
-    """Fetch all four D9 layers from a fabric node's .well-known/ endpoints."""
+def register_and_authenticate(
+    ep: FabricEndpoint,
+    role: str = "DevelopmentAgentRole",
+    graphs: list[str] | None = None,
+    operations: list[str] | None = None,
+) -> FabricEndpoint:
+    """Register agent and obtain VP Bearer token via /test/create-vp helper.
+
+    Sets ep.vp_token in-place and returns ep for chaining.
+    """
+    r = httpx.post(
+        f"{ep.base}/test/create-vp",
+        json={
+            "agentRole": role,
+            "authorizedGraphs": graphs or ["*"],
+            "authorizedOperations": operations or ["read", "write"],
+        },
+        timeout=15.0,
+        verify=False,  # internal CA in dev
+    )
+    r.raise_for_status()
+    ep.vp_token = r.json()["token"]
+    return ep
+
+
+def discover_endpoint(url: str, vp_token: str | None = None) -> FabricEndpoint:
+    """Fetch all four D9 layers from a fabric node's .well-known/ endpoints.
+
+    vp_token: optional VP Bearer token for auth-gated SPARQL endpoints.
+    The .well-known/* fetches don't need auth, but TBox loading via SPARQL does.
+    """
     base = url.rstrip("/")
 
     void_ttl = _fetch(f"{base}/.well-known/void")
@@ -316,10 +355,10 @@ def discover_endpoint(url: str) -> FabricEndpoint:
     tbox = None
     if sparql_url and vocabs:
         try:
-            vocab_graph_map = _resolve_vocab_graphs(sparql_url, vocabs)
+            vocab_graph_map = _resolve_vocab_graphs(sparql_url, vocabs, vp_token)
             graph_uris = list(dict.fromkeys(vocab_graph_map.values()))  # dedup, preserve order
             if graph_uris:
-                tbox = _load_tbox(sparql_url, graph_uris)
+                tbox = _load_tbox(sparql_url, graph_uris, vp_token)
         except (httpx.HTTPError, ValueError, SyntaxError) as exc:
             log.debug("TBox loading failed: %s", exc)
 
@@ -334,4 +373,5 @@ def discover_endpoint(url: str) -> FabricEndpoint:
         shapes=shapes, examples=examples,
         tbox_graph=tbox,
         vocab_graph_map=vocab_graph_map,
+        vp_token=vp_token,
     )

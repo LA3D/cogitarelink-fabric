@@ -1,9 +1,18 @@
 # Cycle 5 — SOSA data load and retrieval
 # RED: INSERT a mock SOSA Observation, then SELECT and verify it exists
 
+# Auth setup: get VP token
+POST {{gateway}}/test/create-vp
+Content-Type: application/json
+{"agentRole":"DevelopmentAgentRole","authorizedGraphs":["*"],"authorizedOperations":["read","write"]}
+HTTP 201
+[Captures]
+vp_token: jsonpath "$.token"
+
 # Step 0: Clear the test graph for idempotent runs
 POST {{gateway}}/sparql/update
 Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer {{vp_token}}
 
 ```
 update=DROP SILENT GRAPH <{{gateway}}/graph/observations>
@@ -14,6 +23,7 @@ HTTP 204
 # Step 1: INSERT mock SOSA Observation into /graph/observations
 POST {{gateway}}/sparql/update
 Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer {{vp_token}}
 
 ```
 update=PREFIX sosa: <http://www.w3.org/ns/sosa/>
@@ -33,6 +43,7 @@ HTTP 204
 # Step 2: SELECT to verify exactly one observation exists
 POST {{gateway}}/sparql
 Accept: application/sparql-results+json
+Authorization: Bearer {{vp_token}}
 [FormParams]
 query: PREFIX sosa: <http://www.w3.org/ns/sosa/> SELECT (COUNT(*) AS ?n) FROM <{{gateway}}/graph/observations> WHERE { ?obs a sosa:Observation }
 

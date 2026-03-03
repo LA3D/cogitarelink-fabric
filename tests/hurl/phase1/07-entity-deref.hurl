@@ -1,9 +1,18 @@
 # Cycle 7 — Entity dereference (FAIR A1)
 # RED: INSERT an entity, then GET /entity/{id} returns Turtle via CONSTRUCT
 
+# Auth setup: get VP token
+POST {{gateway}}/test/create-vp
+Content-Type: application/json
+{"agentRole":"DevelopmentAgentRole","authorizedGraphs":["*"],"authorizedOperations":["read","write"]}
+HTTP 201
+[Captures]
+vp_token: jsonpath "$.token"
+
 # Step 1: Insert a test entity
 POST {{gateway}}/sparql/update
 Content-Type: application/x-www-form-urlencoded
+Authorization: Bearer {{vp_token}}
 
 ```
 update=PREFIX sosa: <http://www.w3.org/ns/sosa/>

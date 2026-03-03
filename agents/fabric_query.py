@@ -72,12 +72,26 @@ def make_fabric_query_tool(
         try:
             if reject_unbounded and _is_unbounded_scan(query):
                 return _UNBOUNDED_MSG
+            headers = {"Accept": "application/sparql-results+json"}
+            if ep.vp_token:
+                headers["Authorization"] = f"Bearer {ep.vp_token}"
             r = httpx.post(
                 ep.sparql_url,
                 data={"query": query},
-                headers={"Accept": "application/sparql-results+json"},
+                headers=headers,
                 timeout=30.0,
             )
+            if r.status_code == 401:
+                return (
+                    "Authentication required: the SPARQL endpoint requires a VP Bearer token. "
+                    "Call register_and_authenticate() to obtain credentials before querying."
+                )
+            if r.status_code == 403:
+                return (
+                    "Access denied: your agent credentials were rejected. "
+                    "Check that your agentRole has permission for this operation and graph. "
+                    f"Detail: {r.text[:300]}"
+                )
             r.raise_for_status()
             txt = r.text
             if len(txt) > max_chars:

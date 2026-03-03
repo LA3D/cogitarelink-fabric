@@ -12,7 +12,14 @@ from agents.fabric_agent import run_fabric_query
 GATEWAY = os.environ.get("FABRIC_GATEWAY", "https://bootstrap.cogitarelink.ai")
 
 
-def _insert_test_observation(temp: float, sensor: str) -> None:
+def _auth_headers(vp_token, extra=None):
+    h = extra or {}
+    if vp_token:
+        h["Authorization"] = f"Bearer {vp_token}"
+    return h
+
+
+def _insert_test_observation(temp: float, sensor: str, vp_token=None) -> None:
     """Insert a known observation into the fabric node for testing."""
     sparql_update = f"""
     PREFIX sosa: <http://www.w3.org/ns/sosa/>
@@ -29,29 +36,29 @@ def _insert_test_observation(temp: float, sensor: str) -> None:
     r = httpx.post(
         f"{GATEWAY}/sparql/update",
         data={"update": sparql_update},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        headers=_auth_headers(vp_token, {"Content-Type": "application/x-www-form-urlencoded"}),
     )
     r.raise_for_status()
 
 
-def _cleanup_test_observation() -> None:
+def _cleanup_test_observation(vp_token=None) -> None:
     sparql_update = f"""
     DROP SILENT GRAPH <{GATEWAY}/graph/observations>
     """
     httpx.post(
         f"{GATEWAY}/sparql/update",
         data={"update": sparql_update},
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        headers=_auth_headers(vp_token, {"Content-Type": "application/x-www-form-urlencoded"}),
     )
 
 
 @pytest.mark.slow
 @pytest.mark.llm
-def test_agent_answers_from_self_description():
+def test_agent_answers_from_self_description(vp_token):
     """End-to-end: insert data, discover endpoint, RLM query, verify answer."""
     try:
-        _insert_test_observation(temp=23.5, sensor="sensor-1")
-        ep = discover_endpoint(GATEWAY)
+        _insert_test_observation(temp=23.5, sensor="sensor-1", vp_token=vp_token)
+        ep = discover_endpoint(GATEWAY, vp_token=vp_token)
         result = run_fabric_query(
             ep, "What temperature did sensor-1 measure?", verbose=True,
         )
@@ -60,4 +67,4 @@ def test_agent_answers_from_self_description():
         assert result.iterations > 0
         assert result.converged is True
     finally:
-        _cleanup_test_observation()
+        _cleanup_test_observation(vp_token=vp_token)

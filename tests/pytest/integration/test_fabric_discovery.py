@@ -43,10 +43,10 @@ def test_fabric_endpoint_routing_plan_contains_basics():
     assert "CoreProfile" in plan
 
 
-def test_discover_endpoint():
+def test_discover_endpoint(vp_token):
     """discover_endpoint returns FabricEndpoint with all four layers populated."""
     from agents.fabric_discovery import discover_endpoint
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     assert ep.base == GATEWAY
     assert ep.sparql_url == f"{GATEWAY}/sparql"
     assert "http://www.w3.org/ns/sosa/" in ep.vocabularies
@@ -58,10 +58,10 @@ def test_discover_endpoint():
     assert len(ep.examples_ttl) > 0
 
 
-def test_discover_parses_shapes():
+def test_discover_parses_shapes(vp_token):
     """discover_endpoint extracts ShapeSummary from SHACL."""
     from agents.fabric_discovery import discover_endpoint
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     assert len(ep.shapes) >= 1
     obs_shape = next((s for s in ep.shapes if "Observation" in s.target_class), None)
     assert obs_shape is not None
@@ -69,19 +69,19 @@ def test_discover_parses_shapes():
     assert len(obs_shape.properties) >= 1
 
 
-def test_discover_parses_examples():
+def test_discover_parses_examples(vp_token):
     """discover_endpoint extracts ExampleSummary from spex: catalog."""
     from agents.fabric_discovery import discover_endpoint
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     assert len(ep.examples) >= 1
     assert any("observation" in e.label.lower() for e in ep.examples)
     assert all(e.sparql.strip() for e in ep.examples)
 
 
-def test_routing_plan_readable():
+def test_routing_plan_readable(vp_token):
     """routing_plan contains shapes, examples, vocabularies from live endpoint."""
     from agents.fabric_discovery import discover_endpoint
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     plan = ep.routing_plan
     assert "sosa" in plan.lower()
     assert "SPARQL" in plan
@@ -95,12 +95,12 @@ def test_discover_bad_endpoint():
         discover_endpoint("http://localhost:9999")
 
 
-def test_discover_loads_tbox():
+def test_discover_loads_tbox(vp_token):
     """discover_endpoint loads TBox triples from ontology named graphs."""
     from agents.fabric_discovery import discover_endpoint
     from rdflib import URIRef
     from rdflib.namespace import RDF, OWL
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     assert ep.tbox_graph is not None
     assert len(ep.tbox_graph) > 0
     # sosa:Observation should be declared as an owl:Class in the TBox
@@ -121,24 +121,25 @@ def test_discover_tbox_backward_compat():
 
 def test_public_api_importable():
     """Public API is importable from agents package."""
-    from agents import discover_endpoint, make_fabric_query_tool, run_fabric_query
+    from agents import discover_endpoint, make_fabric_query_tool, run_fabric_query, register_and_authenticate
     assert callable(discover_endpoint)
     assert callable(make_fabric_query_tool)
     assert callable(run_fabric_query)
+    assert callable(register_and_authenticate)
 
 
-def test_discover_populates_vocab_graph_map():
+def test_discover_populates_vocab_graph_map(vp_token):
     """discover_endpoint should map vocabulary namespaces to local ontology graphs."""
     from agents.fabric_discovery import discover_endpoint
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     assert len(ep.vocab_graph_map) >= 2, f"Expected vocab graph mappings, got: {ep.vocab_graph_map}"
     sosa_graph = ep.vocab_graph_map.get("http://www.w3.org/ns/sosa/", "")
     assert "/ontology/sosa" in sosa_graph, f"Expected sosa graph, got: {sosa_graph}"
 
 
-def test_routing_plan_shows_graph_paths():
+def test_routing_plan_shows_graph_paths(vp_token):
     """Routing plan should render '-> /ontology/sosa' when graphs are loaded."""
     from agents.fabric_discovery import discover_endpoint
-    ep = discover_endpoint(GATEWAY)
+    ep = discover_endpoint(GATEWAY, vp_token=vp_token)
     plan = ep.routing_plan
     assert "-> /ontology/sosa" in plan, f"Expected graph path in plan. Plan:\n{plan}"

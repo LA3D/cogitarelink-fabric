@@ -1,10 +1,10 @@
 # cogitarelink-fabric — Session Memory
 
-## Project State (as of 2026-03-01)
+## Project State (as of 2026-03-03)
 
 **Repo**: `~/dev/git/LA3D/agents/cogitarelink-fabric`
 **Branch**: main (all work merged)
-**Tests**: 205 unit + 42 HURL (15 phase1 + 27 phase2) — all passing
+**Tests**: 219 unit + 47 HURL (15 phase1 + 32 phase2) — 262 total (4 HURL pre-existing failures: admission 42/43 + HURL rendering 50/51)
 **Endpoint**: `https://bootstrap.cogitarelink.ai` (Caddy TLS, D30 complete)
 
 ## Completed Work
@@ -20,6 +20,7 @@
 - **Phase 2 DID integration** (commits `4eda91c`–`2422669`): W3C DID Resolution HTTP API, LDN inbox (POST/GET), enriched conformance VC, Link header discovery, DID resolver helper module, SPARQL injection prevention
 - **D29 External endpoint attestation** (commit `cb8a69a`): QLever PubChem/Wikidata/OSM as dcat:DataService in /graph/catalog with fabric:vouchedBy + spex:SparqlExample; POST Graph Store Protocol for append
 - **D30 HTTPS migration** (commits `b91573e`–`d51638f`): Caddy TLS-terminating reverse proxy; NODE_BASE → `https://bootstrap.cogitarelink.ai`; tls internal CA; all 247 tests passing
+- **D13 VP-gated SPARQL** (commits `ee60d58`–`8972df6` + auth integration): Credo VP create/verify endpoints; FastAPI `verify_vp_bearer()` dependency on `/sparql` + `/sparql/update`; `FABRIC_AUTH_ENABLED` env var; `POST /test/create-vp` dev helper; `FabricEndpoint.vp_token` + tool-level auth; `register_and_authenticate()` helper; all HURL/pytest tests updated with VP Bearer tokens; experiment harness auth integration
 
 ## Key Architecture Patterns
 
@@ -33,6 +34,19 @@
 - Phase 6 feature flags: `no-entity-lookup` (strips example), `no-unbounded-scan` (guardrail on sparql_query tool)
 - `setup_task_data` graph override fix: per-record `graph` key preserved, setup-level default only applies when absent
 - `teardown_task_data` multi-graph: reads `setup.extra_graphs` list, drops each in addition to primary
+
+### D13 VP-Gated SPARQL Patterns (2026-03-03)
+
+- `FABRIC_AUTH_ENABLED`: env var (default `true`) gates `verify_vp_bearer()` FastAPI dependency
+- `POST /test/create-vp`: dev-only helper (gated by `TEST_HELPERS_ENABLED`) — registers agent + creates VP + base64url-encodes → returns `{token, agentDid, agentRole, validUntil}`
+- `FabricEndpoint.vp_token`: `str | None`, set by `register_and_authenticate(ep)` or manually
+- `make_fabric_query_tool(ep)`: auto-includes `Authorization: Bearer` header when `ep.vp_token` is set; returns LLM-readable messages for 401/403
+- `discover_endpoint(url, vp_token=None)`: threads token through `_resolve_vocab_graphs` and `_load_tbox` (SPARQL calls need auth)
+- `_auth_headers(accept, vp_token)`: helper in `fabric_discovery.py` for building request headers
+- VP Bearer token encoding: `base64.urlsafe_b64encode(json.dumps(vp_json).encode()).decode().rstrip("=")`
+- HURL pattern: first request calls `POST {{gateway}}/test/create-vp`, captures `vp_token: jsonpath "$.token"`, subsequent SPARQL requests add `Authorization: Bearer {{vp_token}}`
+- pytest pattern: session-scoped `vp_token` fixture in `tests/pytest/integration/conftest.py`, injected into tests that call `discover_endpoint` or SPARQL
+- Experiment harness: `run_experiment.py` gets token before `discover_endpoint()`, sets module-level `VP_TOKEN` for `setup_task_data`/`teardown_task_data`
 
 ### Phase 2 DID Integration Patterns
 
@@ -94,6 +108,8 @@ Previous claim of "6/6 tool usage" was wrong — it was 2/6 per run, selectively
 | `fabric/node/catalog.py` | rdflib-based VoID→DCAT extraction (D23) |
 | `fabric/node/integrity.py` | D26 content integrity — b58, SHA-256, `verify_related_resources` |
 | `fabric/node/bootstrap.py` | TBox loading + registry self-entry + catalog population |
+| `fabric/node/vp_auth.py` | `decode_bearer_token`, `extract_agent_context`, `AgentContext` |
+| `tests/pytest/integration/conftest.py` | `vp_token` session fixture for auth-gated tests |
 
 ## Experiment Phase Map
 
