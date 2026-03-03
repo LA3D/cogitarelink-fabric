@@ -58,6 +58,7 @@ SHARED_DIR = pathlib.Path(os.environ.get("SHARED_DIR", "/shared"))
 # Phase 1: unauthenticated — gated by VC-based access control in Phase 2 (D13, D19)
 SPARQL_UPDATE_ENABLED = os.environ.get("SPARQL_UPDATE_ENABLED", "true").lower() == "true"
 FABRIC_AUTH_ENABLED = os.environ.get("FABRIC_AUTH_ENABLED", "true").lower() == "true"
+TEST_HELPERS_ENABLED = os.environ.get("TEST_HELPERS_ENABLED", "false").lower() == "true"
 
 # LDN inbox Link header (D25)
 _LDN_LINK = f'<{NODE_BASE}/inbox>; rel="http://www.w3.org/ns/ldp#inbox"'
@@ -532,6 +533,55 @@ async def agent_get(agent_id: str, request: Request):
     accept = request.headers.get("accept", "text/turtle")
     query = build_agent_construct(NODE_BASE, agent_did)
     return await _sparql_construct(query, accept)
+
+
+@app.post("/test/create-vp")
+async def test_create_vp(request: Request):
+    """Dev-only: register agent + create VP -> return base64url token.
+
+    Used by HURL tests that need a valid VP Bearer token.
+    Not available in production (TEST_HELPERS_ENABLED=false).
+    """
+    if not TEST_HELPERS_ENABLED:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    body = await request.json()
+    role = body.get("agentRole", "DevelopmentAgentRole")
+    graphs = body.get("authorizedGraphs", [])
+    ops = body.get("authorizedOperations", ["read"])
+
+    # 1. Register agent via Credo
+    reg_resp = await app.state.http_credo.post("/agents/register", json={
+        "agentRole": role,
+        "authorizedGraphs": graphs,
+        "authorizedOperations": ops,
+    })
+    if reg_resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"Agent registration failed: {reg_resp.text}")
+    reg_data = reg_resp.json()
+
+    # 2. Create VP via Credo
+    vp_resp = await app.state.http_credo.post("/presentations/create", json={
+        "credential": reg_data["credential"],
+        "holderDid": reg_data["agentDid"],
+        "validMinutes": 5,
+    })
+    if vp_resp.status_code >= 400:
+        raise HTTPException(status_code=502, detail=f"VP creation failed: {vp_resp.text}")
+    vp_json = vp_resp.json()
+
+    # 3. Base64url-encode VP
+    import base64
+    token = base64.urlsafe_b64encode(
+        json.dumps(vp_json).encode()
+    ).decode().rstrip("=")
+
+    return JSONResponse(status_code=201, content={
+        "token": token,
+        "agentDid": reg_data["agentDid"],
+        "agentRole": role,
+        "validUntil": vp_json.get("validUntil"),
+    })
 
 
 async def verify_vp_bearer(request: Request) -> AgentContext | None:
