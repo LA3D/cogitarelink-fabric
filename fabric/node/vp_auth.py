@@ -7,7 +7,10 @@ import base64
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from fabric.node.registry import VALID_AGENT_ROLES
+try:
+    from fabric.node.registry import VALID_AGENT_ROLES
+except ModuleNotFoundError:
+    from registry import VALID_AGENT_ROLES
 
 
 @dataclass

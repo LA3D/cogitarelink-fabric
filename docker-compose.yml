@@ -23,6 +23,8 @@ services:
       NODE_BASE: https://bootstrap.cogitarelink.ai
       CREDO_URL: http://credo-sidecar:3000
       SHARED_DIR: /shared
+      FABRIC_AUTH_ENABLED: "true"
+      TEST_HELPERS_ENABLED: "true"
     volumes:
       - ./shapes:/app/shapes:ro
       - ./ontology:/app/ontology:ro
