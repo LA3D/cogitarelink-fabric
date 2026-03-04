@@ -3,6 +3,12 @@ from agents.fabric_discovery import discover_endpoint, register_and_authenticate
 from agents.fabric_query import make_fabric_query_tool
 from agents.fabric_validate import validate_result, ValidationResult, make_validate_tool
 from agents.fabric_rdfs_routes import make_rdfs_routes_tool
+from agents.fabric_write import (
+    make_discover_write_targets_tool,
+    make_write_triples_tool,
+    make_validate_graph_tool,
+    make_commit_graph_tool,
+)
 
 
 def __getattr__(name):

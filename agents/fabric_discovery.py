@@ -5,7 +5,7 @@ import re
 from dataclasses import dataclass, field
 
 import httpx
-from rdflib import Graph, Namespace
+from rdflib import Graph, Literal, Namespace
 from rdflib.namespace import RDF, RDFS, DCTERMS
 
 log = logging.getLogger(__name__)
@@ -47,6 +47,7 @@ class FabricEndpoint:
     tbox_graph: Graph | None = field(default=None, repr=False)
     vocab_graph_map: dict[str, str] = field(default_factory=dict)
     vp_token: str | None = field(default=None, repr=False)
+    agent_did: str | None = field(default=None, repr=False)
 
     @property
     def routing_plan(self) -> str:
@@ -84,7 +85,8 @@ class FabricEndpoint:
             lines.append("")
             lines.append("Named graphs:")
             for ng in self.named_graphs:
-                lines.append(f"  {ng['graph_uri']} — {ng['title']}")
+                w = " [writable]" if ng.get("writable") else ""
+                lines.append(f"  {ng['graph_uri']} — {ng['title']}{w}")
 
         lines.append("")
         lines.append(f"Shapes ({len(self.shapes)}):")
@@ -115,6 +117,7 @@ VOID = Namespace("http://rdfs.org/ns/void#")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SPEX = Namespace("https://purl.expasy.org/sparql-examples/ontology#")
 SDO = Namespace("https://schema.org/")
+FABRIC = Namespace("https://w3id.org/cogitarelink/fabric#")
 
 # --- Helpers ---------------------------------------------------------------
 
@@ -187,6 +190,8 @@ def _parse_void(ttl: str) -> tuple[str, list[str], str, str | None, list[dict]]:
                 sub_conforms = g.value(subset, DCTERMS.conformsTo)
                 if sub_conforms:
                     entry["conformsTo"] = str(sub_conforms)
+                w = g.value(subset, FABRIC.writable)
+                entry["writable"] = w is not None and w.toPython() is True
                 named_graphs.append(entry)
     return sparql_url, vocabs, conforms, uri_space, named_graphs
 
@@ -333,7 +338,9 @@ def register_and_authenticate(
         verify=_ssl_verify(),
     )
     r.raise_for_status()
-    ep.vp_token = r.json()["token"]
+    data = r.json()
+    ep.vp_token = data["token"]
+    ep.agent_did = data.get("agentDid")
     return ep
 
 

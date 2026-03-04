@@ -12,6 +12,8 @@
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
 @prefix dct:   <http://purl.org/dc/terms/> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
 @prefix fabric: <https://w3id.org/cogitarelink/fabric#> .
 
 # --- Metadata -----------------------------------------------------------
@@ -105,4 +107,86 @@ the endpoint graph inventory for the entities graph.""" ;
         sh:nodeKind sh:IRI ;
         sh:pattern "^{base}/entity/" ;
         sh:description "The sensor that made this observation. Sensor IRIs use the node entity namespace ({base}/entity/)." ;
+    ] .
+
+# --- sosa:Platform shape (instruments) ------------------------------------
+
+fabric:InstrumentShape
+    a sh:NodeShape ;
+    sh:targetClass sosa:Platform ;
+    dct:conformsTo <{base}/shapes/instrument-v0.1> ;
+    dct:description "Shape for instrument/platform entities in /graph/entities. Required: identity and hosting. Recommended: manufacturer and model for Wikidata linking." ;
+
+    sh:agentInstruction """Instruments are sosa:Platform instances in /graph/entities.
+Each instrument must have a label, serial number, and host at least one sensor.
+Manufacturer and model are recommended (sh:Warning) but won't block commit.
+
+Example Turtle for a valid instrument:
+  PREFIX sosa: <http://www.w3.org/ns/sosa/>
+  PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  PREFIX schema: <https://schema.org/>
+  <{base}/entity/instrument-1> a sosa:Platform ;
+      rdfs:label "BioLogic SP-200 Potentiostat" ;
+      schema:serialNumber "SP200-2024-001" ;
+      sosa:hosts <{base}/entity/sensor-1> ;
+      schema:manufacturer "BioLogic" ;
+      schema:model "SP-200" .""" ;
+
+    sh:property [
+        sh:path rdfs:label ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:agentInstruction "Every instrument must have a human-readable label." ;
+    ] ;
+    sh:property [
+        sh:path schema:serialNumber ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:agentInstruction "Provide the instrument serial number for provenance tracking." ;
+    ] ;
+    sh:property [
+        sh:path sosa:hosts ;
+        sh:minCount 1 ;
+        sh:class sosa:Sensor ;
+        sh:agentInstruction "An instrument must host at least one sensor." ;
+    ] ;
+    sh:property [
+        sh:path schema:manufacturer ;
+        sh:maxCount 1 ;
+        sh:severity sh:Warning ;
+        sh:agentInstruction "If known, provide the manufacturer. Check Wikidata for owl:sameAs linking." ;
+    ] ;
+    sh:property [
+        sh:path schema:model ;
+        sh:maxCount 1 ;
+        sh:datatype xsd:string ;
+        sh:severity sh:Warning ;
+        sh:agentInstruction "If known, provide the instrument model identifier." ;
+    ] .
+
+# --- sosa:Sensor entity shape ---------------------------------------------
+
+fabric:SensorEntityShape
+    a sh:NodeShape ;
+    sh:targetClass sosa:Sensor ;
+    dct:description "Shape for sensor entities in /graph/entities." ;
+
+    sh:agentInstruction """Sensors are sosa:Sensor instances in /graph/entities.
+Each sensor must have a label and declare what observable property it measures.
+
+Example Turtle:
+  <{base}/entity/sensor-1> a sosa:Sensor ;
+      rdfs:label "Working Electrode Current Sensor" ;
+      sosa:observes <{base}/entity/op-current> .""" ;
+
+    sh:property [
+        sh:path rdfs:label ;
+        sh:minCount 1 ;
+        sh:datatype xsd:string ;
+        sh:agentInstruction "Every sensor must have a human-readable label." ;
+    ] ;
+    sh:property [
+        sh:path sosa:observes ;
+        sh:minCount 1 ;
+        sh:agentInstruction "Declare what observable property this sensor measures." ;
     ] .

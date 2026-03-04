@@ -38,6 +38,12 @@ from agents.fabric_discovery import discover_endpoint, register_and_authenticate
 from agents.fabric_agent import FabricQuery
 from agents.fabric_query import make_fabric_query_tool
 from agents.fabric_rdfs_routes import make_rdfs_routes_tool
+from agents.fabric_write import (
+    make_discover_write_targets_tool,
+    make_write_triples_tool,
+    make_validate_graph_tool,
+    make_commit_graph_tool,
+)
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s %(name)s: %(message)s')
 log = logging.getLogger(__name__)
@@ -135,6 +141,12 @@ PHASE_FEATURES = {
         "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
         "tbox-graph-paths", "rdfs-routes",
         "no-entity-lookup", "no-unbounded-scan",
+    ],
+    "phase7a-write-baseline": [
+        "void-sd", "void-urispace", "void-graph-inventory",
+        "shacl-prefixes", "shacl-class-pattern", "shacl-agent-hints",
+        "sparql-examples", "sparql-examples-extended", "enhanced-routing-plan",
+        "tbox-graph-paths", "write-tools",
     ],
 }
 
@@ -346,6 +358,13 @@ def main() -> None:
         tools = [make_fabric_query_tool(ep, reject_unbounded=reject_unbounded)]
         if "rdfs-routes" in features:
             tools.append(make_rdfs_routes_tool(ep))
+        if "write-tools" in features:
+            tools.extend([
+                make_discover_write_targets_tool(ep),
+                make_write_triples_tool(ep),
+                make_validate_graph_tool(ep),
+                make_commit_graph_tool(ep),
+            ])
         return dspy.RLM(
             FabricQuery,
             tools=tools,
@@ -385,6 +404,26 @@ def main() -> None:
         "      print(routes)  # Shows: observes domain=Sensor, observedProperty domain=Observation\n"
     )
 
+    _WRITE_TOOL_HINT = (
+        "\n\nWRITE TOOLS (call from REPL code):\n"
+        "  discover_write_targets() -> str\n"
+        "    Lists named graphs that accept writes and their governing SHACL shapes.\n"
+        "\n"
+        "  write_triples(graph: str, turtle: str) -> str\n"
+        "    Writes Turtle content to a named graph. No validation at write time.\n"
+        "    Returns confirmation or error message.\n"
+        "\n"
+        "  validate_graph(graph: str) -> str\n"
+        "    Validates graph contents against SHACL shapes.\n"
+        "    Returns conformance result with fix instructions if non-conformant.\n"
+        "\n"
+        "  commit_graph(graph: str) -> str\n"
+        "    Validates graph, records PROV-O provenance on success.\n"
+        "    Returns validation report on failure.\n"
+        "\n"
+        "  WORKFLOW: discover_write_targets → write_triples → validate_graph → commit_graph\n"
+    )
+
     def kwarg_builder(task: EvalTask) -> dict:
         sd = ep.routing_plan
         features = PHASE_FEATURES[args.phase]
@@ -394,6 +433,8 @@ def main() -> None:
             sd = _strip_entity_lookup(sd)
         if 'rdfs-routes' in features:
             sd = sd + _RDFS_TOOL_HINT
+        if 'write-tools' in features:
+            sd = sd + _WRITE_TOOL_HINT
         return {'endpoint_sd': sd, 'query': task.query}
 
     harness = FabricNavHarness(

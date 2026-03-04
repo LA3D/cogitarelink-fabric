@@ -10,6 +10,7 @@ VOID_TURTLE = """\
 @prefix dct:  <http://purl.org/dc/terms/> .
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix fabric: <https://w3id.org/cogitarelink/fabric#> .
 
 # --- Service Description (D6) ---
 <{base}/sparql> a sd:Service, dcat:DataService ;
@@ -50,6 +51,7 @@ VOID_TURTLE = """\
         dct:title "Observations" ;
         void:sparqlGraphEndpoint <{base}/graph/observations> ;
         dct:conformsTo <https://w3id.org/cogitarelink/fabric#ObservationShape> ;
+        fabric:writable true ;
     ] ;
     void:subset [
         a void:Dataset ;
@@ -57,6 +59,7 @@ VOID_TURTLE = """\
         dct:description "Sensor, platform, and observable-property descriptions." ;
         void:sparqlGraphEndpoint <{base}/graph/entities> ;
         dct:conformsTo <https://w3id.org/cogitarelink/fabric#EntityShape> ;
+        fabric:writable true ;
     ] .
 
 # --- DCAT Dataset Description (D23) ---
@@ -86,7 +89,8 @@ VOID_JSONLD = """\
     "void": "http://rdfs.org/ns/void#",
     "sd": "http://www.w3.org/ns/sparql-service-description#",
     "dct": "http://purl.org/dc/terms/",
-    "dcat": "http://www.w3.org/ns/dcat#"
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "fabric": "https://w3id.org/cogitarelink/fabric#"
   }},
   "@graph": [
     {{
@@ -112,14 +116,16 @@ VOID_JSONLD = """\
           "@type": "void:Dataset",
           "dct:title": "Observations",
           "void:sparqlGraphEndpoint": {{ "@id": "{base}/graph/observations" }},
-          "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#ObservationShape" }}
+          "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#ObservationShape" }},
+          "fabric:writable": true
         }},
         {{
           "@type": "void:Dataset",
           "dct:title": "Entities",
           "dct:description": "Sensor, platform, and observable-property descriptions.",
           "void:sparqlGraphEndpoint": {{ "@id": "{base}/graph/entities" }},
-          "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#EntityShape" }}
+          "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#EntityShape" }},
+          "fabric:writable": true
         }}
       ]
     }},
