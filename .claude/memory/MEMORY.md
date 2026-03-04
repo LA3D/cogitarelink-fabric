@@ -1,10 +1,10 @@
 # cogitarelink-fabric — Session Memory
 
-## Project State (as of 2026-03-03)
+## Project State (as of 2026-03-04)
 
 **Repo**: `~/dev/git/LA3D/agents/cogitarelink-fabric`
 **Branch**: main (all work merged)
-**Tests**: 219 unit + 47 HURL (15 phase1 + 32 phase2) — 262 total (4 HURL pre-existing failures: admission 42/43 + HURL rendering 50/51)
+**Tests**: 242 unit + 20 integration + 47 HURL = 309 total (4 HURL pre-existing failures: admission 42/43 + HURL rendering 50/51)
 **Endpoint**: `https://bootstrap.cogitarelink.ai` (Caddy TLS, D30 complete)
 
 ## Completed Work
@@ -20,7 +20,8 @@
 - **Phase 2 DID integration** (commits `4eda91c`–`2422669`): W3C DID Resolution HTTP API, LDN inbox (POST/GET), enriched conformance VC, Link header discovery, DID resolver helper module, SPARQL injection prevention
 - **D29 External endpoint attestation** (commit `cb8a69a`): QLever PubChem/Wikidata/OSM as dcat:DataService in /graph/catalog with fabric:vouchedBy + spex:SparqlExample; POST Graph Store Protocol for append
 - **D30 HTTPS migration** (commits `b91573e`–`d51638f`): Caddy TLS-terminating reverse proxy; NODE_BASE → `https://bootstrap.cogitarelink.ai`; tls internal CA; all 247 tests passing
-- **D13 VP-gated SPARQL** (commits `ee60d58`–`8972df6` + auth integration): Credo VP create/verify endpoints; FastAPI `verify_vp_bearer()` dependency on `/sparql` + `/sparql/update`; `FABRIC_AUTH_ENABLED` env var; `POST /test/create-vp` dev helper; `FabricEndpoint.vp_token` + tool-level auth; `register_and_authenticate()` helper; all HURL/pytest tests updated with VP Bearer tokens; experiment harness auth integration
+- **D13 VP-gated SPARQL** (commits `ee60d58`–`b204920`): Credo VP create/verify endpoints; FastAPI `verify_vp_bearer()` dependency on `/sparql` + `/sparql/update`; `FABRIC_AUTH_ENABLED` env var; `POST /test/create-vp` dev helper; `FabricEndpoint.vp_token` + tool-level auth; `register_and_authenticate()` helper; all HURL/pytest tests updated with VP Bearer tokens; experiment harness auth integration; code + security review fixes applied
+- **D10/D24 Write-side infrastructure** (commit `2a34cd2`): four `make_*_tool(ep)` factories in `agents/fabric_write.py`; `fabric:writable` VoID annotations; InstrumentShape + SensorEntityShape SHACL; `agent_did` on FabricEndpoint; PROV-O audit provenance; SPARQL injection prevention; phase7a experiment phase; 40 new tests
 
 ## Key Architecture Patterns
 
@@ -46,7 +47,29 @@
 - VP Bearer token encoding: `base64.urlsafe_b64encode(json.dumps(vp_json).encode()).decode().rstrip("=")`
 - HURL pattern: first request calls `POST {{gateway}}/test/create-vp`, captures `vp_token: jsonpath "$.token"`, subsequent SPARQL requests add `Authorization: Bearer {{vp_token}}`
 - pytest pattern: session-scoped `vp_token` fixture in `tests/pytest/integration/conftest.py`, injected into tests that call `discover_endpoint` or SPARQL
-- Experiment harness: `run_experiment.py` gets token before `discover_endpoint()`, sets module-level `VP_TOKEN` for `setup_task_data`/`teardown_task_data`
+- Experiment harness: `run_experiment.py` gets token before `discover_endpoint()`, threads `vp_token` as param through `setup_task_data(task, vp_token)` / `teardown_task_data(task, vp_token)` / `_sparql_update_headers(vp_token)`
+- `_ssl_verify()`: returns `SSL_CERT_FILE` env var or `True` (system default); replaces all `verify=False`
+- Auth overhead: ~15ms/query (TLS + FastAPI + VP decode) vs ~7ms direct Oxigraph — <1% of LLM iteration time
+- `TEST_HELPERS_ENABLED`: overridable via env var `${TEST_HELPERS_ENABLED:-true}` in docker-compose.yml; `/test/create-vp` accepts `validMinutes` (capped at 120)
+- Security review: `AgentContext` extracted but not enforced — by design for Phase 2; Phase 3 adds tiered graph/operation checks
+
+### D10/D24 Write-Side Infrastructure Patterns (2026-03-04)
+
+- `agents/fabric_write.py`: four `make_*_tool(ep)` factories following read-side closure-over-FabricEndpoint pattern
+- `make_discover_write_targets_tool(ep)`: filters `ep.named_graphs` for `writable=True`, formats graph URIs + shapes
+- `make_write_triples_tool(ep)`: parses Turtle locally (rdflib), serializes to N-Triples, wraps in `INSERT DATA { GRAPH <uri> { ... } }`, POSTs to `/sparql/update` with VP auth
+- `make_validate_graph_tool(ep)`: CONSTRUCT fetches graph contents, delegates to `validate_result()` from `fabric_validate.py`, formats violations with `sh:agentInstruction` hints
+- `make_commit_graph_tool(ep)`: validate internally → write PROV-O activity to `/graph/audit` on success; `prov:wasAssociatedWith <agent-did>`, `prov:used <shape-uri>`, `prov:generated <graph>`
+- `_update_url(sparql_url)`: derives SPARQL Update endpoint from query endpoint (appends `/update`)
+- `_SAFE_IRI`: regex validation on graph URIs before SPARQL interpolation (prevents injection)
+- `FabricEndpoint.agent_did`: `str | None`, set by `register_and_authenticate()` from `/test/create-vp` response
+- `fabric:writable true`: VoID void:subset annotation; parsed by `_parse_void()` into `entry["writable"]` bool
+- `routing_plan` shows `[writable]` suffix on graph URIs for agent self-description
+- `_WRITE_TOOL_HINT`: injected into `endpoint_sd` via `kwarg_builder` when `"write-tools"` feature active
+- `phase7a-write-baseline`: PHASE_FEATURES entry with `"write-tools"` flag
+- InstrumentShape: `sh:targetClass sosa:Platform`, required (label, serialNumber, hosts), recommended (manufacturer, model) with `sh:Warning`
+- SensorEntityShape: `sh:targetClass sosa:Sensor`, required (label, observes)
+- Turtle→N-Triples: avoids `@prefix` in `INSERT DATA` bug (D29 lesson); rdflib handles serialization
 
 ### Phase 2 DID Integration Patterns
 
@@ -101,8 +124,9 @@ Previous claim of "6/6 tool usage" was wrong — it was 2/6 per run, selectively
 | `agents/fabric_discovery.py` | `FabricEndpoint.tbox_graph`, `_resolve_vocab_graphs`, `_load_tbox` |
 | `agents/fabric_agent.py` | `FabricQueryResult` with `iterations`, `converged` |
 | `agents/fabric_validate.py` | `validate_result`, `make_validate_tool` |
+| `agents/fabric_write.py` | `make_discover_write_targets_tool`, `make_write_triples_tool`, `make_validate_graph_tool`, `make_commit_graph_tool` |
 | `agents/__init__.py` | Public API exports |
-| `experiments/fabric_navigation/run_experiment.py` | Phase feature map, `kwarg_builder` with `_RDFS_TOOL_HINT` |
+| `experiments/fabric_navigation/run_experiment.py` | Phase feature map, `kwarg_builder` with `_RDFS_TOOL_HINT` + `_WRITE_TOOL_HINT` |
 | `experiments/fabric_navigation/dspy_eval_harness.py` | `FabricNavHarness`, `FabricMetrics`, trajectory logging |
 | `fabric/node/registry.py` | SPARQL builders for `/graph/registry` + `/graph/agents` (D12, D13, D14) |
 | `fabric/node/catalog.py` | rdflib-based VoID→DCAT extraction (D23) |

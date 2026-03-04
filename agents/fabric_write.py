@@ -1,9 +1,10 @@
 """Fabric write tools — discover, write, validate, commit (D10, D24)."""
 from __future__ import annotations
+import os
 import re
+import time
 from collections.abc import Callable
 from datetime import datetime, timezone
-from uuid import uuid4
 
 import httpx
 from rdflib import Graph
@@ -15,9 +16,14 @@ from agents.fabric_validate import validate_result
 _SAFE_IRI = re.compile(r'^https?://[^\s"<>{}]+$')
 
 
-def _uuid7_stub() -> str:
-    """UUIDv4 stand-in — matches existing uuid7() pattern in codebase."""
-    return str(uuid4())
+def _uuid7() -> str:
+    """Generate UUIDv7 per RFC 9562 — timestamp-sortable, no external deps (D11)."""
+    ms = int(time.time() * 1000)
+    rand = int.from_bytes(os.urandom(10), "big")
+    hi = (ms << 16) | 0x7000 | ((rand >> 62) & 0x0FFF)
+    lo = (0b10 << 62) | (rand & 0x3FFFFFFFFFFFFFFF)
+    h = f"{hi:016x}{lo:016x}"
+    return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:]}"
 
 
 def _update_url(sparql_url: str) -> str:
@@ -190,7 +196,7 @@ def make_commit_graph_tool(ep: FabricEndpoint) -> Callable:
                 return "\n".join(lines)
 
             # Step 3: Write PROV-O provenance to /graph/audit
-            activity_id = _uuid7_stub()
+            activity_id = _uuid7()
             agent_did = getattr(ep, "agent_did", None) or "urn:unknown-agent"
             now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 

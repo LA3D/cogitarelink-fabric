@@ -79,16 +79,18 @@ def test_write_validate_commit_cycle(vp_token):
     # Step 3: Validate
     validate = make_validate_graph_tool(ep)
     val_result = validate(graph)
-    # May have other data in the graph; our instrument should conform
-    # The key check: no rejection specifically about our test instrument
     assert "Authentication required" not in val_result
+    # Our well-formed instrument+sensor should pass validation
+    assert "CONFORMS" in val_result or "NON-CONFORMANT" in val_result, \
+        f"Expected validation result, got: {val_result[:200]}"
 
     # Step 4: Commit
     commit = make_commit_graph_tool(ep)
     commit_result = commit(graph)
-    # Graph may have pre-existing non-conformant data, so we check that
-    # either COMMITTED or the rejection is about other data, not ours
-    assert "error" not in commit_result.lower() or "COMMIT REJECTED" in commit_result
+    assert "Authentication required" not in commit_result
+    # Expect either successful commit or shape-based rejection (not HTTP errors)
+    assert "COMMITTED" in commit_result or "COMMIT REJECTED" in commit_result, \
+        f"Expected commit outcome, got: {commit_result[:200]}"
 
 
 def test_write_invalid_then_fix(vp_token):
@@ -111,10 +113,10 @@ def test_write_invalid_then_fix(vp_token):
     result = write(graph, bad_ttl)
     assert "OK:" in result
 
-    # Validate should find violations
+    # Validate should find violations (missing label, serialNumber, hosts)
     val = validate(graph)
-    # Should report issues (either NON-CONFORMANT or violations in text)
     assert "Authentication required" not in val
+    assert "NON-CONFORMANT" in val, f"Expected violations for bare Platform, got: {val[:200]}"
 
     # Fix: write complete data
     result2 = write(graph, INSTRUMENT_TTL)

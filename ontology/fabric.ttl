@@ -68,7 +68,7 @@
 
     # ★★★★ — VOAF term counts + bibliographic citations
     voaf:classNumber      "15"^^xsd:integer ;
-    voaf:propertyNumber   "11"^^xsd:integer ;
+    voaf:propertyNumber   "12"^^xsd:integer ;
 
     dct:bibliographicCitation
         "Janowicz, K., Hitzler, P., Adams, B., Kolas, D., Vardeman II, C. (2014). Five Stars of Linked Data Vocabulary Use. Semantic Web, 5(3), 173-176. https://doi.org/10.3233/SW-130175"@en ,
@@ -431,9 +431,17 @@ fabric:vouchedBy
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-26"^^xsd:date .
 
+fabric:writable
+    a owl:DatatypeProperty ;
+    rdfs:label        "writable"@en ;
+    skos:definition   "Boolean annotation on a void:Dataset (named graph) indicating whether RLM agents may write triples to it via SPARQL UPDATE. Used in VoID service descriptions to advertise writable graphs (D10)."@en ;
+    rdfs:range        xsd:boolean ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-03-04"^^xsd:date .
+
 # ============================================================
 # END OF VOCABULARY
 # Five-star status: ★★★★ (★★★★★ pending external vocabulary adoption + LOV registration)
-# Version: 0.2.0  |  Date: 2026-02-26
+# Version: 0.3.0  |  Date: 2026-03-04
 # Source: https://github.com/LA3D/cogitarelink-fabric/ontology/fabric.ttl
 # ============================================================

@@ -148,6 +148,7 @@ Example Turtle for a valid instrument:
         sh:path sosa:hosts ;
         sh:minCount 1 ;
         sh:class sosa:Sensor ;
+        sh:nodeKind sh:IRI ;
         sh:agentInstruction "An instrument must host at least one sensor." ;
     ] ;
     sh:property [
@@ -188,5 +189,6 @@ Example Turtle:
     sh:property [
         sh:path sosa:observes ;
         sh:minCount 1 ;
+        sh:nodeKind sh:IRI ;
         sh:agentInstruction "Declare what observable property this sensor measures." ;
     ] .

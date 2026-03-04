@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Callable
 import re
 import httpx
-from agents.fabric_discovery import FabricEndpoint
+from agents.fabric_discovery import FabricEndpoint, _ssl_verify
 
 # Detects triple patterns with unbound predicate AND object variables.
 # Catches: <iri> ?p ?o, ?s ?p ?o — the "entity lookup escape hatch".
@@ -80,6 +80,7 @@ def make_fabric_query_tool(
                 data={"query": query},
                 headers=headers,
                 timeout=30.0,
+                verify=_ssl_verify(),
             )
             if r.status_code == 401:
                 return (
