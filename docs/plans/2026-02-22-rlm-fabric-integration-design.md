@@ -277,5 +277,5 @@ def test_agent_answers_from_self_description():
 - MLflow/Phoenix observability
 - Trajectory logging
 - Ref handle pattern (bounded result handles from rlm_runtime)
-- Multi-endpoint scatter-gather
+- Multi-endpoint map-reduce
 - VC-based authentication (Phase 2)
