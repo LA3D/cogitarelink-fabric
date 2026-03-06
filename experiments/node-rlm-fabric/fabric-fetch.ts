@@ -7,13 +7,24 @@ export function createFabricFetch(options: FabricFetchOptions = {}): typeof fetc
   const { vpToken, baseFetch = globalThis.fetch } = options;
 
   return async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-    const headers = new Headers(init?.headers);
+    if (input instanceof Request) {
+      const headers = new Headers(input.headers);
+      if (init?.headers) {
+        for (const [k, v] of new Headers(init.headers).entries()) {
+          headers.set(k, v);
+        }
+      }
+      if (vpToken) {
+        headers.set("Authorization", `Bearer ${vpToken}`);
+      }
+      return baseFetch(new Request(input, { ...init, headers }));
+    }
 
+    const url = typeof input === "string" ? input : input.toString();
+    const headers = new Headers(init?.headers);
     if (vpToken) {
       headers.set("Authorization", `Bearer ${vpToken}`);
     }
-
     return baseFetch(url, { ...init, headers });
   };
 }

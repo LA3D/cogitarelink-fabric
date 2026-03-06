@@ -66,6 +66,7 @@ export function createSandboxTools(config: SandboxToolsConfig) {
     const resp = await fabricFetch(`${endpoint}/.well-known/void`, {
       headers: { Accept: "text/turtle" },
     });
+    if (!resp.ok) return `HTTP ${resp.status}: ${await resp.text()}`;
     return resp.text();
   }
 
@@ -73,6 +74,7 @@ export function createSandboxTools(config: SandboxToolsConfig) {
     const resp = await fabricFetch(`${endpoint}/.well-known/shacl`, {
       headers: { Accept: "text/turtle" },
     });
+    if (!resp.ok) return `HTTP ${resp.status}: ${await resp.text()}`;
     return resp.text();
   }
 
@@ -81,6 +83,7 @@ export function createSandboxTools(config: SandboxToolsConfig) {
       `${endpoint}/.well-known/sparql-examples`,
       { headers: { Accept: "text/turtle" } },
     );
+    if (!resp.ok) return `HTTP ${resp.status}: ${await resp.text()}`;
     return resp.text();
   }
 
@@ -88,6 +91,7 @@ export function createSandboxTools(config: SandboxToolsConfig) {
     const resp = await fabricFetch(`${endpoint}/entity/${entityId}`, {
       headers: { Accept: "application/ld+json" },
     });
+    if (!resp.ok) return `HTTP ${resp.status}: ${await resp.text()}`;
     return resp.text();
   }
 

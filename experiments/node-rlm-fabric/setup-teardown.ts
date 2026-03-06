@@ -1,5 +1,3 @@
-import { QueryEngine } from "@comunica/query-sparql";
-
 const PREFIXES = `
 PREFIX sosa: <http://www.w3.org/ns/sosa/>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -56,15 +54,18 @@ export async function setupTaskData(
   const setup = task.metadata?.setup as { type?: string; graph?: string; data?: TaskRecord[] } | undefined;
   if (!setup || setup.type !== "sparql_insert" || !setup.data) return;
 
-  const engine = new QueryEngine();
   const graphUri = setup.graph ?? `${endpoint}/graph/observations`;
 
   for (const record of setup.data) {
     const query = buildInsertQuery(graphUri, record);
-    await engine.queryVoid(query, {
-      sources: [`${endpoint}/sparql`],
-      fetch: fabricFetch,
+    const resp = await fabricFetch(`${endpoint}/sparql/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `update=${encodeURIComponent(query)}`,
     });
+    if (!resp.ok) {
+      throw new Error(`Setup INSERT failed (${resp.status}): ${await resp.text()}`);
+    }
   }
 }
 
@@ -76,15 +77,18 @@ export async function teardownTaskData(
   const setup = task.metadata?.setup as { type?: string; graph?: string; extra_graphs?: string[] } | undefined;
   if (!setup || setup.type !== "sparql_insert") return;
 
-  const engine = new QueryEngine();
   const graphs = [setup.graph ?? `${endpoint}/graph/observations`];
   if (setup.extra_graphs) graphs.push(...setup.extra_graphs);
 
   for (const graphUri of graphs) {
     const query = buildDropQuery(graphUri);
-    await engine.queryVoid(query, {
-      sources: [`${endpoint}/sparql`],
-      fetch: fabricFetch,
+    const resp = await fabricFetch(`${endpoint}/sparql/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: `update=${encodeURIComponent(query)}`,
     });
+    if (!resp.ok) {
+      console.error(`Teardown DROP failed (${resp.status}): ${await resp.text()}`);
+    }
   }
 }
