@@ -9,13 +9,14 @@ HTTP 200
 header "Content-Type" contains "text/turtle"
 body contains "sosa"
 
-# Test 2: GET /ontology/sosa as JSON-LD (bare array from Oxigraph; @context added by WU-3)
+# Test 2: GET /ontology/sosa as JSON-LD (WU-3 injects @context)
 GET {{gateway}}/ontology/sosa
 Accept: application/ld+json
 HTTP 200
 [Asserts]
 header "Content-Type" contains "application/ld+json"
-body contains "sosa"
+body contains "@context"
+body contains "@graph"
 
 # Test 3: GET /ontology/sio as Turtle (second ontology)
 GET {{gateway}}/ontology/sio

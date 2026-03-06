@@ -153,7 +153,7 @@ async def ontology_vocab(vocab: str, request: Request):
     _validate_vocab(vocab)
     accept = request.headers.get("accept", "text/turtle")
     query = _ontology_construct(NODE_BASE, vocab)
-    return await _sparql_construct(query, accept)
+    return await _sparql_construct(query, accept, context_type="meta")
 
 
 @app.get("/entity/{entity_id}")
@@ -186,7 +186,10 @@ async def entity_deref(entity_id: str, request: Request):
         if len(_g) == 0:
             raise HTTPException(status_code=404, detail=f"Entity not found: {entity_uri}")
 
-    return Response(content=resp.content, status_code=resp.status_code, media_type=fmt)
+    content = resp.content
+    if fmt == "application/ld+json":
+        content = _inject_context(content, "data")
+    return Response(content=content, status_code=resp.status_code, media_type=fmt)
 
 
 @app.get("/.well-known/shacl")
@@ -214,7 +217,7 @@ async def well_known_catalog(request: Request):
     """D23 Stage 1: Self-catalog — DCAT datasets extracted from VoID."""
     accept = request.headers.get("accept", "text/turtle")
     query = build_catalog_construct(NODE_BASE)
-    return await _sparql_construct(query, accept)
+    return await _sparql_construct(query, accept, context_type="discovery")
 
 
 # --- Phase 2: W3C DID Resolution HTTP API (D3, D5, D25) ---
@@ -419,7 +422,28 @@ async def ldn_inbox_get(notification_id: str):
 
 # --- Phase 2: Registry + Admission + Agents (D12, D13, D14) ---
 
-async def _sparql_construct(query: str, accept: str) -> Response:
+_CONTEXT_MAP = {
+    "data": f"{NODE_BASE}/.well-known/context/data.jsonld",
+    "discovery": f"{NODE_BASE}/.well-known/context/discovery.jsonld",
+    "meta": f"{NODE_BASE}/.well-known/context/meta.jsonld",
+}
+
+
+def _inject_context(body: bytes, context_type: str) -> bytes:
+    """Wrap Oxigraph's bare JSON-LD array with @context."""
+    doc = json.loads(body)
+    ctx_url = _CONTEXT_MAP[context_type]
+    if isinstance(doc, list):
+        doc = {"@context": ctx_url, "@graph": doc}
+    elif isinstance(doc, dict) and "@context" not in doc:
+        doc["@context"] = ctx_url
+    elif isinstance(doc, dict):
+        existing = doc["@context"]
+        doc["@context"] = [ctx_url, existing] if not isinstance(existing, list) else [ctx_url] + existing
+    return json.dumps(doc, ensure_ascii=False).encode()
+
+
+async def _sparql_construct(query: str, accept: str, context_type: str | None = None) -> Response:
     """Run a CONSTRUCT query and return content-negotiated response."""
     if "application/ld+json" in accept:
         fmt = "application/ld+json"
@@ -428,7 +452,10 @@ async def _sparql_construct(query: str, accept: str) -> Response:
     resp = await app.state.http.get(
         "/query", params={"query": query}, headers={"Accept": fmt},
     )
-    return Response(content=resp.content, status_code=resp.status_code, media_type=fmt)
+    content = resp.content
+    if fmt == "application/ld+json" and context_type:
+        content = _inject_context(content, context_type)
+    return Response(content=content, status_code=resp.status_code, media_type=fmt)
 
 
 @app.get("/fabric/registry")
@@ -436,7 +463,7 @@ async def fabric_registry(request: Request):
     """D12: List all registered fabric nodes."""
     accept = request.headers.get("accept", "text/turtle")
     query = build_registry_construct(NODE_BASE)
-    return await _sparql_construct(query, accept)
+    return await _sparql_construct(query, accept, context_type="discovery")
 
 
 @app.post("/fabric/admission")
@@ -560,7 +587,7 @@ async def agents_list(request: Request):
     """D13: List all registered agents."""
     accept = request.headers.get("accept", "text/turtle")
     query = build_agents_list_construct(NODE_BASE)
-    return await _sparql_construct(query, accept)
+    return await _sparql_construct(query, accept, context_type="discovery")
 
 
 @app.get("/agents/{agent_id}")
@@ -579,7 +606,7 @@ async def agent_get(agent_id: str, request: Request):
     agent_did = f"{node_did}:agents:{agent_id}" if node_did else f"{NODE_BASE}/agents/{agent_id}"
     accept = request.headers.get("accept", "text/turtle")
     query = build_agent_construct(NODE_BASE, agent_did)
-    return await _sparql_construct(query, accept)
+    return await _sparql_construct(query, accept, context_type="discovery")
 
 
 @app.post("/test/create-vp")
