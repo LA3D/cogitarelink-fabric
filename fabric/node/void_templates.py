@@ -11,6 +11,7 @@ VOID_TURTLE = """\
 @prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 @prefix fabric: <https://w3id.org/cogitarelink/fabric#> .
+@prefix prov:   <http://www.w3.org/ns/prov#> .
 
 # --- Service Description (D6) ---
 <{base}/sparql> a sd:Service, dcat:DataService ;
@@ -32,6 +33,41 @@ VOID_TURTLE = """\
             sd:name <{base}/graph/metadata> ;
             dct:title "Metadata" ;
             dct:description "Node-level metadata, provenance records, and administrative triples." ;
+        ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/sosa> ;
+            void:vocabulary <http://www.w3.org/ns/sosa/> ;
+            prov:wasDerivedFrom <http://www.w3.org/ns/sosa/> ;
+        ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/sio> ;
+            void:vocabulary <http://semanticscience.org/resource/> ;
+            prov:wasDerivedFrom <http://semanticscience.org/resource/> ;
+        ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/prov> ;
+            void:vocabulary <http://www.w3.org/ns/prov#> ;
+            prov:wasDerivedFrom <http://www.w3.org/ns/prov#> ;
+        ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/time> ;
+            void:vocabulary <http://www.w3.org/2006/time#> ;
+            prov:wasDerivedFrom <http://www.w3.org/2006/time#> ;
+        ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/fabric> ;
+            void:vocabulary <https://w3id.org/cogitarelink/fabric#> ;
+            prov:wasDerivedFrom <https://w3id.org/cogitarelink/fabric#> ;
+        ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/prof> ;
+            void:vocabulary <http://www.w3.org/ns/dx/prof/> ;
+            prov:wasDerivedFrom <http://www.w3.org/ns/dx/prof/> ;
+        ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/role> ;
+            void:vocabulary <http://www.w3.org/ns/dx/prof/role/> ;
+            prov:wasDerivedFrom <http://www.w3.org/ns/dx/prof/role/> ;
         ] ;
     ] .
 
@@ -90,13 +126,29 @@ VOID_JSONLD = """\
     "sd": "http://www.w3.org/ns/sparql-service-description#",
     "dct": "http://purl.org/dc/terms/",
     "dcat": "http://www.w3.org/ns/dcat#",
-    "fabric": "https://w3id.org/cogitarelink/fabric#"
+    "fabric": "https://w3id.org/cogitarelink/fabric#",
+    "prov": "http://www.w3.org/ns/prov#"
   }},
   "@graph": [
     {{
       "@id": "{base}/sparql",
       "@type": ["sd:Service", "dcat:DataService"],
-      "dcat:servesDataset": {{ "@id": "{base}/dataset/observations" }}
+      "dcat:servesDataset": {{ "@id": "{base}/dataset/observations" }},
+      "sd:defaultDataset": {{
+        "@type": "sd:Dataset",
+        "sd:namedGraph": [
+          {{ "sd:name": {{ "@id": "{base}/graph/observations" }}, "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#ObservationShape" }} }},
+          {{ "sd:name": {{ "@id": "{base}/graph/entities" }}, "dct:title": "Entities", "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#EntityShape" }}, "dct:description": "Sensor, platform, and observable-property descriptions (sosa:Sensor, sosa:Platform, sosa:ObservableProperty)." }},
+          {{ "sd:name": {{ "@id": "{base}/graph/metadata" }}, "dct:title": "Metadata", "dct:description": "Node-level metadata, provenance records, and administrative triples." }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/sosa" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/sosa/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/sosa/" }} }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/sio" }}, "void:vocabulary": {{ "@id": "http://semanticscience.org/resource/" }}, "prov:wasDerivedFrom": {{ "@id": "http://semanticscience.org/resource/" }} }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/prov" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/prov#" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/prov#" }} }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/time" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/2006/time#" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/2006/time#" }} }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/fabric" }}, "void:vocabulary": {{ "@id": "https://w3id.org/cogitarelink/fabric#" }}, "prov:wasDerivedFrom": {{ "@id": "https://w3id.org/cogitarelink/fabric#" }} }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/prof" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dx/prof/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dx/prof/" }} }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/role" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dx/prof/role/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dx/prof/role/" }} }}
+        ]
+      }}
     }},
     {{
       "@id": "{base}/.well-known/void",
