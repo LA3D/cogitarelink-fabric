@@ -33,7 +33,7 @@ export async function acquireVpToken(endpoint: string, fetchFn: typeof fetch = g
   const resp = await fetchFn(`${endpoint}/test/create-vp`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ agentRole: "IngestCurator", validMinutes: 120 }),
+    body: JSON.stringify({ agentRole: "IngestCuratorRole", validMinutes: 120 }),
   });
   if (!resp.ok) throw new Error(`VP token acquisition failed: ${resp.status}`);
   const data = await resp.json() as { token: string };
