@@ -2,8 +2,8 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { rlm } from "node-rlm";
-import { fromOpenRouterCompatible } from "node-rlm/drivers/openrouter-compatible";
+import { rlm, RlmObserver } from "node-rlm";
+import { fromAnthropic } from "./anthropic-driver.js";
 import { substringMatch } from "./scoring.js";
 import { createFabricFetch, acquireVpToken } from "./fabric-fetch.js";
 import { createSandboxTools } from "./sandbox-tools.js";
@@ -11,6 +11,15 @@ import { setupTaskData, teardownTaskData } from "./setup-teardown.js";
 import { getGlobalDocs } from "./global-docs.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// Anthropic pricing (USD per million tokens)
+const PRICING: Record<string, { input: number; output: number }> = {
+  "claude-sonnet-4-6": { input: 3, output: 15 },
+  "claude-sonnet-4-5-20250929": { input: 3, output: 15 },
+  "claude-sonnet-4-20250514": { input: 3, output: 15 },
+  "claude-opus-4-6": { input: 15, output: 75 },
+  "claude-haiku-4-5-20251001": { input: 0.80, output: 4 },
+};
 
 interface Task {
   id: string;
@@ -29,6 +38,19 @@ interface TaskResult {
   iterations: number;
   wallTimeMs: number;
   error?: string;
+  trajectory: TrajectoryStep[];
+  tokenUsage?: { promptTokens: number; completionTokens: number };
+}
+
+interface TrajectoryStep {
+  iteration: number;
+  reasoning: string;
+  code: string | null;
+  output: string;
+  error: string | null;
+  returned: boolean;
+  durationMs: number;
+  usage?: { promptTokens?: number; completionTokens?: number };
 }
 
 interface CliArgs {
@@ -52,7 +74,7 @@ function parseArgs(argv: string[]): CliArgs {
     console.error("Usage: npx tsx run-experiment.ts --tasks <path> --condition <name> [options]");
     console.error("\nConditions: js-baseline, js-jsonld, js-ltqp, js-combined");
     console.error("\nOptions:");
-    console.error("  --model <id>           Model (default: claude-sonnet-4-6-20250514)");
+    console.error("  --model <id>           Model (default: claude-sonnet-4-6)");
     console.error("  --max-iterations <n>   REPL iterations (default: 10)");
     console.error("  --endpoint <url>       Fabric endpoint (default: https://bootstrap.cogitarelink.ai)");
     process.exit(1);
@@ -61,7 +83,7 @@ function parseArgs(argv: string[]): CliArgs {
   return {
     tasks: args.tasks,
     condition: args.condition ?? "js-baseline",
-    model: args.model ?? "claude-sonnet-4-6-20250514",
+    model: args.model ?? "claude-sonnet-4-6",
     maxIterations: parseInt(args["max-iterations"] ?? "10", 10),
     endpoint: args.endpoint ?? "https://bootstrap.cogitarelink.ai",
   };
@@ -78,6 +100,9 @@ async function main(): Promise<void> {
   console.log(`Max Iterations:  ${args.maxIterations}`);
   console.log();
 
+  // Pricing for cost tracking
+  const pricing = PRICING[args.model] ?? { input: 3, output: 15 };
+
   // Verify API key
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -86,11 +111,7 @@ async function main(): Promise<void> {
   }
 
   // Create Anthropic driver
-  const callLLM = fromOpenRouterCompatible({
-    baseUrl: "https://api.anthropic.com/v1",
-    apiKey,
-    model: args.model,
-  });
+  const callLLM = fromAnthropic({ apiKey, model: args.model });
 
   // Acquire VP token for authenticated SPARQL
   console.log("Acquiring VP token...");
@@ -130,6 +151,37 @@ async function main(): Promise<void> {
     let iterations = 0;
     let error: string | undefined;
 
+    // Per-task observer for trajectory capture
+    const observer = new RlmObserver();
+    const trajectory: TrajectoryStep[] = [];
+    let currentStep: Partial<TrajectoryStep> = {};
+
+    observer.on("llm:response", (e) => {
+      currentStep = {
+        iteration: e.iteration,
+        reasoning: e.reasoning,
+        code: e.code,
+        durationMs: e.duration,
+        usage: e.usage
+          ? { promptTokens: e.usage.promptTokens, completionTokens: e.usage.completionTokens }
+          : undefined,
+      };
+    });
+
+    observer.on("iteration:end", (e) => {
+      trajectory.push({
+        iteration: e.iteration,
+        reasoning: currentStep.reasoning ?? "",
+        code: e.code,
+        output: e.output,
+        error: e.error,
+        returned: e.returned,
+        durationMs: currentStep.durationMs ?? 0,
+        usage: currentStep.usage,
+      });
+      currentStep = {};
+    });
+
     try {
       // Setup test data
       await setupTaskData(task, fabricFetch, args.endpoint);
@@ -140,6 +192,7 @@ async function main(): Promise<void> {
         maxIterations: args.maxIterations,
         sandboxGlobals: { ...tools },
         globalDocs,
+        observer,
       });
 
       answer = result.answer;
@@ -159,6 +212,10 @@ async function main(): Promise<void> {
     const wallTimeMs = Date.now() - t0;
     const score = error ? 0.0 : substringMatch(answer, task.expected);
 
+    // Aggregate token usage across trajectory
+    const totalPrompt = trajectory.reduce((s, t) => s + (t.usage?.promptTokens ?? 0), 0);
+    const totalCompletion = trajectory.reduce((s, t) => s + (t.usage?.completionTokens ?? 0), 0);
+
     results.push({
       taskId: task.id,
       query: task.query,
@@ -167,10 +224,15 @@ async function main(): Promise<void> {
       score,
       iterations,
       wallTimeMs,
+      trajectory,
+      tokenUsage: totalPrompt > 0 ? { promptTokens: totalPrompt, completionTokens: totalCompletion } : undefined,
       ...(error ? { error } : {}),
     });
 
-    console.log(`  score=${score.toFixed(2)}, iters=${iterations}, time=${(wallTimeMs / 1000).toFixed(1)}s`);
+    const taskCost = totalPrompt > 0
+      ? (totalPrompt / 1e6) * pricing.input + (totalCompletion / 1e6) * pricing.output
+      : 0;
+    console.log(`  score=${score.toFixed(2)}, iters=${iterations}, time=${(wallTimeMs / 1000).toFixed(1)}s, tokens=${totalPrompt}+${totalCompletion}, cost=$${taskCost.toFixed(4)}`);
     console.log();
   }
 
@@ -187,6 +249,14 @@ async function main(): Promise<void> {
   const meanIters = results.reduce((s, r) => s + r.iterations, 0) / results.length;
   const totalWallMs = results.reduce((s, r) => s + r.wallTimeMs, 0);
 
+  // Aggregate token usage and cost
+  const totalPromptTokens = results.reduce((s, r) => s + (r.tokenUsage?.promptTokens ?? 0), 0);
+  const totalCompletionTokens = results.reduce((s, r) => s + (r.tokenUsage?.completionTokens ?? 0), 0);
+
+  const costUsd =
+    (totalPromptTokens / 1_000_000) * pricing.input +
+    (totalCompletionTokens / 1_000_000) * pricing.output;
+
   const output = {
     benchmark: `fabric-${args.condition}`,
     model: args.model,
@@ -198,6 +268,10 @@ async function main(): Promise<void> {
       meanIterations: meanIters,
       totalWallTimeMs: totalWallMs,
       taskCount: results.length,
+      totalPromptTokens,
+      totalCompletionTokens,
+      costUsd,
+      costPerTask: costUsd / results.length,
     },
     results,
   };
@@ -205,13 +279,30 @@ async function main(): Promise<void> {
   writeFileSync(resultsFile, JSON.stringify(output, null, 2));
   console.log(`Results saved to ${resultsFile}`);
 
+  // Save compact trajectory file (one per run, for analysis)
+  const trajectoryFile = join(
+    resultsDir,
+    `trajectory-${args.condition}_${args.model}_${timestamp}.json`,
+  );
+  const trajectoryOutput = results.map((r) => ({
+    taskId: r.taskId,
+    score: r.score,
+    iterations: r.iterations,
+    tokenUsage: r.tokenUsage,
+    trajectory: r.trajectory,
+  }));
+  writeFileSync(trajectoryFile, JSON.stringify(trajectoryOutput, null, 2));
+  console.log(`Trajectories saved to ${trajectoryFile}`);
+
   // Print summary
   console.log();
   console.log("=".repeat(50));
-  console.log(`  Condition: ${args.condition}`);
-  console.log(`  Score:     ${(meanScore * 100).toFixed(1)}% (${results.filter(r => r.score === 1).length}/${results.length})`);
-  console.log(`  Iters:     ${meanIters.toFixed(1)} mean`);
-  console.log(`  Time:      ${(totalWallMs / 1000).toFixed(1)}s total`);
+  console.log(`  Condition:  ${args.condition}`);
+  console.log(`  Score:      ${(meanScore * 100).toFixed(1)}% (${results.filter(r => r.score === 1).length}/${results.length})`);
+  console.log(`  Iters:      ${meanIters.toFixed(1)} mean`);
+  console.log(`  Time:       ${(totalWallMs / 1000).toFixed(1)}s total`);
+  console.log(`  Tokens:     ${totalPromptTokens.toLocaleString()} in / ${totalCompletionTokens.toLocaleString()} out`);
+  console.log(`  Cost:       $${costUsd.toFixed(4)} total ($${(costUsd / results.length).toFixed(4)}/task)`);
   console.log("=".repeat(50));
 }
 

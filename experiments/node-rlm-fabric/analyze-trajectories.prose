@@ -1,0 +1,225 @@
+# Analyze node-rlm Fabric Navigation Trajectories
+# Parallel analysis of how the RLM agent navigates the fabric endpoint,
+# tracking tool usage patterns, discovery strategy, and SPARQL construction.
+#
+# Input: trajectory JSON files in results/ directory
+# Output: markdown analysis report in reports/
+
+agent navigator_analyst:
+  model: sonnet
+  prompt: "You are an expert in agentic systems and knowledge fabric design, analyzing how RLM agents navigate self-describing SPARQL endpoints using the D9 four-layer KR architecture."
+
+agent trajectory_analyst:
+  model: sonnet
+  prompt: "You are an expert in SPARQL query patterns and agent reasoning traces. You analyze JavaScript REPL trajectories from RLM agents to understand their navigation strategies."
+
+# Step 1: Load all trajectory files and extract structured data
+let all_trajectories = session: navigator_analyst
+  prompt: |
+    Load all trajectory JSON files from experiments/node-rlm-fabric/results/trajectory-*.json
+
+    Each file contains an array of task trajectories with this structure:
+    - taskId: task identifier
+    - score: 0.0 or 1.0
+    - iterations: number of REPL iterations
+    - tokenUsage: { promptTokens, completionTokens } aggregate
+    - trajectory: array of steps, each with:
+      - iteration: step number
+      - reasoning: LLM's reasoning text (may be empty if not using extended thinking)
+      - code: JavaScript code executed in the REPL
+      - output: console.log output from execution
+      - error: sandbox error if any
+      - returned: true if this step called return() to submit answer
+      - durationMs: LLM call duration
+      - usage: per-step token counts
+
+    For each task trajectory, extract:
+    1. Discovery strategy: which tool was called first? (fetchVoID, fetchShapes, fetchExamples, comunica_query)
+    2. SPARQL patterns: what queries were constructed? Did they target named graphs correctly?
+    3. Tool usage sequence: ordered list of tool calls across iterations
+    4. Error recovery: any sandbox errors or empty results, and how the agent adapted
+    5. Answer quality: did the agent verify before returning?
+
+    Also load the corresponding results JSON (fabric-*.json) for aggregate scores.
+
+    Return structured summary of all runs grouped by condition.
+
+# Step 2: Parallel analysis of behavioral dimensions
+parallel:
+  discovery_strategy = session: navigator_analyst
+    prompt: |
+      Analyze the agent's discovery strategy across all trajectories:
+
+      - Does the agent call fetchVoID() first? (D9 L1 — service description discovery)
+      - Does it call fetchShapes() or fetchExamples()? (D9 L3/L4)
+      - Or does it skip discovery and go straight to comunica_query()?
+      - How does the discovery strategy differ between conditions (js-baseline vs others)?
+
+      The D9 four-layer KR hypothesis predicts:
+        L1 (VoID/SD) → agent discovers named graphs and vocabularies
+        L2 (TBox) → agent reasons about ontology structure
+        L3 (SHACL shapes) → agent gets property constraints and agent hints
+        L4 (SPARQL examples) → agent uses templates for query construction
+
+      Which layers does the agent actually use? Does it follow the intended
+      progressive disclosure pattern or find shortcuts?
+    context: all_trajectories
+
+  sparql_patterns = session: trajectory_analyst
+    prompt: |
+      Analyze the SPARQL queries the agent constructs:
+
+      For each comunica_query() call in the trajectories, extract:
+      - The full SPARQL query string
+      - Whether it targets a specific GRAPH (and which one)
+      - Whether it uses proper SIO/SOSA/OWL prefixes
+      - Whether the query pattern matches an example from fetchExamples()
+      - Whether the query returns results or empty
+
+      Key patterns to look for:
+      - Does the agent use GRAPH clauses targeting /ontology/sio for schema queries?
+      - Does it use GRAPH clauses targeting /graph/observations for data queries?
+      - Does it construct FILTER or VALUES clauses correctly?
+      - Does it handle the sio: namespace (http://semanticscience.org/resource/) correctly?
+
+      Compare across conditions: does adding more tool documentation change
+      the SPARQL patterns the agent produces?
+    context: all_trajectories
+
+  reasoning_quality = session: trajectory_analyst
+    prompt: |
+      Analyze the quality of the agent's reasoning across trajectories:
+
+      For each trajectory step, examine:
+      1. Does the reasoning text show the agent planning before coding?
+      2. Does it reference information from the VoID/SD in its planning?
+      3. Does it show evidence of ontological reasoning (domain/range, property types)?
+      4. Does it verify its answer before calling return()?
+
+      Look for these specific patterns from prior Python experiment findings:
+      - "Implicit RDFS reasoning": agent reasons about domain/range in chain-of-thought
+        without an explicit tool — does this happen in node-rlm too?
+      - "Entity lookup as escape hatch": agent uses broad ?s ?p ?o queries to discover
+        schema post-hoc — is this pattern present?
+      - "Confirmatory vs exploratory": does the agent guess-and-check (exploratory)
+        or plan-then-execute (confirmatory)?
+
+      Rate each task trajectory as: confirmatory, exploratory, or mixed.
+    context: all_trajectories
+
+  efficiency = session: navigator_analyst
+    prompt: |
+      Analyze navigation efficiency:
+
+      - Mean iterations per task (compare to Python experiment: ~4.0 for similar tasks)
+      - Mean LLM call duration (ms per iteration)
+      - Token usage per task (prompt + completion)
+      - Wall time per task
+      - Convergence: does every task call return(), or do any hit max_iterations?
+
+      Compute cost estimate using Anthropic pricing:
+      - claude-sonnet-4-6: $3/MTok input, $15/MTok output
+      - claude-opus-4-6: $15/MTok input, $75/MTok output
+
+      Compare with the Python DSPy experiment findings if available in
+      experiments/fabric_navigation/results/
+    context: all_trajectories
+
+# Step 3: Cross-condition comparison
+let condition_comparison = session: navigator_analyst
+  prompt: |
+    If multiple conditions are present, compare them:
+
+    | Metric | js-baseline | js-jsonld | js-ltqp | js-combined |
+    |--------|-------------|-----------|---------|-------------|
+
+    For each metric that differs, explain:
+    1. What changed in the condition (which tool docs were added)
+    2. How agent behavior changed
+    3. Whether the change matches the D9 progressive disclosure hypothesis
+
+    If only one condition exists, characterize the baseline and predict
+    what we expect to see when richer tool documentation is added.
+
+    Key question: does the js-baseline condition (minimal docs) already
+    achieve the same results as the Python experiment? If so, the agent's
+    pretraining knowledge of SOSA/SIO is doing the heavy lifting.
+  context: { all_trajectories, discovery_strategy, sparql_patterns, reasoning_quality, efficiency }
+
+# Step 4: Comparison with Python DSPy experiment
+let platform_comparison = session: navigator_analyst
+  prompt: |
+    Compare node-rlm trajectories with the Python DSPy experiment findings:
+
+    Python experiment key findings (from MEMORY.md):
+    - Tool advertisement is required (tool in namespace != agent-discoverable)
+    - Tool adoption is task-selective: schema tasks use tools, data tasks don't
+    - Entity lookup is a "degenerate RDFS reasoner" (escape hatch)
+    - Implicit RDFS reasoning materializes in chain of thought
+    - Pretraining saturation is the key variable
+
+    For each finding, assess whether it holds in the node-rlm platform:
+    1. Tool advertisement: does the globalDocs string serve the same role as
+       endpoint_sd injection in the Python experiment?
+    2. Task selectivity: do schema-only tasks (sio-has-value-type, sio-attribute-inverse)
+       behave differently from data tasks (obs-sio-measured-value)?
+    3. Escape hatch: does the agent use broad triple pattern queries?
+    4. Implicit reasoning: does the agent reason about ontology structure
+       in its reasoning text?
+    5. Pretraining: are SIO properties correctly handled despite SIO being
+       less common in training data than SOSA?
+
+    This comparison validates whether findings are platform-independent
+    (true of the agent) or platform-specific (artifact of DSPy vs node-rlm).
+  context: { all_trajectories, discovery_strategy, sparql_patterns, reasoning_quality, condition_comparison }
+
+# Step 5: Generate analysis report
+const report = session: navigator_analyst
+  prompt: |
+    Create a comprehensive analysis report as markdown. Structure:
+
+    # node-rlm Fabric Navigation Analysis
+    **Date**: [timestamp]  **Condition**: [condition]  **Model**: [model]
+
+    ## Executive Summary
+    [2-3 sentences: does the agent navigate the fabric correctly? Which tools
+    does it use? How does this compare to the Python experiment?]
+
+    ## Discovery Strategy
+    [How does the agent discover and use the four D9 KR layers?
+    Include the tool call sequence for each task.]
+
+    ## SPARQL Construction
+    [What queries does the agent build? Named graph targeting, prefix usage,
+    pattern quality. Include actual SPARQL snippets from trajectories.]
+
+    ## Reasoning Analysis
+    [Confirmatory vs exploratory patterns. Evidence of implicit ontological
+    reasoning. Verification behavior before return().]
+
+    ## Efficiency Metrics
+    | Metric | Value | Python Equivalent |
+    |--------|-------|-------------------|
+    | Mean iterations | X | ~4.0 |
+    | Convergence rate | X% | 100% |
+    | Mean tokens/task | X | N/A |
+    | Mean wall time | Xs | N/A |
+    | Est. cost/task | $X | N/A |
+
+    ## Per-Task Trajectory Summary
+    [Table: taskId | score | iters | discovery | sparql_count | strategy | notes]
+
+    ## Platform Comparison (node-rlm vs DSPy)
+    [Which Python experiment findings hold? Which are platform-specific?]
+
+    ## Condition Comparison
+    [If multiple conditions: what changed and why. If single: predictions.]
+
+    ## Research Implications
+    [Connections to D9, D2, progressive disclosure, pretraining saturation]
+
+    ## Recommendations
+    [What to test next. What to change in the fabric or agent configuration.]
+
+    Save report to: experiments/node-rlm-fabric/reports/[condition]-[timestamp]-analysis.md
+  context: { all_trajectories, discovery_strategy, sparql_patterns, reasoning_quality, efficiency, condition_comparison, platform_comparison }
