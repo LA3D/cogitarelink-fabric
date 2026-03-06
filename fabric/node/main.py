@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import pathlib
+import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import httpx
@@ -107,6 +108,36 @@ async def well_known_profile():
     if not profile_file.exists():
         raise HTTPException(status_code=404, detail="Core profile not found")
     return PlainTextResponse(content=profile_file.read_text(), media_type="text/turtle")
+
+
+_VOCAB_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+
+
+def _validate_vocab(vocab: str) -> pathlib.Path:
+    """Validate vocab param against ontology files. Returns resolved path or raises."""
+    if not _VOCAB_RE.match(vocab):
+        raise HTTPException(status_code=400, detail="Invalid vocabulary name")
+    candidate = (ONTOLOGY_DIR / f"{vocab}.ttl").resolve()
+    if not candidate.is_relative_to(ONTOLOGY_DIR.resolve()):
+        raise HTTPException(status_code=400, detail="Invalid vocabulary name")
+    if candidate.name.endswith("-profile.ttl"):
+        raise HTTPException(status_code=404, detail=f"Vocabulary not found: {vocab}")
+    if not candidate.exists():
+        raise HTTPException(status_code=404, detail=f"Vocabulary not found: {vocab}")
+    return candidate
+
+
+def _ontology_construct(base: str, vocab: str) -> str:
+    return f"CONSTRUCT {{ ?s ?p ?o }} WHERE {{ GRAPH <{base}/ontology/{vocab}> {{ ?s ?p ?o }} }}"
+
+
+@app.get("/ontology/{vocab}")
+async def ontology_vocab(vocab: str, request: Request):
+    """D22: Serve cached ontology content from named graphs."""
+    _validate_vocab(vocab)
+    accept = request.headers.get("accept", "text/turtle")
+    query = _ontology_construct(NODE_BASE, vocab)
+    return await _sparql_construct(query, accept)
 
 
 @app.get("/entity/{entity_id}")
