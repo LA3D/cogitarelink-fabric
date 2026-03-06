@@ -1,0 +1,131 @@
+import { describe, it, expect } from "vitest";
+import { createSandboxTools, bindingsToJson } from "./sandbox-tools.js";
+
+// Helper: create a mock RDF/JS Bindings object (Iterable<[Variable, Term]>)
+function mockBinding(
+  entries: [string, string][],
+): { [Symbol.iterator]: () => Iterator<[{ value: string }, { value: string }]> } {
+  return {
+    [Symbol.iterator]: () =>
+      entries
+        .map(
+          ([k, v]) =>
+            [{ value: k }, { value: v }] as [{ value: string }, { value: string }],
+        )
+        [Symbol.iterator](),
+  };
+}
+
+describe("bindingsToJson", () => {
+  it("serializes RDF/JS bindings to JSON string", () => {
+    const binding = mockBinding([
+      ["s", "http://example.org/obs-1"],
+      ["p", "http://www.w3.org/ns/sosa/hasResult"],
+      ["o", "42.5"],
+    ]);
+    const result = JSON.parse(bindingsToJson([binding as any]));
+    expect(result).toHaveLength(1);
+    expect(result[0].s).toBe("http://example.org/obs-1");
+    expect(result[0].p).toBe("http://www.w3.org/ns/sosa/hasResult");
+    expect(result[0].o).toBe("42.5");
+  });
+
+  it("handles multiple bindings", () => {
+    const bindings = [
+      mockBinding([["x", "http://example.org/a"]]),
+      mockBinding([["x", "http://example.org/b"]]),
+    ];
+    const result = JSON.parse(bindingsToJson(bindings as any[]));
+    expect(result).toHaveLength(2);
+    expect(result[0].x).toBe("http://example.org/a");
+    expect(result[1].x).toBe("http://example.org/b");
+  });
+
+  it("truncates to maxChars", () => {
+    const bindings = Array.from({ length: 100 }, (_, i) =>
+      mockBinding([["s", `http://example.org/item-${i}`]]),
+    );
+    const result = bindingsToJson(bindings as any[], 500);
+    expect(result.length).toBeLessThanOrEqual(500 + 100); // allow for truncation message
+    expect(result).toContain("[truncated");
+  });
+});
+
+describe("createSandboxTools", () => {
+  it("returns object with expected tool functions", () => {
+    const tools = createSandboxTools({
+      endpoint: "https://bootstrap.cogitarelink.ai",
+      fabricFetch: globalThis.fetch,
+    });
+    expect(typeof tools.comunica_query).toBe("function");
+    expect(typeof tools.fetchVoID).toBe("function");
+    expect(typeof tools.fetchShapes).toBe("function");
+    expect(typeof tools.fetchExamples).toBe("function");
+    expect(typeof tools.fetchEntity).toBe("function");
+  });
+
+  it("fetchVoID calls correct URL with turtle accept", async () => {
+    let capturedUrl = "";
+    let capturedHeaders: Record<string, string> = {};
+    const mockFetch = async (url: string | URL | Request, init?: RequestInit) => {
+      capturedUrl = String(url);
+      capturedHeaders = Object.fromEntries(new Headers(init?.headers).entries());
+      return new Response("<void-doc>");
+    };
+
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    const result = await tools.fetchVoID();
+    expect(capturedUrl).toBe("https://example.org/.well-known/void");
+    expect(capturedHeaders["accept"]).toBe("text/turtle");
+    expect(result).toBe("<void-doc>");
+  });
+
+  it("fetchShapes calls correct URL", async () => {
+    let capturedUrl = "";
+    const mockFetch = async (url: string | URL | Request) => {
+      capturedUrl = String(url);
+      return new Response("<shapes>");
+    };
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    await tools.fetchShapes();
+    expect(capturedUrl).toBe("https://example.org/.well-known/shacl");
+  });
+
+  it("fetchExamples calls correct URL", async () => {
+    let capturedUrl = "";
+    const mockFetch = async (url: string | URL | Request) => {
+      capturedUrl = String(url);
+      return new Response("<examples>");
+    };
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    await tools.fetchExamples();
+    expect(capturedUrl).toBe("https://example.org/.well-known/sparql-examples");
+  });
+
+  it("fetchEntity builds correct entity URL", async () => {
+    let capturedUrl = "";
+    let capturedHeaders: Record<string, string> = {};
+    const mockFetch = async (url: string | URL | Request, init?: RequestInit) => {
+      capturedUrl = String(url);
+      capturedHeaders = Object.fromEntries(new Headers(init?.headers).entries());
+      return new Response('{"@id": "urn:uuid:abc"}');
+    };
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    const result = await tools.fetchEntity("abc-123");
+    expect(capturedUrl).toBe("https://example.org/entity/abc-123");
+    expect(capturedHeaders["accept"]).toBe("application/ld+json");
+    expect(result).toContain("abc");
+  });
+});
