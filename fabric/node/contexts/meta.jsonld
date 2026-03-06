@@ -1,0 +1,12 @@
+{
+  "@context": {
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "owl": "http://www.w3.org/2002/07/owl#",
+    "sh": "http://www.w3.org/ns/shacl#",
+    "skos": "http://www.w3.org/2004/02/skos/core#",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "vann": "http://purl.org/vocab/vann/",
+    "voaf": "http://purl.org/vocommons/voaf#",
+    "dct": "http://purl.org/dc/terms/"
+  }
+}

@@ -110,6 +110,22 @@ async def well_known_profile():
     return PlainTextResponse(content=profile_file.read_text(), media_type="text/turtle")
 
 
+CONTEXTS_DIR = pathlib.Path(__file__).parent / "contexts"
+_CONTEXT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+
+
+@app.get("/.well-known/context/{name}")
+async def well_known_context(name: str):
+    """Serve purpose-specific JSON-LD @context files."""
+    stem = name.removesuffix(".jsonld")
+    if not _CONTEXT_NAME_RE.match(stem):
+        raise HTTPException(status_code=400, detail="Invalid context name")
+    ctx_file = (CONTEXTS_DIR / f"{stem}.jsonld").resolve()
+    if not ctx_file.is_relative_to(CONTEXTS_DIR.resolve()) or not ctx_file.exists():
+        raise HTTPException(status_code=404, detail=f"Context not found: {name}")
+    return Response(content=ctx_file.read_bytes(), media_type="application/ld+json")
+
+
 _VOCAB_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 

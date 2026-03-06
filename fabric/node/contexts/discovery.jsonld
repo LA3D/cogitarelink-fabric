@@ -1,0 +1,13 @@
+{
+  "@context": {
+    "void": "http://rdfs.org/ns/void#",
+    "sd": "http://www.w3.org/ns/sparql-service-description#",
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "dct": "http://purl.org/dc/terms/",
+    "prof": "http://www.w3.org/ns/dx/prof/",
+    "fabric": "https://w3id.org/cogitarelink/fabric#",
+    "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+    "foaf": "http://xmlns.com/foaf/0.1/",
+    "ldp": "http://www.w3.org/ns/ldp#"
+  }
+}

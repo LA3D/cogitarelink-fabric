@@ -1,0 +1,7 @@
+{
+  "@context": [
+    "/.well-known/context/data.jsonld",
+    "/.well-known/context/discovery.jsonld",
+    "/.well-known/context/meta.jsonld"
+  ]
+}
