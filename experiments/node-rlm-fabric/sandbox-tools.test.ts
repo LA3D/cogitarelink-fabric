@@ -1,21 +1,32 @@
 import { describe, it, expect } from "vitest";
-import { createSandboxTools, sparqlResultsToJson } from "./sandbox-tools.js";
+import { createSandboxTools, bindingsToJson } from "./sandbox-tools.js";
+import type { Bindings } from "@rdfjs/types";
 
-describe("sparqlResultsToJson", () => {
-  it("serializes SPARQL JSON results to compact JSON", () => {
-    const sparqlResults = {
-      head: { vars: ["s", "p", "o"] },
-      results: {
-        bindings: [
-          {
-            s: { type: "uri", value: "http://example.org/obs-1" },
-            p: { type: "uri", value: "http://www.w3.org/ns/sosa/hasResult" },
-            o: { type: "literal", value: "42.5" },
-          },
-        ],
-      },
-    };
-    const result = JSON.parse(sparqlResultsToJson(sparqlResults));
+/**
+ * Create a mock RDF/JS Bindings object matching Comunica's output.
+ * Bindings is iterable over [Variable, Term] tuples.
+ */
+function mockBindings(
+  entries: Record<string, string>,
+): Bindings {
+  const pairs: [{ value: string }, { value: string }][] = Object.entries(
+    entries,
+  ).map(([k, v]) => [{ value: k }, { value: v }]);
+  return {
+    [Symbol.iterator]: () => pairs[Symbol.iterator](),
+  } as unknown as Bindings;
+}
+
+describe("bindingsToJson", () => {
+  it("serializes RDF/JS Bindings to compact JSON", () => {
+    const bindings = [
+      mockBindings({
+        s: "http://example.org/obs-1",
+        p: "http://www.w3.org/ns/sosa/hasResult",
+        o: "42.5",
+      }),
+    ];
+    const result = JSON.parse(bindingsToJson(bindings));
     expect(result).toHaveLength(1);
     expect(result[0].s).toBe("http://example.org/obs-1");
     expect(result[0].p).toBe("http://www.w3.org/ns/sosa/hasResult");
@@ -23,27 +34,21 @@ describe("sparqlResultsToJson", () => {
   });
 
   it("handles multiple bindings", () => {
-    const sparqlResults = {
-      head: { vars: ["x"] },
-      results: {
-        bindings: [
-          { x: { type: "uri", value: "http://example.org/a" } },
-          { x: { type: "uri", value: "http://example.org/b" } },
-        ],
-      },
-    };
-    const result = JSON.parse(sparqlResultsToJson(sparqlResults));
+    const bindings = [
+      mockBindings({ x: "http://example.org/a" }),
+      mockBindings({ x: "http://example.org/b" }),
+    ];
+    const result = JSON.parse(bindingsToJson(bindings));
     expect(result).toHaveLength(2);
     expect(result[0].x).toBe("http://example.org/a");
     expect(result[1].x).toBe("http://example.org/b");
   });
 
   it("truncates to maxChars", () => {
-    const bindings = Array.from({ length: 100 }, (_, i) => ({
-      s: { type: "uri", value: `http://example.org/item-${i}` },
-    }));
-    const sparqlResults = { head: { vars: ["s"] }, results: { bindings } };
-    const result = sparqlResultsToJson(sparqlResults, 500);
+    const bindings = Array.from({ length: 100 }, (_, i) =>
+      mockBindings({ s: `http://example.org/item-${i}` }),
+    );
+    const result = bindingsToJson(bindings, 500);
     expect(result.length).toBeLessThanOrEqual(500 + 100);
     expect(result).toContain("[truncated");
   });
@@ -60,32 +65,6 @@ describe("createSandboxTools", () => {
     expect(typeof tools.fetchShapes).toBe("function");
     expect(typeof tools.fetchExamples).toBe("function");
     expect(typeof tools.fetchEntity).toBe("function");
-  });
-
-  it("comunica_query POSTs to /sparql", async () => {
-    let capturedUrl = "";
-    let capturedMethod = "";
-    let capturedBody = "";
-    const mockFetch = async (url: string | URL | Request, init?: RequestInit) => {
-      capturedUrl = String(url);
-      capturedMethod = init?.method ?? "GET";
-      capturedBody = String(init?.body ?? "");
-      return new Response(JSON.stringify({
-        head: { vars: ["g"] },
-        results: { bindings: [{ g: { type: "uri", value: "http://example.org/graph" } }] },
-      }));
-    };
-
-    const tools = createSandboxTools({
-      endpoint: "https://example.org",
-      fabricFetch: mockFetch as typeof fetch,
-    });
-    const result = await tools.comunica_query("SELECT ?g WHERE { GRAPH ?g { ?s ?p ?o } }");
-    expect(capturedUrl).toBe("https://example.org/sparql");
-    expect(capturedMethod).toBe("POST");
-    expect(capturedBody).toContain("query=");
-    const parsed = JSON.parse(result);
-    expect(parsed[0].g).toBe("http://example.org/graph");
   });
 
   it("fetchVoID calls correct URL with turtle accept", async () => {
