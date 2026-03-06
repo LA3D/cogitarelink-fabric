@@ -192,23 +192,36 @@ async def entity_deref(entity_id: str, request: Request):
     return Response(content=content, status_code=resp.status_code, media_type=fmt)
 
 
+def _turtle_to_jsonld(turtle_str: str, context_type: str) -> bytes:
+    """Parse Turtle, serialize as JSON-LD, inject @context."""
+    from rdflib import Graph as _Graph
+    g = _Graph()
+    g.parse(data=turtle_str, format="turtle")
+    raw = g.serialize(format="json-ld")
+    return _inject_context(raw.encode() if isinstance(raw, str) else raw, context_type)
+
+
 @app.get("/.well-known/shacl")
-async def well_known_shacl():
+async def well_known_shacl(request: Request):
     shapes_file = SHAPES_DIR / "endpoint-sosa.ttl"
     if not shapes_file.exists():
         raise HTTPException(status_code=404, detail="SHACL shapes not found")
-    # Apply {base} substitution (same pattern as VoID and SPARQL examples)
-    # so sh:pattern, sh:agentInstruction, and metadata IRI reflect actual node URL.
     content = shapes_file.read_text().replace("{base}", NODE_BASE)
+    accept = request.headers.get("accept", "text/turtle")
+    if "application/ld+json" in accept:
+        return Response(content=_turtle_to_jsonld(content, "meta"), media_type="application/ld+json")
     return PlainTextResponse(content=content, media_type="text/turtle")
 
 
 @app.get("/.well-known/sparql-examples")
-async def well_known_sparql_examples():
+async def well_known_sparql_examples(request: Request):
     examples_file = SPARQL_DIR / "sosa-examples.ttl"
     if not examples_file.exists():
         raise HTTPException(status_code=404, detail="SPARQL examples not found")
     content = examples_file.read_text().replace("{base}", NODE_BASE)
+    accept = request.headers.get("accept", "text/turtle")
+    if "application/ld+json" in accept:
+        return Response(content=_turtle_to_jsonld(content, "meta"), media_type="application/ld+json")
     return PlainTextResponse(content=content, media_type="text/turtle")
 
 
