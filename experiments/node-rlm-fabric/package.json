@@ -1,0 +1,23 @@
+{
+  "name": "node-rlm-fabric-experiment",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "experiment": "tsx run-experiment.ts",
+    "test": "vitest --run"
+  },
+  "dependencies": {
+    "node-rlm": "github:openprose/node-rlm",
+    "@comunica/query-sparql": "^4.0.0",
+    "@comunica/query-sparql-link-traversal": "^0.8.0",
+    "jsonld": "^8.3.0"
+  },
+  "devDependencies": {
+    "@types/jsonld": "^1.5.0",
+    "@types/node": "^24.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.0"
+  }
+}
