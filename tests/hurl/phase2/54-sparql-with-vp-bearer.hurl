@@ -13,7 +13,7 @@ HTTP 201
 [Captures]
 vp_token: jsonpath "$.token"
 
-# Step 2: SELECT with Bearer token → 200
+# Step 2: SELECT via POST with Bearer token → 200
 POST {{gateway}}/sparql
 Content-Type: application/sparql-query
 Accept: application/sparql-results+json
@@ -21,6 +21,14 @@ Authorization: Bearer {{vp_token}}
 ```
 SELECT * WHERE {} LIMIT 1
 ```
+HTTP 200
+[Asserts]
+jsonpath "$.results.bindings" isCollection
+
+# Step 2b: SELECT via GET with Bearer token → 200 (SPARQL 1.1 Protocol §2.1.1)
+GET {{gateway}}/sparql?query=SELECT%20*%20WHERE%20%7B%7D%20LIMIT%201
+Accept: application/sparql-results+json
+Authorization: Bearer {{vp_token}}
 HTTP 200
 [Asserts]
 jsonpath "$.results.bindings" isCollection

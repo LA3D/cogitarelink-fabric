@@ -718,14 +718,22 @@ async def verify_vp_bearer(request: Request) -> AgentContext | None:
 
 
 async def _proxy(request: Request, upstream_path: str) -> Response:
-    body = await request.body()
     headers = {
         k: v for k, v in request.headers.items()
         if k.lower() in _PROXY_REQUEST_HEADERS
     }
-    resp = await app.state.http.post(
-        f"/{upstream_path}", content=body, headers=headers,
-    )
+    method = request.method.lower()
+    if method == "get":
+        # Forward GET with query string to Oxigraph
+        params = dict(request.query_params)
+        resp = await app.state.http.get(
+            f"/{upstream_path}", params=params, headers=headers,
+        )
+    else:
+        body = await request.body()
+        resp = await app.state.http.post(
+            f"/{upstream_path}", content=body, headers=headers,
+        )
     resp_headers = {
         k: v for k, v in resp.headers.items()
         if k.lower() not in _HOP_BY_HOP
@@ -737,7 +745,7 @@ async def _proxy(request: Request, upstream_path: str) -> Response:
     )
 
 
-@app.post("/sparql")
+@app.api_route("/sparql", methods=["GET", "POST"])
 async def sparql_query_proxy(
     request: Request,
     agent: AgentContext | None = Depends(verify_vp_bearer),
