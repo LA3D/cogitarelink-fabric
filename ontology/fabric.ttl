@@ -25,6 +25,8 @@
 @prefix prov:    <http://www.w3.org/ns/prov#> .
 @prefix prof:    <http://www.w3.org/ns/dx/prof/> .
 @prefix cred:    <https://www.w3.org/2018/credentials#> .
+@prefix odrl:    <http://www.w3.org/ns/odrl/2/> .
+@prefix dprod:   <https://ekgf.github.io/dprod/> .
 @prefix foaf:    <http://xmlns.com/foaf/0.1/> .
 @prefix orcid:   <https://orcid.org/> .
 @prefix ror:     <https://ror.org/> .
@@ -45,12 +47,12 @@
     dct:creator       orcid:0000-0003-4091-6059 ;
     dct:publisher     ror:00mkhxb43 ;
     dct:created       "2026-02-22"^^xsd:date ;
-    dct:modified      "2026-02-22"^^xsd:date ;
+    dct:modified      "2026-03-11"^^xsd:date ;
     dct:license       <https://creativecommons.org/licenses/by/4.0/> ;
     dct:rights        "Copyright 2026 Charles F. Vardeman II, University of Notre Dame. Licensed under CC-BY 4.0."@en ;
 
-    owl:versionInfo   "0.1.0" ;
-    owl:versionIRI    <https://w3id.org/cogitarelink/fabric/0.1.0> ;
+    owl:versionInfo   "0.5.0" ;
+    owl:versionIRI    <https://w3id.org/cogitarelink/fabric/0.5.0> ;
 
     vann:preferredNamespacePrefix  "fabric" ;
     vann:preferredNamespaceUri     "https://w3id.org/cogitarelink/fabric#" ;
@@ -60,15 +62,17 @@
     foaf:page         <https://la3d.github.io/cogitarelink-fabric/ontology/fabric> ;
 
     # ★★★ — voaf:reliesOn declares vocabulary-level dependencies (machine-readable)
-    voaf:reliesOn     <http://www.w3.org/ns/prov-o#> ;
+    voaf:reliesOn     <http://www.w3.org/ns/prov#> ;
     voaf:reliesOn     <http://www.w3.org/ns/dcat#> ;
     voaf:reliesOn     <http://www.w3.org/2004/02/skos/core#> ;
     voaf:reliesOn     <http://www.w3.org/ns/dx/prof/> ;
     voaf:reliesOn     <https://www.w3.org/2018/credentials#> ;
+    voaf:reliesOn     <http://www.w3.org/ns/odrl/2/> ;
+    voaf:reliesOn     <https://ekgf.github.io/dprod/> ;
 
     # ★★★★ — VOAF term counts + bibliographic citations
-    voaf:classNumber      "15"^^xsd:integer ;
-    voaf:propertyNumber   "13"^^xsd:integer ;
+    voaf:classNumber      "16"^^xsd:integer ;
+    voaf:propertyNumber   "16"^^xsd:integer ;
 
     dct:bibliographicCitation
         "Janowicz, K., Hitzler, P., Adams, B., Kolas, D., Vardeman II, C. (2014). Five Stars of Linked Data Vocabulary Use. Semantic Web, 5(3), 173-176. https://doi.org/10.3233/SW-130175"@en ,
@@ -89,18 +93,27 @@
 
 # ============================================================
 # MODULE 1 — CORE INFRASTRUCTURE
-# ★★★ alignments: dcat:DataService, prov:Agent, skos:Concept
+# ★★★ alignments: dcat:DataService, prov:Agent, dprod:DataProduct, skos:Concept
 # ============================================================
 
 fabric:FabricNode
     a owl:Class ;
-    # ★★★ — linked to DCAT (data service) and PROV-O (fabric nodes act as provenance agents)
+    # ★★★ — linked to DCAT (data service), PROV-O (provenance agent), DPROD (data product publisher)
     rdfs:subClassOf   dcat:DataService ;
     rdfs:subClassOf   prov:Agent ;
     rdfs:label        "Fabric Node"@en ;
-    skos:definition   "A knowledge fabric node: a SPARQL 1.2 HTTP endpoint conforming to fabric:CoreProfile, exposing four-layer KR self-description at .well-known/ (VoID, SHACL, SPARQL examples, SSSOM mappings), and holding a DID/VC identity via a Credo sidecar."@en ;
+    skos:definition   "A knowledge fabric node: a SPARQL 1.2 HTTP endpoint conforming to fabric:CoreProfile, exposing four-layer KR self-description at .well-known/ (VoID, SHACL, SPARQL examples, SSSOM mappings), and holding a DID/VC identity via a Credo sidecar. Publishes one or more dprod:DataProducts discoverable via the fabric catalog (D23)."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
+
+fabric:publishesDataProduct
+    a owl:ObjectProperty ;
+    rdfs:label        "publishes data product"@en ;
+    skos:definition   "Relates a FabricNode to the dprod:DataProduct(s) it publishes. Each data product bundles datasets, access services, and policies. Bridges fabric infrastructure to the DPROD data mesh model (D23)."@en ;
+    rdfs:domain       fabric:FabricNode ;
+    rdfs:range        dprod:DataProduct ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-03-11"^^xsd:date .
 
 fabric:CoreProfile
     a prof:Profile, owl:NamedIndividual ;
@@ -201,14 +214,15 @@ fabric:DevelopmentAgentRole
 
 # ============================================================
 # MODULE 3 — AUTHORIZATION VOCABULARY (D13, D15, D19)
-# ★★★ alignments: cred:VerifiableCredential (already), prov:wasAttributedTo
+# ★★★ alignments: cred:VerifiableCredential, odrl:Policy, prov:wasAttributedTo
 # ============================================================
 
 fabric:AgentAuthorizationCredential
     a owl:Class ;
     rdfs:subClassOf   cred:VerifiableCredential ;
+    rdfs:subClassOf   odrl:Policy ;
     rdfs:label        "Agent Authorization Credential"@en ;
-    skos:definition   "A W3C Verifiable Credential (VC 2.0, DataIntegrityProof) granting an agent DID a specific fabric:AgentRole on a named SPARQL endpoint. Issued by the node DID via Credo sidecar."@en ;
+    skos:definition   "A W3C Verifiable Credential (VC 2.0, DataIntegrityProof) granting an agent DID a specific fabric:AgentRole on a named SPARQL endpoint. Also an odrl:Policy — the credential's graph permissions are ODRL permissions on named graph assets. Issued by the node DID via Credo sidecar."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
@@ -247,8 +261,10 @@ fabric:authorizedEndpoint
 
 fabric:permittedGraphs
     a owl:ObjectProperty ;
+    # ★★★ — named graphs are ODRL assets; this property targets them
+    rdfs:subPropertyOf  odrl:target ;
     rdfs:label        "permitted graphs"@en ;
-    skos:definition   "Named graph IRIs the agent is permitted to read or write under an AgentAuthorizationCredential. Multiple values allowed."@en ;
+    skos:definition   "Named graph IRIs the agent is permitted to read or write under an AgentAuthorizationCredential. Each named graph is treated as an odrl:Asset. Multiple values allowed."@en ;
     rdfs:domain       cred:VerifiableCredential ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
@@ -421,6 +437,46 @@ fabric:Published
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-02-22"^^xsd:date .
 
+# — GraphPurpose ConceptScheme + individuals (D9/D31) —————————
+
+fabric:GraphPurposeScheme
+    a skos:ConceptScheme, owl:NamedIndividual ;
+    rdfs:label        "Graph Purpose Scheme"@en ;
+    skos:definition   "SKOS ConceptScheme for the controlled vocabulary of named graph roles in the D9 four-layer KR architecture."@en ;
+    skos:hasTopConcept  fabric:InstancesPurpose, fabric:SchemaPurpose, fabric:MetadataPurpose ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-03-11"^^xsd:date .
+
+fabric:InstancesPurpose
+    a fabric:GraphPurpose, owl:NamedIndividual ;
+    skos:inScheme     fabric:GraphPurposeScheme ;
+    rdfs:label        "Instances"@en ;
+    skos:prefLabel    "Instances"@en ;
+    skos:notation     "instances" ;
+    skos:definition   "Named graph containing L3-L4 instance data (observations, entities). Primary access: SPARQL SELECT/CONSTRUCT."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-03-11"^^xsd:date .
+
+fabric:SchemaPurpose
+    a fabric:GraphPurpose, owl:NamedIndividual ;
+    skos:inScheme     fabric:GraphPurposeScheme ;
+    rdfs:label        "Schema"@en ;
+    skos:prefLabel    "Schema"@en ;
+    skos:notation     "schema" ;
+    skos:definition   "Named graph containing L2 TBox ontology axioms. Primary access: JSON-LD via fetchJsonLd() + jsonld.frame() for structural discovery, or SPARQL CONSTRUCT for targeted axiom queries."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-03-11"^^xsd:date .
+
+fabric:MetadataPurpose
+    a fabric:GraphPurpose, owl:NamedIndividual ;
+    skos:inScheme     fabric:GraphPurposeScheme ;
+    rdfs:label        "Metadata"@en ;
+    skos:prefLabel    "Metadata"@en ;
+    skos:notation     "metadata" ;
+    skos:definition   "Named graph containing administrative metadata, provenance records, and audit trails. Primary access: SPARQL when needed for audit."@en ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-03-11"^^xsd:date .
+
 
 fabric:vouchedBy
     a owl:ObjectProperty ;
@@ -434,22 +490,47 @@ fabric:vouchedBy
 fabric:writable
     a owl:DatatypeProperty ;
     rdfs:label        "writable"@en ;
-    skos:definition   "Boolean annotation on a void:Dataset (named graph) indicating whether RLM agents may write triples to it via SPARQL UPDATE. Used in VoID service descriptions to advertise writable graphs (D10)."@en ;
+    skos:definition   "Boolean annotation on a void:Dataset (named graph) indicating whether RLM agents may write triples to it via SPARQL UPDATE. Used in VoID service descriptions to advertise writable graphs (D10). Shorthand for an odrl:Permission on odrl:modify for the named graph as odrl:Asset."@en ;
     rdfs:range        xsd:boolean ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-03-04"^^xsd:date .
 
+fabric:accessPolicy
+    a owl:ObjectProperty ;
+    # ★★★ — connects fabric resources to their ODRL access policies
+    rdfs:label        "access policy"@en ;
+    skos:definition   "Links a dcat:Dataset, dprod:DataProduct, or named graph to an odrl:Policy governing its access. Enables agents to reason about permissions using standard ODRL predicates rather than fabric-specific flags."@en ;
+    rdfs:range        odrl:Policy ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-03-11"^^xsd:date .
+
 fabric:graphPurpose
-    a owl:DatatypeProperty ;
+    a owl:ObjectProperty ;
     rdfs:label        "graph purpose"@en ;
-    skos:definition   "Classifies a named graph by its role in the D9 four-layer KR architecture. Values: 'instances' (L3-L4 data — query with SPARQL), 'schema' (L2 TBox — navigate with JSON-LD or SPARQL CONSTRUCT), 'metadata' (administrative/provenance). Guides agent tool selection in heterogeneous fabrics (D31)."@en ;
-    rdfs:range        xsd:string ;
+    skos:definition   "Classifies a named graph by its role in the D9 four-layer KR architecture. Values are members of fabric:GraphPurposeScheme. Guides agent tool selection in heterogeneous fabrics (D31)."@en ;
+    rdfs:range        fabric:GraphPurpose ;
+    rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
+    dct:created       "2026-03-11"^^xsd:date .
+
+fabric:GraphPurpose
+    a owl:Class ;
+    rdfs:subClassOf   skos:Concept ;
+    rdfs:label        "Graph Purpose"@en ;
+    skos:definition   "Controlled vocabulary class for named graph roles in the D9 four-layer KR architecture. Instances guide agent tool selection: SPARQL for instances, JSON-LD for schema, SPARQL for metadata."@en ;
     rdfs:isDefinedBy  <https://w3id.org/cogitarelink/fabric> ;
     dct:created       "2026-03-11"^^xsd:date .
 
 # ============================================================
 # END OF VOCABULARY
 # Five-star status: ★★★★ (★★★★★ pending external vocabulary adoption + LOV registration)
-# Version: 0.4.0  |  Date: 2026-03-11
+# Version: 0.5.0  |  Date: 2026-03-11
 # Source: https://github.com/LA3D/cogitarelink-fabric/ontology/fabric.ttl
+# Changes in 0.5.0:
+#   - ODRL alignment: AgentAuthorizationCredential rdfs:subClassOf odrl:Policy;
+#     permittedGraphs rdfs:subPropertyOf odrl:target; new fabric:accessPolicy
+#   - DPROD alignment: new fabric:publishesDataProduct (FabricNode → dprod:DataProduct)
+#   - fabric:graphPurpose upgraded from DatatypeProperty to ObjectProperty with
+#     fabric:GraphPurpose class + GraphPurposeScheme (instances/schema/metadata)
+#   - voaf:reliesOn expanded: +odrl:, +dprod:
+#   - Fixed stale versionInfo, voaf:classNumber/propertyNumber
 # ============================================================
