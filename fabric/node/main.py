@@ -111,14 +111,15 @@ async def well_known_profile():
 
 
 CONTEXTS_DIR = pathlib.Path(__file__).parent / "contexts"
-_CONTEXT_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+# Shared safe-name regex: lowercase alphanumeric + hyphens, no path traversal
+_SAFE_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
 @app.get("/.well-known/context/{name}")
 async def well_known_context(name: str):
     """Serve purpose-specific JSON-LD @context files."""
     stem = name.removesuffix(".jsonld")
-    if not _CONTEXT_NAME_RE.match(stem):
+    if not _SAFE_NAME_RE.match(stem):
         raise HTTPException(status_code=400, detail="Invalid context name")
     ctx_file = (CONTEXTS_DIR / f"{stem}.jsonld").resolve()
     if not ctx_file.is_relative_to(CONTEXTS_DIR.resolve()) or not ctx_file.exists():
@@ -126,12 +127,9 @@ async def well_known_context(name: str):
     return Response(content=ctx_file.read_bytes(), media_type="application/ld+json")
 
 
-_VOCAB_RE = re.compile(r"^[a-z][a-z0-9-]*$")
-
-
 def _validate_vocab(vocab: str) -> pathlib.Path:
     """Validate vocab param against ontology files. Returns resolved path or raises."""
-    if not _VOCAB_RE.match(vocab):
+    if not _SAFE_NAME_RE.match(vocab):
         raise HTTPException(status_code=400, detail="Invalid vocabulary name")
     candidate = (ONTOLOGY_DIR / f"{vocab}.ttl").resolve()
     if not candidate.is_relative_to(ONTOLOGY_DIR.resolve()):
@@ -444,8 +442,13 @@ _CONTEXT_MAP = {
 
 def _inject_context(body: bytes, context_type: str) -> bytes:
     """Wrap Oxigraph's bare JSON-LD array with @context."""
-    doc = json.loads(body)
-    ctx_url = _CONTEXT_MAP[context_type]
+    try:
+        doc = json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return body
+    ctx_url = _CONTEXT_MAP.get(context_type)
+    if ctx_url is None:
+        return body
     if isinstance(doc, list):
         doc = {"@context": ctx_url, "@graph": doc}
     elif isinstance(doc, dict) and "@context" not in doc:
@@ -453,6 +456,8 @@ def _inject_context(body: bytes, context_type: str) -> bytes:
     elif isinstance(doc, dict):
         existing = doc["@context"]
         doc["@context"] = [ctx_url, existing] if not isinstance(existing, list) else [ctx_url] + existing
+    else:
+        return body
     return json.dumps(doc, ensure_ascii=False).encode()
 
 
