@@ -57,6 +57,13 @@ VOID_TURTLE = """\
             rdfs:comment "W3C SSN ontology (cached). Extends SOSA with System, Deployment, Stimulus, Property classes. Explore with JSON-LD via /ontology/ssn or query with SPARQL CONSTRUCT." ;
         ] ;
         sd:namedGraph [
+            sd:name <{base}/ontology/ssn-ext> ;
+            void:vocabulary <http://www.w3.org/ns/ssn/ext/> ;
+            prov:wasDerivedFrom <http://www.w3.org/ns/ssn/ext/> ;
+            fabric:graphPurpose "schema" ;
+            rdfs:comment "W3C SSN Extensions (cached). Adds sosa:ObservationCollection for grouped observations. Explore with JSON-LD via /ontology/ssn-ext or query with SPARQL CONSTRUCT." ;
+        ] ;
+        sd:namedGraph [
             sd:name <{base}/ontology/sio> ;
             void:vocabulary <http://semanticscience.org/resource/> ;
             prov:wasDerivedFrom <http://semanticscience.org/resource/> ;
@@ -98,6 +105,13 @@ VOID_TURTLE = """\
             fabric:graphPurpose "schema" ;
             rdfs:comment "W3C PROF role types (cached). Explore with JSON-LD via /ontology/role or query with SPARQL CONSTRUCT." ;
         ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/dcat> ;
+            void:vocabulary <http://www.w3.org/ns/dcat#> ;
+            prov:wasDerivedFrom <http://www.w3.org/ns/dcat#> ;
+            fabric:graphPurpose "schema" ;
+            rdfs:comment "W3C DCAT 3 vocabulary (cached). Catalog, Dataset, DataService, Distribution classes. Explore with JSON-LD via /ontology/dcat or query with SPARQL CONSTRUCT." ;
+        ] ;
     ] .
 
 # --- VoID Dataset (D6/D9) ---
@@ -108,9 +122,11 @@ VOID_TURTLE = """\
     void:uriSpace "{base}/entity/" ;
     void:vocabulary <http://www.w3.org/ns/sosa/> ;
     void:vocabulary <http://www.w3.org/ns/ssn/> ;
+    void:vocabulary <http://www.w3.org/ns/ssn/ext/> ;
     void:vocabulary <http://www.w3.org/2006/time#> ;
     void:vocabulary <http://www.w3.org/ns/prov#> ;
     void:vocabulary <http://semanticscience.org/resource/> ;
+    void:vocabulary <http://www.w3.org/ns/dcat#> ;
     dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;
     void:subset [
         a void:Dataset ;
@@ -138,9 +154,11 @@ VOID_TURTLE = """\
     dcat:keyword "electrochemistry", "potentiostat", "cyclic voltammetry", "SDL", "SOSA", "SIO" ;
     void:vocabulary <http://www.w3.org/ns/sosa/> ,
                     <http://www.w3.org/ns/ssn/> ,
+                    <http://www.w3.org/ns/ssn/ext/> ,
                     <http://www.w3.org/2006/time#> ,
                     <http://www.w3.org/ns/prov#> ,
-                    <http://semanticscience.org/resource/> ;
+                    <http://semanticscience.org/resource/> ,
+                    <http://www.w3.org/ns/dcat#> ;
     dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;
     dcat:distribution [
         a dcat:Distribution ;
@@ -174,12 +192,14 @@ VOID_JSONLD = """\
           {{ "sd:name": {{ "@id": "{base}/graph/metadata" }}, "dct:title": "Metadata", "dct:description": "Node-level metadata, provenance records, and administrative triples.", "fabric:graphPurpose": "metadata", "rdfs:comment": "Administrative metadata and provenance. Query with SPARQL when needed for audit trails." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/sosa" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/sosa/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/sosa/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C SOSA ontology (cached). Explore structure with JSON-LD via /ontology/sosa or query axioms with SPARQL CONSTRUCT." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/ssn" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/ssn/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/ssn/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C SSN ontology (cached). Extends SOSA with System, Deployment, Stimulus, Property classes. Explore with JSON-LD via /ontology/ssn or query with SPARQL CONSTRUCT." }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/ssn-ext" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/ssn/ext/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/ssn/ext/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C SSN Extensions (cached). Adds sosa:ObservationCollection for grouped observations. Explore with JSON-LD via /ontology/ssn-ext or query with SPARQL CONSTRUCT." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/sio" }}, "void:vocabulary": {{ "@id": "http://semanticscience.org/resource/" }}, "prov:wasDerivedFrom": {{ "@id": "http://semanticscience.org/resource/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "SIO ontology (cached, 1726 classes). Explore structure with JSON-LD via /ontology/sio or query axioms with SPARQL CONSTRUCT." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/prov" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/prov#" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/prov#" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C PROV-O ontology (cached). Explore with JSON-LD via /ontology/prov or query with SPARQL CONSTRUCT." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/time" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/2006/time#" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/2006/time#" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C OWL-Time ontology (cached). Explore with JSON-LD via /ontology/time or query with SPARQL CONSTRUCT." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/fabric" }}, "void:vocabulary": {{ "@id": "https://w3id.org/cogitarelink/fabric#" }}, "prov:wasDerivedFrom": {{ "@id": "https://w3id.org/cogitarelink/fabric#" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "Cogitarelink Fabric vocabulary (cached). Explore with JSON-LD via /ontology/fabric or query with SPARQL CONSTRUCT." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/prof" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dx/prof/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dx/prof/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C Profiles Vocabulary (cached). Explore with JSON-LD via /ontology/prof or query with SPARQL CONSTRUCT." }},
-          {{ "sd:name": {{ "@id": "{base}/ontology/role" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dx/prof/role/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dx/prof/role/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C PROF role types (cached). Explore with JSON-LD via /ontology/role or query with SPARQL CONSTRUCT." }}
+          {{ "sd:name": {{ "@id": "{base}/ontology/role" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dx/prof/role/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dx/prof/role/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C PROF role types (cached). Explore with JSON-LD via /ontology/role or query with SPARQL CONSTRUCT." }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/dcat" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dcat#" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dcat#" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C DCAT 3 vocabulary (cached). Catalog, Dataset, DataService, Distribution classes. Explore with JSON-LD via /ontology/dcat or query with SPARQL CONSTRUCT." }}
         ]
       }}
     }},
@@ -192,9 +212,11 @@ VOID_JSONLD = """\
       "void:vocabulary": [
         {{ "@id": "http://www.w3.org/ns/sosa/" }},
         {{ "@id": "http://www.w3.org/ns/ssn/" }},
+        {{ "@id": "http://www.w3.org/ns/ssn/ext/" }},
         {{ "@id": "http://www.w3.org/2006/time#" }},
         {{ "@id": "http://www.w3.org/ns/prov#" }},
-        {{ "@id": "http://semanticscience.org/resource/" }}
+        {{ "@id": "http://semanticscience.org/resource/" }},
+        {{ "@id": "http://www.w3.org/ns/dcat#" }}
       ],
       "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }},
       "void:subset": [
@@ -228,9 +250,11 @@ VOID_JSONLD = """\
       "void:vocabulary": [
         {{ "@id": "http://www.w3.org/ns/sosa/" }},
         {{ "@id": "http://www.w3.org/ns/ssn/" }},
+        {{ "@id": "http://www.w3.org/ns/ssn/ext/" }},
         {{ "@id": "http://www.w3.org/2006/time#" }},
         {{ "@id": "http://www.w3.org/ns/prov#" }},
-        {{ "@id": "http://semanticscience.org/resource/" }}
+        {{ "@id": "http://semanticscience.org/resource/" }},
+        {{ "@id": "http://www.w3.org/ns/dcat#" }}
       ],
       "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }},
       "dcat:distribution": {{

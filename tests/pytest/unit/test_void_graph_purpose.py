@@ -42,8 +42,9 @@ def test_schema_graphs_have_purpose_schema():
     g = _parse_turtle()
     ngs = _named_graphs(g)
     schema_paths = [
-        "ontology/sosa", "ontology/sio", "ontology/prov", "ontology/time",
-        "ontology/fabric", "ontology/prof", "ontology/role",
+        "ontology/sosa", "ontology/ssn", "ontology/ssn-ext",
+        "ontology/sio", "ontology/prov", "ontology/time",
+        "ontology/fabric", "ontology/prof", "ontology/role", "ontology/dcat",
     ]
     for path in schema_paths:
         uri = f"{BASE}/{path}"
