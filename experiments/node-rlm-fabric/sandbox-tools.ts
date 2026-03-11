@@ -96,5 +96,17 @@ export function createSandboxTools(config: SandboxToolsConfig) {
     return resp.text();
   }
 
-  return { comunica_query, fetchVoID, fetchShapes, fetchExamples, fetchEntity };
+  async function fetchJsonLd(url: string): Promise<string> {
+    try {
+      const resp = await fabricFetch(url, {
+        headers: { Accept: "application/ld+json" },
+      });
+      if (!resp.ok) return `HTTP ${resp.status}: ${await resp.text()}`;
+      return resp.text();
+    } catch (err) {
+      return `Fetch error: ${err instanceof Error ? err.message : String(err)}`;
+    }
+  }
+
+  return { comunica_query, fetchVoID, fetchShapes, fetchExamples, fetchEntity, fetchJsonLd };
 }

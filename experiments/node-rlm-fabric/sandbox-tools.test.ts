@@ -65,6 +65,7 @@ describe("createSandboxTools", () => {
     expect(typeof tools.fetchShapes).toBe("function");
     expect(typeof tools.fetchExamples).toBe("function");
     expect(typeof tools.fetchEntity).toBe("function");
+    expect(typeof tools.fetchJsonLd).toBe("function");
   });
 
   it("fetchVoID calls correct URL with turtle accept", async () => {
@@ -140,5 +141,46 @@ describe("createSandboxTools", () => {
     });
     const result = await tools.fetchVoID();
     expect(result).toContain("HTTP 404");
+  });
+});
+
+describe("fetchJsonLd", () => {
+  it("fetches URL with application/ld+json accept header", async () => {
+    let capturedUrl = "";
+    let capturedHeaders: Record<string, string> = {};
+    const mockFetch = async (url: string | URL | Request, init?: RequestInit) => {
+      capturedUrl = String(url);
+      capturedHeaders = Object.fromEntries(new Headers(init?.headers).entries());
+      return new Response('{"@context": "http://schema.org/", "@type": "Thing"}');
+    };
+
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    const result = await tools.fetchJsonLd("https://example.org/ontology/sosa");
+    expect(capturedUrl).toBe("https://example.org/ontology/sosa");
+    expect(capturedHeaders["accept"]).toBe("application/ld+json");
+    expect(result).toContain("@context");
+  });
+
+  it("returns error string for non-ok responses", async () => {
+    const mockFetch = async () => new Response("Not Found", { status: 404 });
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    const result = await tools.fetchJsonLd("https://example.org/bad");
+    expect(result).toContain("HTTP 404");
+  });
+
+  it("returns error string for fetch failures", async () => {
+    const mockFetch = async () => { throw new Error("Network error"); };
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    const result = await tools.fetchJsonLd("https://example.org/bad");
+    expect(result).toContain("Fetch error");
   });
 });
