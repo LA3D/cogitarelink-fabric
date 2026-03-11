@@ -1,5 +1,6 @@
 import { QueryEngine } from "@comunica/query-sparql";
 import type { Bindings } from "@rdfjs/types";
+import jsonldLib from "jsonld";
 
 const MAX_RESULT_CHARS = 10_000;
 
@@ -108,5 +109,35 @@ export function createSandboxTools(config: SandboxToolsConfig) {
     }
   }
 
-  return { comunica_query, fetchVoID, fetchShapes, fetchExamples, fetchEntity, fetchJsonLd };
+  const jsonld = {
+    async expand(doc: unknown): Promise<unknown> {
+      try {
+        return await jsonldLib.expand(doc as jsonldLib.JsonLdDocument);
+      } catch (err) {
+        return `jsonld.expand error: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    },
+    async compact(doc: unknown, context: unknown): Promise<unknown> {
+      try {
+        return await jsonldLib.compact(
+          doc as jsonldLib.JsonLdDocument,
+          context as jsonldLib.ContextDocument,
+        );
+      } catch (err) {
+        return `jsonld.compact error: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    },
+    async frame(doc: unknown, frameDoc: unknown): Promise<unknown> {
+      try {
+        return await jsonldLib.frame(
+          doc as jsonldLib.JsonLdDocument,
+          frameDoc as jsonldLib.Frame,
+        );
+      } catch (err) {
+        return `jsonld.frame error: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    },
+  };
+
+  return { comunica_query, fetchVoID, fetchShapes, fetchExamples, fetchEntity, fetchJsonLd, jsonld };
 }

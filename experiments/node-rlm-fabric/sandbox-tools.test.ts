@@ -184,3 +184,76 @@ describe("fetchJsonLd", () => {
     expect(result).toContain("Fetch error");
   });
 });
+
+describe("jsonld namespace", () => {
+  it("returns object with expand, compact, frame functions", () => {
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: globalThis.fetch,
+    });
+    expect(typeof tools.jsonld.expand).toBe("function");
+    expect(typeof tools.jsonld.compact).toBe("function");
+    expect(typeof tools.jsonld.frame).toBe("function");
+  });
+
+  it("expand resolves prefixes to full IRIs", async () => {
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: globalThis.fetch,
+    });
+    const doc = {
+      "@context": { "schema": "http://schema.org/" },
+      "@type": "schema:Thing",
+      "schema:name": "Test",
+    };
+    const expanded = await tools.jsonld.expand(doc);
+    expect(expanded).toBeInstanceOf(Array);
+    expect(expanded.length).toBeGreaterThan(0);
+    const first = expanded[0];
+    expect(first["@type"]).toContain("http://schema.org/Thing");
+  });
+
+  it("compact applies context to expanded document", async () => {
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: globalThis.fetch,
+    });
+    const expanded = [{
+      "@type": ["http://schema.org/Thing"],
+      "http://schema.org/name": [{ "@value": "Test" }],
+    }];
+    const ctx = { "schema": "http://schema.org/", "name": "schema:name" };
+    const compacted = await tools.jsonld.compact(expanded, ctx);
+    expect(compacted["name"]).toBe("Test");
+  });
+
+  it("frame extracts matching subgraph", async () => {
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: globalThis.fetch,
+    });
+    const doc = {
+      "@context": { "schema": "http://schema.org/" },
+      "@graph": [
+        { "@type": "schema:Person", "schema:name": "Alice" },
+        { "@type": "schema:Thing", "schema:name": "Widget" },
+      ],
+    };
+    const frameDoc = {
+      "@context": { "schema": "http://schema.org/" },
+      "@type": "schema:Person",
+    };
+    const framed = await tools.jsonld.frame(doc, frameDoc);
+    expect(framed["schema:name"]).toBe("Alice");
+  });
+
+  it("expand returns error string on invalid input", async () => {
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: globalThis.fetch,
+    });
+    const result = await tools.jsonld.expand("not a valid json-ld doc");
+    expect(typeof result).toBe("string");
+    expect(result as unknown as string).toContain("error");
+  });
+});
