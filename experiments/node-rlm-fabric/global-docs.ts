@@ -68,7 +68,7 @@ The endpoint serves RDF data in named graphs and vocabulary definitions as JSON-
 
 **fetchJsonLd(url)** — Fetch any URL as JSON-LD.
   - url: any HTTP(S) URL (fabric endpoints, vocabulary URIs, external sources)
-  - Returns: JSON-LD string (parse with JSON.parse() before processing)
+  - Returns: JSON-LD string (max 10K chars, truncated with guidance if larger)
   - Use this to retrieve vocabulary definitions from /ontology/{vocab}
 
 **jsonld.expand(doc)** — Expand compact JSON-LD to explicit form.
@@ -83,16 +83,22 @@ The endpoint serves RDF data in named graphs and vocabulary definitions as JSON-
   - Like a structured query over JSON-LD — specify the shape you want
   - Example: frame for all properties with a given rdfs:domain
 
+### Tool Selection by Graph Purpose
+
+The service description classifies each named graph with fabric:graphPurpose:
+- **"instances"** graphs (observations, entities): Query with comunica_query() using SPARQL SELECT/CONSTRUCT
+- **"schema"** graphs (ontologies at /ontology/*): Explore with fetchJsonLd() + jsonld.frame() for structural discovery, or comunica_query() with SPARQL CONSTRUCT for targeted axiom queries
+- **"metadata"** graphs: Query with comunica_query() when needed for audit trails
+
 ### Discovery Strategy
 
-1. Call fetchVoID() to understand the endpoint structure (named graphs, vocabularies)
+1. Call fetchVoID() to understand the endpoint structure (named graphs, vocabularies, graph purposes)
 2. Call fetchShapes() for data constraints and agent hints
 3. Call fetchExamples() for query templates
-4. Use fetchJsonLd() to retrieve vocabulary definitions from /ontology/{vocab} as JSON-LD
-5. Use jsonld.expand() to see full property URIs, domains, ranges, and class hierarchies
-6. Use jsonld.frame() to extract specific patterns (e.g., all properties of a class)
-7. Construct SPARQL queries informed by vocabulary structure
-8. Use comunica_query() to execute queries against data graphs
+4. For schema graphs: use fetchJsonLd() + jsonld.frame() to explore vocabulary structure incrementally
+5. For large ontologies: use jsonld.frame() to extract specific patterns (e.g., all properties of a class) rather than reading the full document
+6. For instance graphs: use comunica_query() with SPARQL SELECT/CONSTRUCT
+7. Combine: discover structure via JSON-LD, then construct precise SPARQL queries for data
 `.trim();
 
 export const LTQP_DOCS = `

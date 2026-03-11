@@ -103,7 +103,14 @@ export function createSandboxTools(config: SandboxToolsConfig) {
         headers: { Accept: "application/ld+json" },
       });
       if (!resp.ok) return `HTTP ${resp.status}: ${await resp.text()}`;
-      return resp.text();
+      const text = await resp.text();
+      if (text.length > MAX_RESULT_CHARS) {
+        return (
+          text.slice(0, MAX_RESULT_CHARS) +
+          `\n[truncated at ${MAX_RESULT_CHARS} chars, full document is ${text.length} chars. Use comunica_query() with SPARQL for targeted access, or jsonld.frame() to extract specific patterns.]`
+        );
+      }
+      return text;
     } catch (err) {
       return `Fetch error: ${err instanceof Error ? err.message : String(err)}`;
     }

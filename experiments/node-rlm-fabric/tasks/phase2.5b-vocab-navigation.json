@@ -12,13 +12,13 @@
     }
   },
   {
-    "id": "vocab-sio-float-range-properties",
-    "query": "List the SIO properties that have xsd:float as their rdfs:range.",
+    "id": "vocab-sio-datatype-property",
+    "query": "What is the only owl:DatatypeProperty defined in the SIO ontology? Give its local name.",
     "context": "https://bootstrap.cogitarelink.ai",
-    "expected": ["has-value"],
+    "expected": ["has value", "has-value", "SIO_000300"],
     "metadata": {
       "setup": { "type": "none" },
-      "description": "Requires querying SIO ontology for properties with range xsd:float. No SPARQL example covers this. Tests schema introspection capability.",
+      "description": "SIO defines exactly one DatatypeProperty (sio:has-value / SIO_000300). Tests ability to query rdf:type owl:DatatypeProperty in a large ontology. Previous task asked about rdfs:range xsd:float which SIO doesn't declare (it uses owl:someValuesFrom restriction instead).",
       "task_type": "vocab-navigation",
       "target_vocab": "sio"
     }

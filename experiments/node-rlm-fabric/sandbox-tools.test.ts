@@ -183,6 +183,32 @@ describe("fetchJsonLd", () => {
     const result = await tools.fetchJsonLd("https://example.org/bad");
     expect(result).toContain("Fetch error");
   });
+
+  it("truncates large responses and suggests alternatives", async () => {
+    const bigDoc = '{"@context": "http://schema.org/", "@graph": [' + '"x",'.repeat(20_000) + '"end"]}';
+    const mockFetch = async () => new Response(bigDoc);
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    const result = await tools.fetchJsonLd("https://example.org/ontology/big");
+    expect(result.length).toBeLessThan(bigDoc.length);
+    expect(result).toContain("[truncated at");
+    expect(result).toContain("comunica_query");
+    expect(result).toContain("jsonld.frame");
+  });
+
+  it("returns full response when under limit", async () => {
+    const smallDoc = '{"@context": "http://schema.org/", "@type": "Thing"}';
+    const mockFetch = async () => new Response(smallDoc);
+    const tools = createSandboxTools({
+      endpoint: "https://example.org",
+      fabricFetch: mockFetch as typeof fetch,
+    });
+    const result = await tools.fetchJsonLd("https://example.org/ontology/small");
+    expect(result).toBe(smallDoc);
+    expect(result).not.toContain("[truncated");
+  });
 });
 
 describe("jsonld namespace", () => {
