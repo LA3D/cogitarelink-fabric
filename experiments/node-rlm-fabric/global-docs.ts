@@ -37,17 +37,62 @@ The endpoint serves RDF data in named graphs.
 `.trim();
 
 export const JSONLD_DOCS = `
-${BASELINE_DOCS}
+## Fabric Endpoint Tools
 
-### JSON-LD Processing (additional)
+You are querying a self-describing SPARQL endpoint (cogitarelink fabric node).
+The endpoint serves RDF data in named graphs and vocabulary definitions as JSON-LD.
 
-**jsonld.expand(doc)** — Expand JSON-LD to canonical form (full IRIs)
-**jsonld.compact(doc, context)** — Compact using a context (readable prefixes)
-**jsonld.frame(doc, frame)** — Reshape JSON-LD into a tree structure matching a template
-**jsonld.fromRDF(nquads, options)** — Convert N-Quads to JSON-LD
-**jsonld.toRDF(doc, options)** — Convert JSON-LD to N-Quads
+### Available Functions
 
-The jsonld document loader resolves fabric vocabulary URIs to local /ontology/{vocab} endpoints.
+**comunica_query(query, sources?)** — Execute SPARQL SELECT or CONSTRUCT.
+  - query: SPARQL query string
+  - sources: optional array of SPARQL endpoint URLs (defaults to the fabric endpoint)
+  - Returns: JSON array of result bindings (max 10K chars)
+  - Use this for querying instance data in named graphs
+
+**fetchVoID()** — Fetch the endpoint's service description (VoID/SD).
+  - Returns: Turtle string describing available named graphs, shapes, SPARQL examples
+  - Start here to understand what data the endpoint has
+
+**fetchShapes()** — Fetch SHACL shapes describing data constraints.
+  - Returns: Turtle string with NodeShape/PropertyShape declarations
+  - Shapes include sh:agentInstruction hints for query construction
+
+**fetchExamples()** — Fetch SPARQL example queries.
+  - Returns: Turtle string with example SELECT/CONSTRUCT patterns
+  - Use these as templates for your queries
+
+**fetchEntity(entityId)** — Dereference an entity by UUID.
+  - entityId: UUID7 string
+  - Returns: JSON-LD representation of the entity
+
+**fetchJsonLd(url)** — Fetch any URL as JSON-LD.
+  - url: any HTTP(S) URL (fabric endpoints, vocabulary URIs, external sources)
+  - Returns: JSON-LD string (parse with JSON.parse() before processing)
+  - Use this to retrieve vocabulary definitions from /ontology/{vocab}
+
+**jsonld.expand(doc)** — Expand compact JSON-LD to explicit form.
+  - Makes all IRIs absolute, removes @context compaction
+  - Essential for seeing the full property URIs in a vocabulary
+
+**jsonld.compact(doc, context)** — Compact expanded JSON-LD with a context.
+  - Applies prefix mappings for readable output
+  - Useful after expand to make results human-readable
+
+**jsonld.frame(doc, frame)** — Extract subgraph matching a frame pattern.
+  - Like a structured query over JSON-LD — specify the shape you want
+  - Example: frame for all properties with a given rdfs:domain
+
+### Discovery Strategy
+
+1. Call fetchVoID() to understand the endpoint structure (named graphs, vocabularies)
+2. Call fetchShapes() for data constraints and agent hints
+3. Call fetchExamples() for query templates
+4. Use fetchJsonLd() to retrieve vocabulary definitions from /ontology/{vocab} as JSON-LD
+5. Use jsonld.expand() to see full property URIs, domains, ranges, and class hierarchies
+6. Use jsonld.frame() to extract specific patterns (e.g., all properties of a class)
+7. Construct SPARQL queries informed by vocabulary structure
+8. Use comunica_query() to execute queries against data graphs
 `.trim();
 
 export const LTQP_DOCS = `
@@ -62,16 +107,7 @@ ${BASELINE_DOCS}
   - Useful for exploring data without knowing the exact graph structure
 `.trim();
 
-export const COMBINED_DOCS = `
-${JSONLD_DOCS}
-
-### Link Traversal (additional)
-
-**comunica_traverse(query, seedUrls)** — Execute SPARQL with link traversal.
-  - The engine follows RDF links automatically during query execution
-  - seedUrls: starting points for traversal
-  - Results arrive progressively as links are discovered
-`.trim();
+export const COMBINED_DOCS = JSONLD_DOCS;
 
 export function getGlobalDocs(condition: string): string {
   switch (condition) {

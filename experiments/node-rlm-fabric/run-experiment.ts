@@ -135,9 +135,27 @@ async function main(): Promise<void> {
   console.log(`Loaded ${tasks.length} tasks`);
   console.log();
 
-  // Create sandbox tools
+  // Create sandbox tools and select per condition
   const tools = createSandboxTools({ endpoint: args.endpoint, fabricFetch });
   const globalDocs = getGlobalDocs(args.condition);
+
+  const baseSandbox = {
+    fetchVoID: tools.fetchVoID,
+    fetchShapes: tools.fetchShapes,
+    fetchExamples: tools.fetchExamples,
+    fetchEntity: tools.fetchEntity,
+  };
+
+  const sandboxGlobals: Record<string, unknown> = (() => {
+    switch (args.condition) {
+      case "js-jsonld":
+        return { ...baseSandbox, comunica_query: tools.comunica_query, fetchJsonLd: tools.fetchJsonLd, jsonld: tools.jsonld };
+      case "js-combined":
+        return { ...baseSandbox, comunica_query: tools.comunica_query, fetchJsonLd: tools.fetchJsonLd, jsonld: tools.jsonld };
+      default:
+        return { ...baseSandbox, comunica_query: tools.comunica_query };
+    }
+  })();
 
   // Run tasks sequentially
   const results: TaskResult[] = [];
@@ -190,7 +208,7 @@ async function main(): Promise<void> {
       const result = await rlm(task.query, endpointSD, {
         callLLM,
         maxIterations: args.maxIterations,
-        sandboxGlobals: { ...tools },
+        sandboxGlobals,
         globalDocs,
         observer,
       });

@@ -1,0 +1,50 @@
+[
+  {
+    "id": "vocab-obs-to-sensor-properties",
+    "query": "What properties in the SOSA ontology connect an Observation to a Sensor? List the property local names.",
+    "context": "https://bootstrap.cogitarelink.ai",
+    "expected": ["madeBySensor"],
+    "metadata": {
+      "setup": { "type": "none" },
+      "description": "Requires navigating SOSA ontology structure to find properties with domain Observation and range Sensor (or inverse). Tests rdfs:domain/range reasoning.",
+      "task_type": "vocab-navigation",
+      "target_vocab": "sosa"
+    }
+  },
+  {
+    "id": "vocab-sio-float-range-properties",
+    "query": "List the SIO properties that have xsd:float as their rdfs:range.",
+    "context": "https://bootstrap.cogitarelink.ai",
+    "expected": ["has-value"],
+    "metadata": {
+      "setup": { "type": "none" },
+      "description": "Requires querying SIO ontology for properties with range xsd:float. No SPARQL example covers this. Tests schema introspection capability.",
+      "task_type": "vocab-navigation",
+      "target_vocab": "sio"
+    }
+  },
+  {
+    "id": "vocab-sio-inverse-chain",
+    "query": "Starting from sio:MeasuredValue, what property leads back to the entity that has the attribute, according to the SIO ontology?",
+    "context": "https://bootstrap.cogitarelink.ai",
+    "expected": ["is-attribute-of"],
+    "metadata": {
+      "setup": { "type": "none" },
+      "description": "Requires multi-hop reasoning: MeasuredValue is range of has-attribute, has-attribute has inverseOf is-attribute-of. Tests owl:inverseOf + rdfs:range chain.",
+      "task_type": "vocab-navigation",
+      "target_vocab": "sio"
+    }
+  },
+  {
+    "id": "vocab-observation-subclasses",
+    "query": "Does the SOSA ontology define any subclasses of sosa:Observation? If so, list them. If not, say 'none'.",
+    "context": "https://bootstrap.cogitarelink.ai",
+    "expected": ["none"],
+    "metadata": {
+      "setup": { "type": "none" },
+      "description": "Negative test: SOSA does not define subclasses of Observation. Tests whether the agent can confirm absence rather than hallucinate. Requires checking rdfs:subClassOf in /ontology/sosa.",
+      "task_type": "vocab-navigation",
+      "target_vocab": "sosa"
+    }
+  }
+]

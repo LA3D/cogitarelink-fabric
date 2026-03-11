@@ -1,0 +1,141 @@
+# Analyze Phase 2.5b JSON-LD Navigation Trajectories
+# Compares js-baseline vs js-jsonld vs js-combined conditions,
+# classifying tool choice patterns and the SPARQL/JSON-LD boundary.
+#
+# Input: trajectory JSON files in results/ directory (multiple conditions)
+# Output: markdown analysis report in reports/
+
+agent tool_classifier:
+  model: sonnet
+  prompt: "You are an expert in agentic tool use patterns. You classify each iteration of an RLM trajectory by which tool family the agent used: SPARQL (comunica_query), JSON-LD (fetchJsonLd, jsonld.expand/compact/frame), discovery (fetchVoID/fetchShapes/fetchExamples), or mixed."
+
+agent boundary_analyst:
+  model: sonnet
+  prompt: "You are an expert in knowledge representation and agent navigation. You identify the moment in a trajectory where an agent switches from one tool family to another, and analyze why the switch happened."
+
+agent navigator_analyst:
+  model: sonnet
+  prompt: "You are an expert in agentic systems and knowledge fabric design, analyzing how RLM agents navigate self-describing SPARQL endpoints using the D9 four-layer KR architecture."
+
+# Step 1: Load all trajectory files across conditions
+let all_trajectories = session: navigator_analyst
+  prompt: |
+    Load all trajectory JSON files from experiments/node-rlm-fabric/results/trajectory-*.json
+
+    Group by condition (js-baseline, js-jsonld, js-combined).
+    For each task trajectory extract:
+    1. Tool calls per iteration (function name + arguments)
+    2. Score, iterations, token usage, wall time
+    3. Whether fetchJsonLd or jsonld.* were called (and how many times)
+    4. Whether comunica_query was called (and how many times)
+
+    Return structured summary grouped by condition and task.
+
+# Step 2: Parallel analysis
+parallel:
+  tool_choices = session: tool_classifier
+    prompt: |
+      For each trajectory, classify every iteration by tool family:
+
+      - "discovery": fetchVoID, fetchShapes, fetchExamples
+      - "jsonld": fetchJsonLd, jsonld.expand, jsonld.compact, jsonld.frame
+      - "sparql": comunica_query
+      - "compute": pure JS computation (no tool calls)
+      - "submit": return() call
+
+      Produce a per-task timeline: iteration -> tool_family
+      Then aggregate: per condition, what fraction of iterations use each family?
+
+      Key question: in js-jsonld and js-combined, does the agent actually USE
+      the JSON-LD tools? Or does it ignore them and go straight to SPARQL?
+    context: all_trajectories
+
+  boundary_moments = session: boundary_analyst
+    prompt: |
+      For js-jsonld and js-combined conditions, find "boundary moments":
+      iterations where the agent switches from JSON-LD navigation to SPARQL
+      (or vice versa).
+
+      For each boundary moment:
+      1. What was the agent doing before the switch?
+      2. What triggered the switch? (error? insufficient info? pattern match?)
+      3. Did the switch succeed (lead to correct answer)?
+      4. Was the switch necessary (could the previous approach have worked)?
+
+      If there are NO boundary moments (agent uses only one tool family),
+      document that finding -- it's equally important.
+
+      The research question: where is the natural boundary between
+      JSON-LD navigation and SPARQL querying for vocabulary understanding?
+    context: all_trajectories
+
+  vocab_depth = session: navigator_analyst
+    prompt: |
+      For trajectories using JSON-LD tools, measure vocabulary navigation depth:
+
+      1. How many fetchJsonLd() calls? Which URLs?
+      2. How many jsonld.expand() calls? On which documents?
+      3. How many jsonld.frame() calls? What frame patterns?
+      4. Did the agent follow @context links to discover related vocabularies?
+      5. How deep did the agent go before it had enough information?
+
+      Compare with SPARQL-only trajectories: how many comunica_query calls
+      against /ontology/* graphs achieve the same information?
+
+      Efficiency question: is JSON-LD navigation faster (fewer iterations)
+      or slower (more iterations) than SPARQL exploration for vocab understanding?
+    context: all_trajectories
+
+  efficiency = session: navigator_analyst
+    prompt: |
+      Compare efficiency across conditions:
+
+      | Metric | js-baseline | js-jsonld | js-combined |
+      |--------|-------------|-----------|-------------|
+      | Mean score | | | |
+      | Mean iterations | | | |
+      | Mean SPARQL queries | | | |
+      | Mean JSON-LD ops | | | |
+      | Mean tokens/task | | | |
+      | Mean wall time | | | |
+      | Est. cost/task | | | |
+
+      For each metric, note whether the difference is meaningful.
+      Separate results by task category (existing SIO tasks vs new vocab tasks).
+    context: all_trajectories
+
+# Step 3: Synthesis
+output analysis = session: navigator_analyst
+  prompt: |
+    Create a Phase 2.5b analysis report as markdown:
+
+    # Phase 2.5b: JSON-LD Navigation Analysis
+    **Date**: [timestamp]  **Conditions**: js-baseline, js-jsonld, js-combined
+
+    ## Key Finding
+    [1-2 sentences: the main result -- does JSON-LD navigation help?]
+
+    ## Tool Choice Patterns
+    [Per-condition breakdown of tool usage. Include the timeline visualizations.]
+
+    ## The SPARQL/JSON-LD Boundary
+    [Where do agents switch? What triggers it? Is there a consistent pattern?]
+
+    ## Vocabulary Navigation Depth
+    [How deep do agents go in JSON-LD navigation? Is it efficient?]
+
+    ## Condition Comparison
+    [Score, efficiency, cost comparison table across conditions]
+
+    ## Per-Task Analysis
+    [Table: taskId | condition | score | tool_sequence | boundary_moment | notes]
+
+    ## Research Implications
+    [What this means for fabric design. Does JSON-LD add value? When?
+    Connections to D9 progressive disclosure, D31 transport complementarity.]
+
+    ## Recommendations
+    [Next experiments. Fabric structure changes. Tool improvements.]
+
+    Save to: experiments/node-rlm-fabric/reports/phase2.5b-[timestamp]-analysis.md
+  context: { all_trajectories, tool_choices, boundary_moments, vocab_depth, efficiency }
