@@ -112,6 +112,20 @@ VOID_TURTLE = """\
             fabric:graphPurpose "schema" ;
             rdfs:comment "W3C DCAT 3 vocabulary (cached). Catalog, Dataset, DataService, Distribution classes. Explore with JSON-LD via /ontology/dcat or query with SPARQL CONSTRUCT." ;
         ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/odrl> ;
+            void:vocabulary <http://www.w3.org/ns/odrl/2/> ;
+            prov:wasDerivedFrom <http://www.w3.org/ns/odrl/2/> ;
+            fabric:graphPurpose "schema" ;
+            rdfs:comment "W3C ODRL 2.2 vocabulary (cached). Policy, Permission, Prohibition, Duty, Action, Asset classes for digital rights. Explore with JSON-LD via /ontology/odrl or query with SPARQL CONSTRUCT." ;
+        ] ;
+        sd:namedGraph [
+            sd:name <{base}/ontology/dprod> ;
+            void:vocabulary <https://ekgf.github.io/dprod/> ;
+            prov:wasDerivedFrom <https://ekgf.github.io/dprod/> ;
+            fabric:graphPurpose "schema" ;
+            rdfs:comment "EKGF/OMG DPROD ontology (cached). DCAT profile for Data Products — DataProduct, Protocol, SecuritySchemaType classes. Explore with JSON-LD via /ontology/dprod or query with SPARQL CONSTRUCT." ;
+        ] ;
     ] .
 
 # --- VoID Dataset (D6/D9) ---
@@ -127,6 +141,8 @@ VOID_TURTLE = """\
     void:vocabulary <http://www.w3.org/ns/prov#> ;
     void:vocabulary <http://semanticscience.org/resource/> ;
     void:vocabulary <http://www.w3.org/ns/dcat#> ;
+    void:vocabulary <http://www.w3.org/ns/odrl/2/> ;
+    void:vocabulary <https://ekgf.github.io/dprod/> ;
     dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;
     void:subset [
         a void:Dataset ;
@@ -158,7 +174,9 @@ VOID_TURTLE = """\
                     <http://www.w3.org/2006/time#> ,
                     <http://www.w3.org/ns/prov#> ,
                     <http://semanticscience.org/resource/> ,
-                    <http://www.w3.org/ns/dcat#> ;
+                    <http://www.w3.org/ns/dcat#> ,
+                    <http://www.w3.org/ns/odrl/2/> ,
+                    <https://ekgf.github.io/dprod/> ;
     dct:conformsTo <https://w3id.org/cogitarelink/fabric#CoreProfile> ;
     dcat:distribution [
         a dcat:Distribution ;
@@ -199,7 +217,9 @@ VOID_JSONLD = """\
           {{ "sd:name": {{ "@id": "{base}/ontology/fabric" }}, "void:vocabulary": {{ "@id": "https://w3id.org/cogitarelink/fabric#" }}, "prov:wasDerivedFrom": {{ "@id": "https://w3id.org/cogitarelink/fabric#" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "Cogitarelink Fabric vocabulary (cached). Explore with JSON-LD via /ontology/fabric or query with SPARQL CONSTRUCT." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/prof" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dx/prof/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dx/prof/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C Profiles Vocabulary (cached). Explore with JSON-LD via /ontology/prof or query with SPARQL CONSTRUCT." }},
           {{ "sd:name": {{ "@id": "{base}/ontology/role" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dx/prof/role/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dx/prof/role/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C PROF role types (cached). Explore with JSON-LD via /ontology/role or query with SPARQL CONSTRUCT." }},
-          {{ "sd:name": {{ "@id": "{base}/ontology/dcat" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dcat#" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dcat#" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C DCAT 3 vocabulary (cached). Catalog, Dataset, DataService, Distribution classes. Explore with JSON-LD via /ontology/dcat or query with SPARQL CONSTRUCT." }}
+          {{ "sd:name": {{ "@id": "{base}/ontology/dcat" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/dcat#" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/dcat#" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C DCAT 3 vocabulary (cached). Catalog, Dataset, DataService, Distribution classes. Explore with JSON-LD via /ontology/dcat or query with SPARQL CONSTRUCT." }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/odrl" }}, "void:vocabulary": {{ "@id": "http://www.w3.org/ns/odrl/2/" }}, "prov:wasDerivedFrom": {{ "@id": "http://www.w3.org/ns/odrl/2/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "W3C ODRL 2.2 vocabulary (cached). Policy, Permission, Prohibition, Duty, Action, Asset classes for digital rights. Explore with JSON-LD via /ontology/odrl or query with SPARQL CONSTRUCT." }},
+          {{ "sd:name": {{ "@id": "{base}/ontology/dprod" }}, "void:vocabulary": {{ "@id": "https://ekgf.github.io/dprod/" }}, "prov:wasDerivedFrom": {{ "@id": "https://ekgf.github.io/dprod/" }}, "fabric:graphPurpose": "schema", "rdfs:comment": "EKGF/OMG DPROD ontology (cached). DCAT profile for Data Products — DataProduct, Protocol, SecuritySchemaType classes. Explore with JSON-LD via /ontology/dprod or query with SPARQL CONSTRUCT." }}
         ]
       }}
     }},
@@ -216,7 +236,9 @@ VOID_JSONLD = """\
         {{ "@id": "http://www.w3.org/2006/time#" }},
         {{ "@id": "http://www.w3.org/ns/prov#" }},
         {{ "@id": "http://semanticscience.org/resource/" }},
-        {{ "@id": "http://www.w3.org/ns/dcat#" }}
+        {{ "@id": "http://www.w3.org/ns/dcat#" }},
+        {{ "@id": "http://www.w3.org/ns/odrl/2/" }},
+        {{ "@id": "https://ekgf.github.io/dprod/" }}
       ],
       "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }},
       "void:subset": [
@@ -254,7 +276,9 @@ VOID_JSONLD = """\
         {{ "@id": "http://www.w3.org/2006/time#" }},
         {{ "@id": "http://www.w3.org/ns/prov#" }},
         {{ "@id": "http://semanticscience.org/resource/" }},
-        {{ "@id": "http://www.w3.org/ns/dcat#" }}
+        {{ "@id": "http://www.w3.org/ns/dcat#" }},
+        {{ "@id": "http://www.w3.org/ns/odrl/2/" }},
+        {{ "@id": "https://ekgf.github.io/dprod/" }}
       ],
       "dct:conformsTo": {{ "@id": "https://w3id.org/cogitarelink/fabric#CoreProfile" }},
       "dcat:distribution": {{

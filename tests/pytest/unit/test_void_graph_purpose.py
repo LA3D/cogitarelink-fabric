@@ -44,7 +44,8 @@ def test_schema_graphs_have_purpose_schema():
     schema_paths = [
         "ontology/sosa", "ontology/ssn", "ontology/ssn-ext",
         "ontology/sio", "ontology/prov", "ontology/time",
-        "ontology/fabric", "ontology/prof", "ontology/role", "ontology/dcat",
+        "ontology/fabric", "ontology/prof", "ontology/role",
+        "ontology/dcat", "ontology/odrl", "ontology/dprod",
     ]
     for path in schema_paths:
         uri = f"{BASE}/{path}"
