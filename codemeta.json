@@ -2,7 +2,7 @@
   "@context": "https://w3id.org/codemeta/3.1",
   "type": "SoftwareSourceCode",
   "name": "cogitarelink-fabric",
-  "description": "Agentic cyberinfrastructure testbed: a standards-based research knowledge fabric built on FAIR data principles, W3C semantic web standards, and decentralized identity — with experiments testing how LLM-based agents operate as actors within that infrastructure.",
+  "description": "A research prototype exploring what happens when you build the knowledge substrate that agentic meshes assume exists — using W3C standards, FAIR principles, and decentralized identity — and then test whether LLM agents can actually navigate it.",
   "version": "0.1.0",
   "license": "https://spdx.org/licenses/Apache-2.0",
   "codeRepository": "https://github.com/LA3D/cogitarelink-fabric",
